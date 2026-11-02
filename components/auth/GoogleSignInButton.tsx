@@ -23,8 +23,6 @@ export function GoogleSignInButton({ onPress, loading, label }: Props) {
     transform: [{ scale: scale.value }],
   }));
 
-  if (Platform.OS === 'android') return null;
-
   return (
     <Animated.View style={animatedStyle}>
       <TouchableOpacity

@@ -252,6 +252,8 @@
     "googleNoIdToken":                 "Google Sign-In failed: no ID token received.",
     "appleIOSOnly":                    "Sign in with Apple is only available on iOS.",
     "googleAndroidUnavailable":        "Google Sign-In isn't available on Android.",
+    "googlePlayServicesUnavailable":   "Google Play Services is not available on this device or needs to be updated.",
+    "googleDeveloperError":            "Google Sign-In configuration error (DEVELOPER_ERROR). Please check the SHA-1 fingerprint in Firebase Console.",
     "appleUnavailableWeb":             "Apple Sign-In requires the iOS app — not available on web.",
     "appleUnavailableDevice":          "Sign in with Apple is not available on this device.",
     "appleNoIdentityToken":            "Apple Sign-In failed: no identity token received."

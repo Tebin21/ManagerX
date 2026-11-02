@@ -248,10 +248,10 @@ function mapPasswordResetError(e: any): string {
 let googleSigninConfigured = false;
 async function getGoogleSignin() {
   const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
-  if (!googleSigninConfigured) {
-    GoogleSignin.configure({ webClientId: WEB_CLIENT_ID });
-    googleSigninConfigured = true;
-  }
+  GoogleSignin.configure({
+    webClientId: WEB_CLIENT_ID,
+    offlineAccess: false,
+  });
   return GoogleSignin;
 }
 
@@ -604,12 +604,17 @@ async function reacquireCredential(
   const providerId = user.providerData[0]?.providerId;
 
   if (providerId === 'google.com') {
-    if (Platform.OS === 'android') return null;
     try {
       const GoogleSignin = await getGoogleSignin();
       const signInResult = await GoogleSignin.signIn();
       if ((signInResult as any)?.type && (signInResult as any).type !== 'success') return null;
-      const idToken = (signInResult as any)?.data?.idToken ?? (signInResult as any)?.idToken;
+      let idToken = (signInResult as any)?.data?.idToken ?? (signInResult as any)?.idToken;
+      if (!idToken) {
+        try {
+          const tokens = await GoogleSignin.getTokens();
+          idToken = tokens?.idToken;
+        } catch {}
+      }
       if (!idToken) return null;
       return GoogleAuthProvider.credential(idToken);
     } catch {
@@ -731,9 +736,6 @@ export const useAuthStore = create<AuthState>()(
       pendingPasswordResetToken: null,
 
       signInWithGoogle: async () => {
-        if (Platform.OS === 'android') {
-          return { error: i18n.t('authErrors.googleAndroidUnavailable') };
-        }
         if (!isFirebaseAvailable) {
           return { error: i18n.t('authErrors.googleUnavailableWeb') };
         }
@@ -749,8 +751,14 @@ export const useAuthStore = create<AuthState>()(
             set({ isLoading: false });
             return { error: i18n.t('authErrors.googleSignInCancelled') };
           }
-          const idToken =
+          let idToken =
             (signInResult as any)?.data?.idToken ?? (signInResult as any)?.idToken;
+          if (!idToken) {
+            try {
+              const tokens = await GoogleSignin.getTokens();
+              idToken = tokens?.idToken;
+            } catch {}
+          }
           if (!idToken) {
             set({ isLoading: false });
             return { error: i18n.t('authErrors.googleNoIdToken') };
@@ -772,6 +780,21 @@ export const useAuthStore = create<AuthState>()(
           // codes and keep their own message instead of a generic fallback.
           if (typeof e?.code === 'string' && e.code.startsWith('auth/')) {
             return { error: mapFirebaseAuthError(e) };
+          }
+          const isCancelled =
+            e?.code === 'SIGN_IN_CANCELLED' ||
+            e?.code === '12501' ||
+            e?.message?.includes('12501') ||
+            e?.message?.toLowerCase().includes('cancel');
+          if (isCancelled) {
+            return { error: i18n.t('authErrors.googleSignInCancelled') };
+          }
+          if (e?.code === 'PLAY_SERVICES_NOT_AVAILABLE' || e?.code === '7') {
+            return { error: i18n.t('authErrors.googlePlayServicesUnavailable') };
+          }
+          if (e?.code === 'DEVELOPER_ERROR' || e?.code === '10' || e?.message?.includes('DEVELOPER_ERROR')) {
+            console.error('[GoogleSignIn] DEVELOPER_ERROR: SHA-1 fingerprint mismatch or missing in Firebase console.', e);
+            return { error: i18n.t('authErrors.googleDeveloperError') };
           }
           return { error: e?.message ?? 'Google Sign-In failed.' };
         }
@@ -1055,12 +1078,10 @@ export const useAuthStore = create<AuthState>()(
         } catch {}
         if (isFirebaseAvailable) {
           try { await firebaseSignOut(getFirebaseAuth()); } catch {}
-          if (Platform.OS !== 'android') {
-            try {
-              const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
-              await GoogleSignin.signOut();
-            } catch {}
-          }
+          try {
+            const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
+            await GoogleSignin.signOut();
+          } catch {}
         }
         try {
           const { useManagementStore } = await import('@/store/managementStore');

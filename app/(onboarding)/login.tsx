@@ -539,29 +539,25 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           {/* Divider */}
-          {Platform.OS !== 'android' && (
-            <>
-              <View style={styles.dividerRow}>
-                <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
-                <Text
-                  style={[
-                    styles.dividerText,
-                    curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
-                    { color: isDark ? '#64748B' : '#94A3B8' },
-                  ]}
-                >
-                  {strings.or}
-                </Text>
-                <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
-              </View>
+          <View style={styles.dividerRow}>
+            <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
+            <Text
+              style={[
+                styles.dividerText,
+                curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+                { color: isDark ? '#64748B' : '#94A3B8' },
+              ]}
+            >
+              {strings.or}
+            </Text>
+            <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
+          </View>
 
-              {/* Social Logins */}
-              <View style={styles.socialBtnsWrapper}>
-                <GoogleSignInButton onPress={handleGoogle} loading={isLoading} label={strings.googleBtn} />
-                <AppleSignInButton onPress={handleApple} loading={isLoading} />
-              </View>
-            </>
-          )}
+          {/* Social Logins */}
+          <View style={styles.socialBtnsWrapper}>
+            <GoogleSignInButton onPress={handleGoogle} loading={isLoading} label={strings.googleBtn} />
+            <AppleSignInButton onPress={handleApple} loading={isLoading} />
+          </View>
         </>
       ) : (
         /* Mobile: Unified Row with 50% Login Button + Google & Apple Buttons */

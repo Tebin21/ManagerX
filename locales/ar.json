@@ -273,6 +273,8 @@
     "googleNoIdToken": "فشل تسجيل الدخول عبر Google: لم يتم استلام رمز الهوية.",
     "appleIOSOnly": "تسجيل الدخول عبر Apple متاح فقط على أجهزة iOS.",
     "googleAndroidUnavailable": "تسجيل الدخول عبر Google غير متاح على Android.",
+    "googlePlayServicesUnavailable": "خدمات Google Play غير متوفرة على هذا الجهاز أو تحتاج إلى تحديث.",
+    "googleDeveloperError": "خطأ في تكوين تسجيل الدخول عبر Google. يرجى التحقق من بصمة SHA-1 في وحدة تحكم Firebase.",
     "appleUnavailableWeb": "تسجيل الدخول عبر Apple يتطلب تطبيق iOS — غير متاح عبر الويب.",
     "appleUnavailableDevice": "تسجيل الدخول عبر Apple غير مدعوم على هذا الجهاز.",
     "appleNoIdentityToken": "فشل تسجيل الدخول عبر Apple: لم يتم استلام رمز الهوية."
