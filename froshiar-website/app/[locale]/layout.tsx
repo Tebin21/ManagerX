@@ -72,11 +72,11 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       dir={dir}
-      className={`${inter.variable} ${rudaw.variable} ${bahijJanna.variable} h-full`}
+      className={`${inter.variable} ${rudaw.variable} ${bahijJanna.variable} h-full dark`}
       suppressHydrationWarning
     >
-      <body className={`min-h-full flex flex-col antialiased ${bodyFontClass}`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <body className={`min-h-full flex flex-col antialiased ${bodyFontClass} bg-[#14110a] text-[#f1f5f9]`}>
+        <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false}>
           <NextIntlClientProvider>{children}</NextIntlClientProvider>
         </ThemeProvider>
       </body>

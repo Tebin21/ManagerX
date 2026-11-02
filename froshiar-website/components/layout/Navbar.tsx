@@ -7,7 +7,6 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Menu, X, Smartphone, Sparkles } from "lucide-react";
 import { Link, usePathname } from "@/i18n/navigation";
 import { LanguageSwitcher } from "./LanguageSwitcher";
-import { ThemeToggle } from "./ThemeToggle";
 
 const NAV_LINKS = [
   { type: "anchor", href: "#home", key: "home" },
@@ -90,12 +89,9 @@ export function Navbar() {
           </ul>
         </nav>
 
-        {/* Right: Language Switcher + Theme Toggle + Mobile Menu Hamburger */}
+        {/* Right: Language Switcher (Flag Button with Left-Opening Drawer) + Mobile Menu Hamburger */}
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <div className="flex items-center gap-1 sm:gap-1.5">
-            <LanguageSwitcher />
-            <ThemeToggle />
-          </div>
+          <LanguageSwitcher />
 
           {/* Mobile Menu Hamburger */}
           <button
@@ -158,8 +154,8 @@ export function Navbar() {
             </ul>
 
             <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 dark:border-gold-900/30">
+              <span className="text-xs font-semibold text-slate-400">زمان / Language</span>
               <LanguageSwitcher />
-              <ThemeToggle />
             </div>
           </motion.div>
         ) : null}

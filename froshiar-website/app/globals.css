@@ -6,14 +6,14 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --color-canvas: #ffffff;
-  --color-canvas-soft: #f8fafc;
-  --color-ink: #0f172a;
+  --color-canvas: #14110a;
+  --color-canvas-soft: #1c1810;
+  --color-ink: #f1f5f9;
+  color-scheme: dark;
 }
 
 .dark {
-  /* Dark mode remaps to a deep navy, not a CSS invert — the gold accent
-     keeps the exact same value in both themes (see --color-gold-500). */
+  /* Dark mode is the permanent universal theme for Froshiar */
   --color-canvas: #14110a;
   --color-canvas-soft: #1c1810;
   --color-ink: #f1f5f9;
