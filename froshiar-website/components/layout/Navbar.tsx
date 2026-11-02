@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Menu, X, Smartphone, Sparkles, Download } from "lucide-react";
+import { Menu, X, Smartphone, Sparkles } from "lucide-react";
 import { Link, usePathname } from "@/i18n/navigation";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
@@ -35,14 +35,14 @@ export function Navbar() {
           className="group flex items-center gap-2.5 sm:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:rounded-full"
           aria-label="Froshiar"
         >
-          <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-gold-500/20 via-gold-100 to-amber-50 p-1.5 border border-gold-400/40 shadow-xs transition-transform duration-300 group-hover:scale-105 dark:from-gold-950 dark:via-gold-900 dark:to-[#1a150c] dark:border-gold-500/40">
+          <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl overflow-hidden shadow-sm transition-transform duration-300 group-hover:scale-105">
             <Image
-              src="/images/logo.png"
+              src="/logo-icon.png"
               alt="Froshiar"
-              width={24}
-              height={24}
+              width={40}
+              height={40}
               priority
-              className="object-contain"
+              className="w-full h-full object-cover"
             />
           </div>
           <span className="text-base sm:text-lg font-bold tracking-tight text-ink group-hover:text-gold-600 dark:group-hover:text-gold-400 transition-colors">
@@ -90,18 +90,9 @@ export function Navbar() {
           </ul>
         </nav>
 
-        {/* Right: Download App CTA Button + Language Switcher + Theme Toggle */}
+        {/* Right: Language Switcher + Theme Toggle + Mobile Menu Hamburger */}
         <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Download App CTA Button */}
-          <a
-            href={isHomePage ? "#download" : "/#download"}
-            className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-gold-500 via-amber-500 to-gold-600 px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-extrabold text-ink-fixed shadow-md shadow-gold-500/20 hover:shadow-lg hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-ink-fixed" />
-            <span>{t("download")}</span>
-          </a>
-
-          <div className="hidden sm:flex items-center gap-1.5">
+          <div className="flex items-center gap-1 sm:gap-1.5">
             <LanguageSwitcher />
             <ThemeToggle />
           </div>

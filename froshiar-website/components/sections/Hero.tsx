@@ -1,16 +1,13 @@
 import { useTranslations } from "next-intl";
 import { Container } from "@/components/ui/Container";
 import { GradientBlob } from "@/components/ui/GradientBlob";
-import { FloatingWrapper } from "@/components/hero/FloatingWrapper";
-import { PhoneMockup } from "@/components/hero/PhoneMockup";
-import { TabletMockup } from "@/components/hero/TabletMockup";
 import { AppDownloadButtons } from "@/components/ui/AppDownloadButtons";
 
 export function Hero() {
   const t = useTranslations("hero");
 
   return (
-    <section id="home" className="relative overflow-hidden pt-28 pb-20 sm:pt-36 sm:pb-32 lg:pt-40">
+    <section id="home" className="relative overflow-hidden pt-28 pb-16 sm:pt-36 sm:pb-24 lg:pt-40 lg:pb-28">
       <GradientBlob className="-top-24 -start-24 h-64 w-64 sm:h-80 sm:w-80" />
       <GradientBlob className="top-40 -end-32 h-72 w-72 sm:h-96 sm:w-96" />
 
@@ -25,7 +22,7 @@ export function Hero() {
 
           {/* ── Official Store Download Buttons (App Store & Google Play) ── */}
           <div className="mt-8 sm:mt-10 flex flex-col items-center justify-center gap-3">
-            <AppDownloadButtons size="lg" />
+            <AppDownloadButtons size="sm" />
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
               <span className="flex text-amber-400 tracking-wider">★★★★★</span>
               <span>•</span>
@@ -34,15 +31,6 @@ export function Hero() {
               <span className="text-[#D4AF37] font-extrabold">داگرتنی بێ بەرامبەر</span>
             </div>
           </div>
-        </div>
-
-        <div className="relative mx-auto mt-14 flex max-w-4xl items-end justify-center gap-3 sm:mt-28 sm:gap-6">
-          <FloatingWrapper delay={0} className="relative z-10 hidden sm:block">
-            <TabletMockup />
-          </FloatingWrapper>
-          <FloatingWrapper delay={1.2} className="relative z-20 -mb-6">
-            <PhoneMockup />
-          </FloatingWrapper>
         </div>
       </Container>
     </section>

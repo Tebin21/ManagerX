@@ -45,46 +45,43 @@ export interface AppDownloadButtonsProps {
 
 export function AppDownloadButtons({
   className = '',
-  size = 'md',
+  size = 'sm',
   layout = 'row',
 }: AppDownloadButtonsProps) {
   const t = useTranslations('download');
 
-  const isLg = size === 'lg';
-  const isSm = size === 'sm';
-
-  const containerLayout = layout === 'col' ? 'flex flex-col' : 'flex flex-row flex-wrap justify-center';
+  const isCol = layout === 'col';
 
   return (
-    <div className={`${containerLayout} items-center gap-3 sm:gap-4 ${className}`}>
+    <div
+      className={`${
+        isCol
+          ? 'flex flex-col w-full max-w-xs'
+          : 'flex flex-row items-center justify-center w-full max-w-sm'
+      } gap-2.5 sm:gap-3.5 ${className}`}
+    >
       {/* ── Apple App Store Button ── */}
       <a
         href={APP_STORE_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className={`group relative flex items-center gap-3 rounded-2xl border transition-all duration-300 active:scale-95 text-start cursor-pointer select-none overflow-hidden ${
-          isSm
-            ? 'px-3.5 py-2 min-w-[150px]'
-            : isLg
-            ? 'px-6 py-3.5 min-w-[210px] sm:min-w-[230px]'
-            : 'px-5 py-3 min-w-[190px] sm:min-w-[205px]'
-        } bg-[#0A0F1D]/90 hover:bg-[#111827] text-white border-slate-700/80 hover:border-[#D4AF37] shadow-lg shadow-black/30 hover:shadow-[0_0_28px_rgba(212,175,55,0.28)] hover:-translate-y-1 backdrop-blur-xl`}
+        className="group relative flex flex-1 items-center gap-2 sm:gap-2.5 rounded-xl sm:rounded-2xl border px-3 py-2 sm:px-4 sm:py-2.5 min-w-[130px] max-w-[175px] bg-[#0A0F1D]/90 hover:bg-[#111827] text-white border-slate-700/80 hover:border-[#D4AF37] shadow-md shadow-black/25 hover:shadow-[0_0_22px_rgba(212,175,55,0.25)] hover:-translate-y-0.5 backdrop-blur-xl transition-all duration-200 active:scale-95 text-start cursor-pointer select-none overflow-hidden"
         aria-label="Download Froshiar on Apple App Store"
       >
         {/* Subtle background gradient shine */}
         <div className="absolute inset-0 bg-gradient-to-tr from-white/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
         {/* Apple Icon */}
-        <div className="shrink-0 text-white group-hover:text-[#D4AF37] group-hover:scale-110 transition-all duration-300">
-          <AppleIcon className={isSm ? 'w-5 h-5' : isLg ? 'w-8 h-8' : 'w-7 h-7'} />
+        <div className="shrink-0 text-white group-hover:text-[#D4AF37] group-hover:scale-105 transition-all duration-300">
+          <AppleIcon className="w-5 h-5 sm:w-5.5 sm:h-5.5" />
         </div>
 
         {/* Text Details */}
         <div className="flex flex-col min-w-0">
-          <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider text-slate-400 group-hover:text-slate-300 transition-colors leading-tight">
+          <span className="text-[9px] sm:text-[10px] font-medium tracking-tight text-slate-400 group-hover:text-slate-300 transition-colors leading-none mb-0.5">
             {t('appStoreSubtitle')}
           </span>
-          <span className={`${isSm ? 'text-xs' : isLg ? 'text-base sm:text-lg' : 'text-sm sm:text-base'} font-black text-white tracking-tight group-hover:text-gold-300 transition-colors leading-snug font-sans`}>
+          <span className="text-xs sm:text-sm font-black text-white tracking-tight group-hover:text-gold-300 transition-colors leading-tight font-sans">
             App Store
           </span>
         </div>
@@ -95,29 +92,23 @@ export function AppDownloadButtons({
         href={GOOGLE_PLAY_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className={`group relative flex items-center gap-3 rounded-2xl border transition-all duration-300 active:scale-95 text-start cursor-pointer select-none overflow-hidden ${
-          isSm
-            ? 'px-3.5 py-2 min-w-[150px]'
-            : isLg
-            ? 'px-6 py-3.5 min-w-[210px] sm:min-w-[230px]'
-            : 'px-5 py-3 min-w-[190px] sm:min-w-[205px]'
-        } bg-[#0A0F1D]/90 hover:bg-[#111827] text-white border-slate-700/80 hover:border-[#D4AF37] shadow-lg shadow-black/30 hover:shadow-[0_0_28px_rgba(212,175,55,0.28)] hover:-translate-y-1 backdrop-blur-xl`}
+        className="group relative flex flex-1 items-center gap-2 sm:gap-2.5 rounded-xl sm:rounded-2xl border px-3 py-2 sm:px-4 sm:py-2.5 min-w-[130px] max-w-[175px] bg-[#0A0F1D]/90 hover:bg-[#111827] text-white border-slate-700/80 hover:border-[#D4AF37] shadow-md shadow-black/25 hover:shadow-[0_0_22px_rgba(212,175,55,0.25)] hover:-translate-y-0.5 backdrop-blur-xl transition-all duration-200 active:scale-95 text-start cursor-pointer select-none overflow-hidden"
         aria-label="Download Froshiar on Google Play Store"
       >
         {/* Subtle background gradient shine */}
         <div className="absolute inset-0 bg-gradient-to-tr from-white/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
         {/* Google Play Icon */}
-        <div className="shrink-0 group-hover:scale-110 transition-all duration-300">
-          <GooglePlayIcon className={isSm ? 'w-5 h-5' : isLg ? 'w-8 h-8' : 'w-7 h-7'} />
+        <div className="shrink-0 group-hover:scale-105 transition-all duration-300">
+          <GooglePlayIcon className="w-5 h-5 sm:w-5.5 sm:h-5.5" />
         </div>
 
         {/* Text Details */}
         <div className="flex flex-col min-w-0">
-          <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider text-slate-400 group-hover:text-slate-300 transition-colors leading-tight">
+          <span className="text-[9px] sm:text-[10px] font-medium tracking-tight text-slate-400 group-hover:text-slate-300 transition-colors leading-none mb-0.5">
             {t('googlePlaySubtitle')}
           </span>
-          <span className={`${isSm ? 'text-xs' : isLg ? 'text-base sm:text-lg' : 'text-sm sm:text-base'} font-black text-white tracking-tight group-hover:text-gold-300 transition-colors leading-snug font-sans`}>
+          <span className="text-xs sm:text-sm font-black text-white tracking-tight group-hover:text-gold-300 transition-colors leading-tight font-sans">
             Google Play
           </span>
         </div>

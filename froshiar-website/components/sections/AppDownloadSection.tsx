@@ -47,7 +47,7 @@ export function AppDownloadSection() {
               </div>
 
               {/* Download Buttons */}
-              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
+              <div className="pt-2 flex items-center justify-center lg:justify-start">
                 <AppDownloadButtons size="lg" />
               </div>
 
@@ -68,13 +68,13 @@ export function AppDownloadSection() {
             {/* Right: Phone Visual Mockup / Logo Display */}
             <div className="relative shrink-0 flex items-center justify-center">
               <div className="relative w-64 h-64 sm:w-80 sm:h-80 rounded-3xl bg-gradient-to-tr from-[#D4AF37]/20 via-[#D4AF37]/10 to-transparent p-6 border border-[#D4AF37]/30 flex flex-col items-center justify-center text-center shadow-2xl backdrop-blur-md">
-                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr from-[#D4AF37] to-[#B8860B] p-4 shadow-xl shadow-[#D4AF37]/30 flex items-center justify-center mb-4">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden shadow-2xl shadow-[#D4AF37]/30 mb-4 border border-[#D4AF37]/40">
                   <Image
-                    src="/images/logo.png"
+                    src="/logo-icon.png"
                     alt="Froshiar App"
-                    width={80}
-                    height={80}
-                    className="object-contain"
+                    width={112}
+                    height={112}
+                    className="w-full h-full object-cover"
                   />
                 </div>
                 <h3 className="text-lg font-black text-ink dark:text-white">فرۆشیار - Froshiar</h3>

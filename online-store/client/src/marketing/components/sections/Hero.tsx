@@ -1,16 +1,13 @@
 import { useLocale } from "../../i18n/LocaleContext";
 import { Container } from "../ui/Container";
 import { GradientBlob } from "../ui/GradientBlob";
-import { FloatingWrapper } from "../hero/FloatingWrapper";
-import { PhoneMockup } from "../hero/PhoneMockup";
-import { TabletMockup } from "../hero/TabletMockup";
 
 export function Hero() {
   const { messages } = useLocale();
   const t = messages.hero;
 
   return (
-    <section id="home" className="relative overflow-hidden pt-12 pb-20 sm:pt-24 sm:pb-32">
+    <section id="home" className="relative overflow-hidden pt-12 pb-16 sm:pt-20 sm:pb-24">
       <GradientBlob className="-top-24 -start-24 h-64 w-64 sm:h-80 sm:w-80" />
       <GradientBlob className="top-40 -end-32 h-72 w-72 sm:h-96 sm:w-96" />
 
@@ -22,15 +19,6 @@ export function Hero() {
           <p className="mx-auto mt-5 max-w-xl text-base text-slate-500 sm:mt-6 sm:text-lg">
             {t.subtitle}
           </p>
-        </div>
-
-        <div className="relative mx-auto mt-14 flex max-w-4xl items-end justify-center gap-3 sm:mt-28 sm:gap-6">
-          <FloatingWrapper delay={0} className="relative z-10 hidden sm:block">
-            <TabletMockup />
-          </FloatingWrapper>
-          <FloatingWrapper delay={1.2} className="relative z-20 -mb-6">
-            <PhoneMockup />
-          </FloatingWrapper>
         </div>
       </Container>
     </section>
