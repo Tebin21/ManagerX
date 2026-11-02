@@ -6,6 +6,8 @@ import { StorefrontView } from '@/components/storefront/StorefrontView';
 
 export const dynamic = 'force-dynamic';
 export const dynamicParams = true;
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 const RESERVED_SLUGS = ['admin', 'privacy', 'terms', 'delete-account', 'api', '_next'];
 

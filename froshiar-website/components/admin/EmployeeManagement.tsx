@@ -71,6 +71,7 @@ import {
   deleteField,
   onSnapshot,
   query,
+  where,
 } from 'firebase/firestore';
 
 export type PermissionState = 'active' | 'disabled' | 'hidden';
@@ -1557,6 +1558,116 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     }
   };
 
+  // Comprehensive Online Store and Domain deletion helper (Backend API + all Firestore collections)
+  const purgeOnlineStoreCompletely = async (subdomain: string, email?: string, candidateId?: string) => {
+    const cleanSubdomain = (subdomain || '').trim().toLowerCase();
+    const db = getClientFirestore();
+
+    // 1. Delete on backend API if subdomain exists
+    if (cleanSubdomain) {
+      try {
+        await fetch(`https://api.froshiar.store/api/admin/stores/${encodeURIComponent(cleanSubdomain)}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ae436b2edb88e0003304a1b01a9080b00a6e410b717c9bc43aaf00c95cf88d96',
+          },
+          body: JSON.stringify({ confirm: 'DELETE' }),
+        });
+      } catch (apiErr) {
+        console.warn('Backend delete store error:', apiErr);
+      }
+    }
+
+    if (!db) return;
+
+    // 2. Candidate Doc IDs
+    const candidateDocIds = new Set<string>();
+    if (candidateId) candidateDocIds.add(candidateId);
+    if (email) {
+      const cleanEmail = email.trim().toLowerCase();
+      candidateDocIds.add(cleanEmail);
+      const cleanId = getCleanDocId(cleanEmail);
+      if (cleanId) candidateDocIds.add(cleanId);
+    }
+
+    // 3. Delete from store_activations (by candidate doc IDs & by query)
+    for (const dId of candidateDocIds) {
+      try {
+        await deleteDoc(doc(db, 'store_activations', dId));
+      } catch {}
+    }
+    if (cleanSubdomain) {
+      try {
+        const q = query(collection(db, 'store_activations'), where('subdomain', '==', cleanSubdomain));
+        const snap = await getDocs(q);
+        for (const docSnap of snap.docs) {
+          try {
+            await deleteDoc(docSnap.ref);
+          } catch {}
+        }
+      } catch {}
+    }
+
+    // 4. Clear from employee_accounts
+    for (const dId of candidateDocIds) {
+      try {
+        await updateDoc(doc(db, 'employee_accounts', dId), {
+          onlineStore: deleteField(),
+        });
+      } catch {
+        try {
+          await setDoc(doc(db, 'employee_accounts', dId), { onlineStore: null }, { merge: true });
+        } catch {}
+      }
+    }
+    if (cleanSubdomain) {
+      try {
+        const q = query(collection(db, 'employee_accounts'), where('onlineStore.subdomain', '==', cleanSubdomain));
+        const snap = await getDocs(q);
+        for (const docSnap of snap.docs) {
+          try {
+            await updateDoc(docSnap.ref, { onlineStore: deleteField() });
+          } catch {}
+        }
+      } catch {}
+    }
+
+    // 5. Clear from user_subscriptions
+    for (const dId of candidateDocIds) {
+      try {
+        await updateDoc(doc(db, 'user_subscriptions', dId), {
+          onlineStore: deleteField(),
+          storefront_enabled: false,
+          onlineStoreActive: false,
+        });
+      } catch {
+        try {
+          await setDoc(doc(db, 'user_subscriptions', dId), {
+            onlineStore: null,
+            storefront_enabled: false,
+            onlineStoreActive: false,
+          }, { merge: true });
+        } catch {}
+      }
+    }
+    if (cleanSubdomain) {
+      try {
+        const q = query(collection(db, 'user_subscriptions'), where('onlineStore.subdomain', '==', cleanSubdomain));
+        const snap = await getDocs(q);
+        for (const docSnap of snap.docs) {
+          try {
+            await updateDoc(docSnap.ref, {
+              onlineStore: deleteField(),
+              storefront_enabled: false,
+              onlineStoreActive: false,
+            });
+          } catch {}
+        }
+      } catch {}
+    }
+  };
+
   // Delete Employee
   const handleDeleteEmployee = async (emp: EmployeeAccount) => {
     const confirmMsg = isKu
@@ -1569,6 +1680,9 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     if (!db) return;
 
     try {
+      if (emp.onlineStore?.subdomain) {
+        await purgeOnlineStoreCompletely(emp.onlineStore.subdomain, emp.email, getCleanDocId(emp.email) || emp.id);
+      }
       const docRef = doc(db, 'employee_accounts', getCleanDocId(emp.email) || emp.id);
       await deleteDoc(docRef);
     } catch (e) {
@@ -1749,51 +1863,8 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
 
     if (!window.confirm(confirmMsg)) return;
 
-    const db = getClientFirestore();
-    if (!db) return;
-
-    const docId = getCleanDocId(emp.email) || emp.id;
-
     try {
-      // 1. Delete on backend API if subdomain exists
-      if (subdomain) {
-        try {
-          await fetch(`https://api.froshiar.store/api/admin/stores/${encodeURIComponent(subdomain)}`, {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ae436b2edb88e0003304a1b01a9080b00a6e410b717c9bc43aaf00c95cf88d96',
-            },
-            body: JSON.stringify({ confirm: 'DELETE' }),
-          });
-        } catch (apiErr) {
-          console.warn('Backend delete store error (might not exist yet):', apiErr);
-        }
-      }
-
-      // 2. Clear from employee_accounts
-      try {
-        await updateDoc(doc(db, 'employee_accounts', docId), {
-          onlineStore: deleteField(),
-        });
-      } catch (delEmpErr) {
-        await setDoc(doc(db, 'employee_accounts', docId), { onlineStore: null }, { merge: true });
-      }
-
-      // 3. Clear from user_subscriptions
-      try {
-        await updateDoc(doc(db, 'user_subscriptions', docId), {
-          onlineStore: deleteField(),
-          storefront_enabled: false,
-          onlineStoreActive: false,
-        });
-      } catch {}
-
-      // 4. Clear from store_activations
-      try {
-        await deleteDoc(doc(db, 'store_activations', docId));
-      } catch {}
-
+      await purgeOnlineStoreCompletely(subdomain, emp.email, getCleanDocId(emp.email) || emp.id);
       alert(isKu ? 'ماڵپەڕەکە و دۆمەینەکەی بە سەرکەوتوویی سڕدرانەوە و ئازاد کران.' : 'Online store and domain deleted successfully.');
     } catch (e: any) {
       console.error('Failed to delete online store:', e);
@@ -2102,50 +2173,8 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
 
     if (!window.confirm(confirmMsg)) return;
 
-    const db = getClientFirestore();
-    if (!db) return;
-    const docId = store.id || getCleanDocId(store.email);
-
     try {
-      // 1. Delete on backend API
-      if (store.subdomain) {
-        try {
-          await fetch(`https://api.froshiar.store/api/admin/stores/${encodeURIComponent(store.subdomain)}`, {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ae436b2edb88e0003304a1b01a9080b00a6e410b717c9bc43aaf00c95cf88d96',
-            },
-            body: JSON.stringify({ confirm: 'DELETE' }),
-          });
-        } catch (apiErr) {
-          console.warn('Backend delete store error:', apiErr);
-        }
-      }
-
-      // 2. Delete from store_activations
-      await deleteDoc(doc(db, 'store_activations', docId));
-
-      // 3. Clear from employee_accounts
-      try {
-        await updateDoc(doc(db, 'employee_accounts', docId), {
-          onlineStore: deleteField(),
-        });
-      } catch {
-        try {
-          await setDoc(doc(db, 'employee_accounts', docId), { onlineStore: null }, { merge: true });
-        } catch {}
-      }
-
-      // 4. Clear from user_subscriptions
-      try {
-        await updateDoc(doc(db, 'user_subscriptions', docId), {
-          onlineStore: deleteField(),
-          storefront_enabled: false,
-          onlineStoreActive: false,
-        });
-      } catch {}
-
+      await purgeOnlineStoreCompletely(store.subdomain, store.email, store.id);
       alert(isKu ? 'وێب ستۆرەکە بە سەرکەوتوویی سڕدرایەوە و بەستەرەکەی ئازاد کرا.' : 'Online store deleted successfully.');
     } catch (e: any) {
       console.error('Delete store error:', e);
@@ -2209,6 +2238,23 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     }
 
     try {
+      // 0. If subdomain changed, delete old subdomain from backend API
+      const oldSubdomain = (editingStoreData.subdomain || '').trim().toLowerCase();
+      if (oldSubdomain && oldSubdomain !== finalSubdomain) {
+        try {
+          await fetch(`https://api.froshiar.store/api/admin/stores/${encodeURIComponent(oldSubdomain)}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ae436b2edb88e0003304a1b01a9080b00a6e410b717c9bc43aaf00c95cf88d96',
+            },
+            body: JSON.stringify({ confirm: 'DELETE' }),
+          });
+        } catch (oldErr) {
+          console.warn('Failed to delete old subdomain on rename:', oldErr);
+        }
+      }
+
       // 1. Update store_activations
       await setDoc(
         doc(db, 'store_activations', docId),
