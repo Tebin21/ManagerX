@@ -28,10 +28,10 @@ export function Navbar() {
     <header className="fixed top-3 sm:top-5 inset-x-0 z-50 mx-auto w-[92%] sm:w-[94%] max-w-5xl">
       <div className="flex items-center justify-between rounded-full border border-slate-200/80 bg-white/85 px-3 py-2 sm:px-4 sm:py-2 shadow-[0_8px_30px_rgb(0,0,0,0.06)] backdrop-blur-xl transition-all dark:border-gold-900/40 dark:bg-[#14110a]/85 dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)]">
         
-        {/* Left: Froshiar Logo Badge & Title */}
+        {/* Left: Froshiar Logo Badge */}
         <Link
           href="/"
-          className="group flex items-center gap-2.5 sm:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:rounded-full"
+          className="group flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:rounded-full"
           aria-label="Froshiar"
         >
           <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl overflow-hidden shadow-sm transition-transform duration-300 group-hover:scale-105">
@@ -44,9 +44,6 @@ export function Navbar() {
               className="w-full h-full object-cover"
             />
           </div>
-          <span className="text-base sm:text-lg font-bold tracking-tight text-ink group-hover:text-gold-600 dark:group-hover:text-gold-400 transition-colors">
-            Froshiar
-          </span>
         </Link>
 
         {/* Center: Desktop Navigation Links (Pill Style) */}
