@@ -99,16 +99,17 @@ export function LanguageSwitcher() {
                   href={pathname}
                   locale={code}
                   onClick={() => setOpen(false)}
-                  className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold transition-all ${
+                  title={label}
+                  aria-label={label}
+                  className={`relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-200 active:scale-95 ${
                     isActive
-                      ? "bg-gold-500 text-ink-fixed shadow-xs"
-                      : "text-slate-300 hover:text-white hover:bg-white/[0.08]"
+                      ? "border-2 border-gold-400 bg-gold-500/20 shadow-[0_0_12px_rgba(212,175,55,0.45)] scale-105"
+                      : "border border-white/10 bg-white/[0.05] hover:bg-white/[0.12] hover:border-gold-500/40 hover:scale-105"
                   }`}
                 >
-                  <div className="w-4.5 h-4.5 rounded-full overflow-hidden shrink-0 border border-white/20 shadow-2xs flex items-center justify-center">
+                  <div className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-full overflow-hidden shrink-0 border border-white/20 shadow-xs flex items-center justify-center">
                     <Flag className="w-full h-full object-cover" />
                   </div>
-                  <span>{label}</span>
                 </Link>
               );
             })}
