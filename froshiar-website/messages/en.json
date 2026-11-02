@@ -76,39 +76,55 @@
   },
   "features": {
     "heading": "Everything your business needs",
-    "subheading": "One app, every tool — built to feel effortless.",
+    "subheading": "An advanced management system, from local warehouse to branded webstore — built to feel effortless and modern.",
     "items": {
+      "onlineStore": {
+        "title": "Online Store with Custom Domain",
+        "description": "Turn your entire inventory into a fast, branded online storefront in seconds with your own subdomains and direct WhatsApp ordering.",
+        "tag": "Webstore",
+        "chips": ["Custom Subdomains", "Instant Sync", "WhatsApp Orders"]
+      },
       "inventory": {
-        "title": "Inventory Management",
-        "description": "Track stock levels, product variants, and low-stock alerts in real time."
+        "title": "Smart Inventory & Barcode",
+        "description": "Real-time stock counts across warehouses, fast barcode scanning, low-stock threshold alerts, and one-tap bulk synchronization.",
+        "tag": "Inventory",
+        "chips": ["Barcode Scanner", "Low Stock Alert", "One-Tap Bulk Sync"]
       },
       "salesPos": {
-        "title": "Sales & POS",
-        "description": "A fast, intuitive checkout built for busy counters and every device."
+        "title": "Fast POS & Smart Receipts",
+        "description": "Lightning-fast counter checkout, custom discounts, multi-tender payments (Cash, Debt, Card), with native PDF and thermal printer receipts.",
+        "tag": "Sales POS",
+        "chips": ["Thermal & PDF Receipts", "Split Payments", "Quick Discounts"]
       },
-      "customers": {
-        "title": "Customer Management",
-        "description": "Keep customer details, purchase history, and balances in one place."
+      "debts": {
+        "title": "Customer & Supplier Debt Ledger",
+        "description": "Track total receivables from customers and payables to suppliers, record installment payments, and export professional account statements.",
+        "tag": "Debts",
+        "chips": ["Account Statements", "Supplier Payables", "Payment Receipts"]
       },
-      "expenses": {
-        "title": "Expense Tracking",
-        "description": "Record and categorize expenses to see exactly where money goes."
+      "staff": {
+        "title": "Staff Accounts & Permission Roles",
+        "description": "Onboard staff and cashiers with tailored permission levels, activity audit logs, and complete management from the super admin dashboard.",
+        "tag": "Security",
+        "chips": ["Custom Roles", "Admin Dashboard", "Audit Trails"]
       },
       "reports": {
-        "title": "Reports & Analytics",
-        "description": "Clear, visual reports that turn daily transactions into real insight."
-      },
-      "onlineStore": {
-        "title": "Online Store",
-        "description": "Turn your catalog into a shareable online store in minutes."
+        "title": "Financial Analytics & Profit Margins",
+        "description": "Automated net profit calculations, daily and monthly revenue charts, expense tracking, and deep insights into top-selling products.",
+        "tag": "Analytics",
+        "chips": ["Net Profit Calc", "Expense Tracking", "Top Performers"]
       },
       "cloudSync": {
-        "title": "Cloud Sync",
-        "description": "Your data stays backed up and in sync across every device."
+        "title": "Cloud Sync & 100% Offline Resilience",
+        "description": "Never stop selling even with zero internet connectivity. Fully reactive offline-first database that seamlessly syncs to the cloud when online.",
+        "tag": "Cloud & Offline",
+        "chips": ["Offline-First", "Automated Cloud Backup", "Zero Data Loss"]
       },
       "multiLang": {
-        "title": "Multi-language Support",
-        "description": "A fully bilingual experience, including native Kurdish support."
+        "title": "Native Kurdish RTL & Dual Currency",
+        "description": "Purpose-built for Kurdish and English with Bahij Janna typography, seamless IQD and USD dual-currency exchange rate conversions.",
+        "tag": "Languages",
+        "chips": ["Bahij Janna Font", "Dual IQD / USD", "Live Exchange Rates"]
       }
     }
   },

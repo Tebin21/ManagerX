@@ -27,11 +27,11 @@ export function Navbar() {
   return (
     <header className="fixed top-3 sm:top-5 inset-x-0 z-50 mx-auto w-[92%] sm:w-[94%] max-w-5xl">
       <div className="flex items-center justify-between rounded-full border border-slate-200/80 bg-white/85 px-3 py-2 sm:px-4 sm:py-2 shadow-[0_8px_30px_rgb(0,0,0,0.06)] backdrop-blur-xl transition-all dark:border-gold-900/40 dark:bg-[#14110a]/85 dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)]">
-        
-        {/* Left: Froshiar Logo Badge */}
+
+        {/* Left: Froshiar Logo Badge & Title */}
         <Link
           href="/"
-          className="group flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:rounded-full"
+          className="group flex items-center gap-2.5 sm:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:rounded-full"
           aria-label="Froshiar"
         >
           <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl overflow-hidden shadow-sm transition-transform duration-300 group-hover:scale-105">
@@ -44,6 +44,9 @@ export function Navbar() {
               className="w-full h-full object-cover"
             />
           </div>
+          <span className="text-base sm:text-lg font-bold tracking-tight text-ink group-hover:text-gold-600 dark:group-hover:text-gold-400 transition-colors">
+            Froshiar
+          </span>
         </Link>
 
         {/* Center: Desktop Navigation Links (Pill Style) */}
@@ -57,11 +60,10 @@ export function Navbar() {
                     <Link
                       href={link.href}
                       aria-current={isActive ? "page" : undefined}
-                      className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all ${
-                        isActive
+                      className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all ${isActive
                           ? "bg-slate-100 text-ink font-semibold dark:bg-white/10 dark:text-white shadow-2xs"
                           : "text-slate-600 hover:text-ink hover:bg-slate-100/70 dark:text-slate-300 dark:hover:text-white dark:hover:bg-white/[0.08]"
-                      }`}
+                        }`}
                     >
                       {link.label}
                     </Link>
@@ -123,11 +125,10 @@ export function Navbar() {
                         href={link.href}
                         onClick={() => setOpen(false)}
                         aria-current={isActive ? "page" : undefined}
-                        className={`block rounded-2xl px-4 py-2.5 transition-colors ${
-                          isActive
+                        className={`block rounded-2xl px-4 py-2.5 transition-colors ${isActive
                             ? "bg-slate-100 text-ink font-bold dark:bg-white/10 dark:text-white"
                             : "text-slate-600 hover:bg-slate-50 hover:text-ink dark:text-slate-300 dark:hover:bg-white/[0.05]"
-                        }`}
+                          }`}
                       >
                         {link.label}
                       </Link>
