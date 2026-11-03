@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { migratedAsyncStorage } from '@/lib/migratedStorage';
 import { Linking } from 'react-native';
 import { copyToClipboard } from '@/lib/clipboard';
 import { getPendingSyncCount, bulkSetStoreVisibility } from '@/lib/sqlite';
@@ -136,99 +138,142 @@ interface OnlineStoreState {
   openWebsite: () => void;
 }
 
-export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
-  enabled: false,
-  slug: null,
-  storeUrl: null,
-  lastSyncAt: null,
-  pendingCount: 0,
-  isRegistering: false,
-  isLoading: false,
-  isSyncingNow: false,
-  storeInfoFields: { description: '', facebookUrl: '', instagramUrl: '', tiktokUrl: '', whatsappNumber: '' },
-  lastSyncError: null,
-  bulkPublishEnabled: false,
-  isBulkPublishing: false,
+export const useOnlineStoreStore = create<OnlineStoreState>()(
+  persist(
+    (set, get) => ({
+      enabled: false,
+      slug: null,
+      storeUrl: null,
+      lastSyncAt: null,
+      pendingCount: 0,
+      isRegistering: false,
+      isLoading: false,
+      isSyncingNow: false,
+      storeInfoFields: { description: '', facebookUrl: '', instagramUrl: '', tiktokUrl: '', whatsappNumber: '', themeMode: 'dark' },
+      lastSyncError: null,
+      bulkPublishEnabled: false,
+      isBulkPublishing: false,
 
-  syncWithSubscription: async (hasActiveSubArg?: boolean) => {
-    const hasActiveSub = typeof hasActiveSubArg === 'boolean'
-      ? hasActiveSubArg
-      : await hasActiveOnlineStoreSubscription();
-    const isCurrentlyEnabled = await getStoreEnabled();
-
-    // Auto-enable when subscription or admin activation is detected and store is not yet enabled
-    if (hasActiveSub && !isCurrentlyEnabled) {
-      await setStoreEnabled(true);
-      const slug = await getStoreSlug();
-      const apiKey = await getStoreApiKey();
-      if (slug && apiKey) {
-        try { await setStoreStatus(slug, apiKey, true); } catch { /* best effort */ }
-      }
-      set({ enabled: true });
-      processQueue();
-    }
-    // CRITICAL: NEVER automatically call setStoreStatus(..., false) in background!
-    // A store must ONLY be deactivated when the user explicitly taps "Disable" in settings.
-  },
-
-  load: async () => {
-    let slug: string | null = null;
-    try {
-      // 1. Check if admin explicitly assigned a subdomain for this account
-      try {
-        const { getOnlineStoreConfigFromAdmin } = await import('@/lib/onlineStore/storeActivationService');
-        const adminConfig = await getOnlineStoreConfigFromAdmin();
-        if (adminConfig?.subdomain && adminConfig.subdomain.trim()) {
-          slug = adminConfig.subdomain.trim().toLowerCase();
-          await setStoreSlug(slug);
+      syncWithSubscription: async (hasActiveSubArg?: boolean) => {
+        let hasActiveSub = hasActiveSubArg;
+        if (typeof hasActiveSub !== 'boolean') {
+          try {
+            const { isOnlineStoreActivatedByAdmin } = await import('@/lib/onlineStore/storeActivationService');
+            const adminActive = await isOnlineStoreActivatedByAdmin();
+            hasActiveSub = adminActive || (await hasActiveOnlineStoreSubscription());
+          } catch {
+            hasActiveSub = await hasActiveOnlineStoreSubscription();
+          }
         }
-      } catch (err) {
-        if (__DEV__) console.warn('[onlineStore] admin config lookup warning:', err);
-      }
+        const isCurrentlyEnabled = await getStoreEnabled();
 
-      // 2. Fall back to local SQLite slug or business name slug
-      if (!slug) {
-        slug = await getStoreSlug();
-      }
-      if (!slug) {
-        await waitForBusinessHydration();
-        const businessName = useBusinessStore.getState().name?.trim();
-        if (businessName) {
-          slug = slugify(businessName);
-          await setStoreSlug(slug);
+        // Auto-enable when subscription or admin activation is detected
+        if (hasActiveSub && (!isCurrentlyEnabled || !get().enabled)) {
+          await setStoreEnabled(true);
+          const slug = await getStoreSlug();
+          const apiKey = await getStoreApiKey();
+          if (slug && apiKey) {
+            try { await setStoreStatus(slug, apiKey, true); } catch { /* best effort */ }
+          }
+          set({ enabled: true });
+          processQueue();
         }
-      }
-    } catch (err) {
-      if (__DEV__) console.warn('[onlineStore] slug resolution failed:', err);
-    }
-    set({ slug, storeUrl: buildStoreUrl(slug) });
+        // CRITICAL: NEVER automatically call setStoreStatus(..., false) in background!
+        // A store must ONLY be deactivated when the user explicitly taps "Disable" in settings.
+      },
 
-    try {
-      let [enabled, lastSyncAt, pendingCount, apiKey, storeInfoFields, lastSyncError, bulkPublishEnabled] = await Promise.all([
-        getStoreEnabled(),
-        getLastSyncAt(),
-        getPendingSyncCount(),
-        getStoreApiKey(),
-        loadStoreInfoFields(),
-        getLastSyncError(),
-        getBulkPublishEnabled(),
-      ]);
+      load: async () => {
+        let slug: string | null = null;
+        let adminConfig: any = null;
+        let isAdminActive = false;
 
-      // CRITICAL: Do NOT auto-disable on load!
-      // Once enabled by the merchant or admin, the store remains active until manually disabled.
-      set({
-        enabled: Boolean(enabled),
-        lastSyncAt,
-        pendingCount,
-        isRegistering: Boolean(enabled && !apiKey),
-        storeInfoFields,
-        lastSyncError: lastSyncError || null,
-        bulkPublishEnabled,
-      });
-    } catch (err) {
-      if (__DEV__) console.warn('[onlineStore] load (stats) failed:', err);
-    }
-  },
+        try {
+          // 1. Check if admin explicitly assigned a subdomain or active status for this account
+          try {
+            const { getOnlineStoreConfigFromAdmin, isOnlineStoreActivatedByAdmin } = await import('@/lib/onlineStore/storeActivationService');
+            [adminConfig, isAdminActive] = await Promise.all([
+              getOnlineStoreConfigFromAdmin().catch(() => null),
+              isOnlineStoreActivatedByAdmin().catch(() => false),
+            ]);
+
+            const adminSubdomain = typeof adminConfig?.subdomain === 'string' ? adminConfig.subdomain.trim().toLowerCase() : null;
+            if (adminSubdomain) {
+              slug = adminSubdomain;
+              await setStoreSlug(adminSubdomain);
+            }
+          } catch (err) {
+            if (__DEV__) console.warn('[onlineStore] admin lookup warning:', err);
+          }
+
+          // 2. Fall back to local SQLite slug or business name slug
+          if (!slug) {
+            slug = await getStoreSlug();
+          }
+          if (!slug) {
+            await waitForBusinessHydration();
+            const businessName = useBusinessStore.getState().name?.trim();
+            if (businessName) {
+              slug = slugify(businessName);
+              await setStoreSlug(slug);
+            }
+          }
+        } catch (err) {
+          if (__DEV__) console.warn('[onlineStore] slug resolution failed:', err);
+        }
+        set({ slug, storeUrl: buildStoreUrl(slug) });
+
+        try {
+          let [storedEnabled, lastSyncAt, pendingCount, apiKey, storeInfoFields, lastSyncError, bulkPublishEnabled] = await Promise.all([
+            getStoreEnabled(),
+            getLastSyncAt(),
+            getPendingSyncCount(),
+            getStoreApiKey(),
+            loadStoreInfoFields(),
+            getLastSyncError(),
+            getBulkPublishEnabled(),
+          ]);
+
+          // Reconcile: If SQLite says enabled, OR persisted state was already enabled,
+          // OR admin config is active, OR admin activation is true:
+          // Then the store MUST be enabled and NEVER deactivated on app launch/exit!
+          const shouldBeEnabled = Boolean(
+            storedEnabled ||
+            get().enabled ||
+            adminConfig?.isActive ||
+            isAdminActive
+          );
+
+          if (shouldBeEnabled && !storedEnabled) {
+            // Persist to local storage so subsequent offline loads immediately see enabled = true
+            await setStoreEnabled(true, true);
+          }
+
+          set({
+            enabled: shouldBeEnabled,
+            lastSyncAt,
+            pendingCount,
+            isRegistering: Boolean(shouldBeEnabled && !apiKey),
+            storeInfoFields,
+            lastSyncError: lastSyncError || null,
+            bulkPublishEnabled,
+          });
+
+          // Ensure backend storefront status is active when enabled
+          if (shouldBeEnabled) {
+            if (slug && apiKey) {
+              try {
+                await setStoreStatus(slug, apiKey, true);
+              } catch {
+                /* best effort - retried on next queue */
+              }
+            } else {
+              processQueue().catch(() => {});
+            }
+          }
+        } catch (err) {
+          if (__DEV__) console.warn('[onlineStore] load (stats) failed:', err);
+        }
+      },
 
   enable: async () => {
     // Employees are strictly restricted from enabling or disabling the storefront
@@ -388,4 +433,17 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
     const { storeUrl } = get();
     if (storeUrl) Linking.openURL(storeUrl);
   },
-}));
+}),
+    {
+      name: '@froshiar_online_store',
+      storage: createJSONStorage(() => migratedAsyncStorage),
+      partialize: (state) => ({
+        enabled: state.enabled,
+        slug: state.slug,
+        storeUrl: state.storeUrl,
+        bulkPublishEnabled: state.bulkPublishEnabled,
+        storeInfoFields: state.storeInfoFields,
+      }),
+    }
+  )
+);

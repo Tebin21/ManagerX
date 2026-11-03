@@ -281,13 +281,14 @@ export async function hasActiveOnlineStoreSubscription(): Promise<boolean> {
   } catch {
     // Non-fatal
   }
-  // If the store was already enabled on this device with an API key, keep it active!
+  // If the store was already enabled on this device, keep it active!
   // Prevents momentary offline/network drops from causing false subscription lapses.
   try {
-    const { getStoreEnabled, getStoreApiKey } = await import('@/lib/onlineStore/storage');
+    const { getStoreEnabled } = await import('@/lib/onlineStore/storage');
+    const { useOnlineStoreStore } = await import('@/store/onlineStoreStore');
     const isEnabled = await getStoreEnabled();
-    const apiKey = await getStoreApiKey();
-    if (isEnabled && apiKey) {
+    const inStoreEnabled = useOnlineStoreStore.getState().enabled;
+    if (isEnabled || inStoreEnabled) {
       return true;
     }
   } catch {}
