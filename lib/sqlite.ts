@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
 import type {
   Product, SaleItem, Sale, Debt,
   IdMode, PaymentMethod, SaleStatus, DebtStatus,
@@ -24,6 +25,7 @@ const DB_NAME = 'froshiar.db';
 // old file is copied across first. Copies (never deletes/moves) the old file,
 // so it stays behind as a safety net; a no-op once the new file already exists.
 async function migrateDatabaseFile(): Promise<void> {
+  if (Platform.OS === 'web') return;
   const { File, Directory } = await import('expo-file-system');
   // SQLite.defaultDatabaseDirectory is a plain OS path (e.g. "/data/user/0/.../SQLite"),
   // not a "file://" URI — but expo-file-system's File/Directory constructors require an

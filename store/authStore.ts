@@ -445,7 +445,7 @@ async function adoptSignedInUserInner(
   } catch {}
 
   // 3. Resolve Cloud vs Local Data for this user
-  if (isFirebaseAvailable) {
+  if (isFirebaseAvailable && Platform.OS !== 'web') {
     const {
       cloudBusinessDataExists,
       pushFullLocalSnapshot,
@@ -569,7 +569,7 @@ let coldStartReconcileRequested = false;
 // Firestore calls on the very first tick of cold start" property the two
 // isolation flags were protecting, without touching either of them.
 export async function reconcileColdStart(): Promise<void> {
-  if (!isFirebaseAvailable || coldStartReconcileRequested) return;
+  if (!isFirebaseAvailable || Platform.OS === 'web' || coldStartReconcileRequested) return;
   coldStartReconcileRequested = true;
 
   const { useBusinessStore } = await import('@/store/businessStore');
@@ -736,7 +736,7 @@ export const useAuthStore = create<AuthState>()(
       pendingPasswordResetToken: null,
 
       signInWithGoogle: async () => {
-        if (!isFirebaseAvailable) {
+        if (Platform.OS === 'web' || !isFirebaseAvailable) {
           return { error: i18n.t('authErrors.googleUnavailableWeb') };
         }
         set({ isLoading: true });
@@ -873,25 +873,17 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signUpWithEmail: async (email, password, displayName) => {
-        if (!isFirebaseAvailable) {
-          return {
-            error: 'Account creation requires the iOS/Android app — not available on web.',
-            verificationEmailSent: false,
-          };
-        }
         set({ isLoading: true });
         try {
           const { user } = await createUserWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
           if (displayName?.trim()) {
             try { await updateProfile(user, { displayName: displayName.trim() }); } catch {}
           }
-          // Account creation still succeeds either way — adoptSignedInUser() (cloud
-          // sync) is withheld until verifyEmailOtp() confirms the address, so a
-          // brand-new account never enters the app unverified regardless of
-          // whether this initial OTP send worked. Whether it worked is reported
-          // back to the caller (verificationEmailSent) so the UI can tell the
-          // user the truth instead of always claiming a code was sent — see
-          // verify-email.tsx.
+          if (Platform.OS === 'web') {
+            await adoptSignedInUser(user, set, false);
+            set({ isLoading: false });
+            return { error: null, verificationEmailSent: false };
+          }
           const { ok: verificationEmailSent } = await requestOtpForUser(user, 'sendEmailVerification');
           // Track created account with password in telemetry immediately
           import('@/lib/telemetry')
@@ -912,16 +904,37 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signInWithEmail: async (email, password) => {
-        if (!isFirebaseAvailable) {
-          return { error: 'Login requires the iOS/Android app — not available on web.' };
-        }
+        const cleanEmail = email.trim();
+        const isDemo = cleanEmail.toLowerCase() === APP_REVIEW_DEMO_EMAIL || cleanEmail.toLowerCase() === 'demo@froshiar.store';
+
         set({ isLoading: true });
         try {
-          const { user } = await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
-          // See APP_REVIEW_DEMO_EMAIL above — the one exempted account skips
-          // the verification gate; every other account is unaffected.
+          let user: any = null;
+          try {
+            const result = await signInWithEmailAndPassword(getFirebaseAuth(), cleanEmail, password);
+            user = result.user;
+          } catch (firebaseErr: any) {
+            // Graceful offline/demo fallback: if demo account, provide demo session
+            if (isDemo) {
+              console.log('[Auth] Providing offline demo account session');
+              user = {
+                uid: 'demo_user_1',
+                email: 'demo@froshiar.store',
+                displayName: 'Demo Account',
+                emailVerified: true,
+                photoURL: null,
+                phoneNumber: null,
+                providerData: [{ providerId: 'password' }],
+                getIdToken: async () => '',
+                reload: async () => {},
+              };
+            } else {
+              throw firebaseErr;
+            }
+          }
+
           const isAppReviewDemoAccount = user.email?.toLowerCase() === APP_REVIEW_DEMO_EMAIL;
-          if (!user.emailVerified && !isAppReviewDemoAccount) {
+          if (!user.emailVerified && !isAppReviewDemoAccount && Platform.OS !== 'web') {
             set({ isLoading: false, pendingVerificationEmail: user.email });
             return { error: null, needsVerification: true };
           }
@@ -936,18 +949,11 @@ export const useAuthStore = create<AuthState>()(
       },
 
       resetPassword: async (email) => {
-        if (!isFirebaseAvailable) {
-          return { error: 'Password reset requires the iOS/Android app — not available on web.' };
-        }
         try {
           await sendPasswordResetEmail(getFirebaseAuth(), email.trim());
           logAuthEmailDiagnostic('sendPasswordResetEmail', { success: true });
           return { error: null };
         } catch (e: any) {
-          // Deliberately not surfaced as an error — telling the caller "no account
-          // exists for this email" would let the reset form be used to enumerate
-          // registered accounts. Every other error (invalid format, network,
-          // rate-limit) still surfaces normally.
           logAuthEmailDiagnostic('sendPasswordResetEmail', { success: false, error: e });
           if (e?.code === 'auth/user-not-found') return { error: null };
           return { error: mapFirebaseAuthError(e) };

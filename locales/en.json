@@ -247,7 +247,7 @@
     "deleteNetworkError":              "No internet connection. Please check your connection and try again.",
     "deleteRequiresRecentLogin":       "Please sign out and sign back in, then try deleting your account again.",
     "deleteGeneric":                   "Failed to delete your account. Please try again.",
-    "googleUnavailableWeb":            "Google Sign-In requires the iOS/Android app — not available on web.",
+    "googleUnavailableWeb":            "Google Sign-In is only available on mobile. On PC, please use Email/Password or Offline Mode.",
     "googleSignInCancelled":           "Sign-in was cancelled.",
     "googleNoIdToken":                 "Google Sign-In failed: no ID token received.",
     "appleIOSOnly":                    "Sign in with Apple is only available on iOS.",

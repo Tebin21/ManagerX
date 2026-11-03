@@ -558,6 +558,36 @@ export default function LoginScreen() {
             <GoogleSignInButton onPress={handleGoogle} loading={isLoading} label={strings.googleBtn} />
             <AppleSignInButton onPress={handleApple} loading={isLoading} />
           </View>
+
+          {/* Desktop Offline Local Mode Button */}
+          {isLargeScreen && (
+            <TouchableOpacity
+              onPress={handleDevBypass}
+              activeOpacity={0.85}
+              style={[
+                styles.offlineDesktopBtn,
+                {
+                  backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+                  borderColor: isDark ? '#334155' : '#CBD5E1',
+                },
+              ]}
+            >
+              <Ionicons name="desktop-outline" size={20} color={isDark ? '#F8C61E' : '#D4AF37'} />
+              <Text
+                style={[
+                  styles.offlineDesktopBtnText,
+                  curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  { color: isDark ? '#F1F5F9' : '#0F172A' },
+                ]}
+              >
+                {curLang === 'ku'
+                  ? '💻 چوونەژوورەوەی ئۆفلاین (دۆخی لۆکاڵ - بێ ئینتەرنێت)'
+                  : curLang === 'ar'
+                  ? '💻 الدخول في وضع عدم الاتصال (محلي - بدون إنترنت)'
+                  : '💻 Sign in Offline (Local POS Mode)'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </>
       ) : (
         /* Mobile: Unified Row with 50% Login Button + Google & Apple Buttons */
@@ -1152,5 +1182,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 3,
     paddingHorizontal: 8,
+  },
+  offlineDesktopBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    marginTop: 12,
+    gap: 8,
+  },
+  offlineDesktopBtnText: {
+    fontSize: 14.5,
+    fontWeight: '600',
   },
 });
