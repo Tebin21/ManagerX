@@ -96,11 +96,22 @@ export default async function ProductDetailsPage({
                   </span>
                 )}
                 {product.imageUrl ? (
-                  <img
-                    src={product.imageUrl}
-                    alt={product.name}
-                    className="h-full w-full object-cover"
-                  />
+                  <>
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const fallback = e.currentTarget.nextElementSibling;
+                        if (fallback) fallback.classList.remove('hidden');
+                      }}
+                      className="h-full w-full object-cover"
+                    />
+                    <div className="hidden h-full flex-col items-center justify-center gap-2 text-slate-400">
+                      <ImageOff size={40} />
+                      <span className="text-sm">بێ وێنە</span>
+                    </div>
+                  </>
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-400">
                     <ImageOff size={40} />

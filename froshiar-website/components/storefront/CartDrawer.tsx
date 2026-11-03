@@ -180,11 +180,21 @@ ${t('whatsappThanks')}`;
                         {/* Image Thumbnail */}
                         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-900">
                           {item.imageUrl ? (
-                            <img
-                              src={item.imageUrl}
-                              alt={item.name}
-                              className="h-full w-full object-cover"
-                            />
+                            <>
+                              <img
+                                src={item.imageUrl}
+                                alt={item.name}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const fallback = e.currentTarget.nextElementSibling;
+                                  if (fallback) fallback.classList.remove('hidden');
+                                }}
+                                className="h-full w-full object-cover"
+                              />
+                              <div className="hidden h-full w-full items-center justify-center text-slate-400">
+                                <ShoppingBag size={20} />
+                              </div>
+                            </>
                           ) : (
                             <div className="flex h-full w-full items-center justify-center text-slate-400">
                               <ShoppingBag size={20} />

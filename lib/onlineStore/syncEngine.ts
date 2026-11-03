@@ -48,7 +48,11 @@ async function ensureRemoteImage(item: PendingSyncItem, slug: string, apiKey: st
   if (item.operation !== 'upsert' || !item.product) return true;
   const p = item.product;
   const isLocalUri = !!p.imageUri && LOCAL_URI_PATTERN.test(p.imageUri);
-  if (!isLocalUri || p.imageRemoteUrl) return true; // nothing local pending, or already uploaded
+  if (!isLocalUri) return true;
+
+  // If already uploaded under the active slug, nothing to do
+  const hasValidSlugUrl = !!p.imageRemoteUrl && p.imageRemoteUrl.includes(`/uploads/${slug}/`);
+  if (hasValidSlugUrl) return true;
 
   try {
     const { url } = await uploadStoreImage(slug, apiKey, p.imageUri!);
@@ -100,7 +104,8 @@ async function ensureRemoteLogo(slug: string, apiKey: string): Promise<[string |
   if (!LOCAL_URI_PATTERN.test(logoUri)) return [logoUri, false]; // already a remote URL
 
   const { remoteUrl, uploadedFromUri } = await getLogoUploadState();
-  if (remoteUrl && uploadedFromUri === logoUri) return [remoteUrl, false];
+  const hasValidSlugUrl = !!remoteUrl && remoteUrl.includes(`/uploads/${slug}/`);
+  if (hasValidSlugUrl && uploadedFromUri === logoUri) return [remoteUrl, false];
 
   try {
     const { url } = await uploadStoreImage(slug, apiKey, logoUri);
@@ -223,7 +228,8 @@ export async function processQueue(
     await pushStoreInfoOpportunistically(slug, apiKey);
 
     // Pick up any active store products whose local image hasn't reached the server yet
-    await enqueueProductsWithPendingImages();
+    // or whose remote URL belongs to a previous slug
+    await enqueueProductsWithPendingImages(slug);
 
     const pending = await getPendingSyncProducts();
     if (pending.length === 0) {
@@ -249,7 +255,7 @@ export async function processQueue(
           item.product &&
           !!item.product.imageUri &&
           LOCAL_URI_PATTERN.test(item.product.imageUri) &&
-          !item.product.imageRemoteUrl
+          (!item.product.imageRemoteUrl || !item.product.imageRemoteUrl.includes(`/uploads/${slug}/`))
       );
 
       // 2. Upload images concurrently with bounded pool so it's super fast without overloading connection

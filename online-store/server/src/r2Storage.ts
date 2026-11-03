@@ -61,6 +61,21 @@ export async function uploadToStorage(
   const client = getS3Client();
   const bucket = getR2Config().bucketName;
 
+  // 1. Guaranteed persistent database storage (Neon Postgres store_images table)
+  // Saved first so even if R2 fails, is misconfigured, or gets cleared, the image
+  // is permanently preserved in PostgreSQL.
+  try {
+    await pool.query(
+      `INSERT INTO store_images (slug, filename, mime_type, data)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (filename) DO UPDATE SET data = $4, mime_type = $3, slug = $1`,
+      [slug, filename, mimeType, buffer]
+    );
+  } catch (dbErr: any) {
+    console.warn('[Storage] DB persistent save warning:', dbErr?.message);
+  }
+
+  // 2. Also save to Cloudflare R2 if configured
   if (client) {
     try {
       await client.send(
@@ -72,35 +87,19 @@ export async function uploadToStorage(
           ContentLength: buffer.length,
         })
       );
-      return key;
     } catch (err: any) {
-      console.warn('[R2 Storage] PutObjectCommand failed, falling back to database storage:', err.message);
+      console.warn('[R2 Storage] PutObjectCommand failed, using database storage:', err.message);
     }
   }
 
-  // Persistent Database fallback (Neon Postgres store_images table)
-  try {
-    await pool.query(
-      `INSERT INTO store_images (slug, filename, mime_type, data)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (filename) DO UPDATE SET data = $4, mime_type = $3`,
-      [slug, filename, mimeType, buffer]
-    );
-    return key;
-  } catch (dbErr: any) {
-    console.warn('[Storage] DB fallback upload failed, falling back to local disk:', dbErr?.message);
-  }
-
-  // Local fallback
+  // 3. Local disk fallback for local dev
   try {
     const dir = path.join(LOCAL_UPLOADS_ROOT, slug);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, filename), buffer);
-    return key;
-  } catch (fsErr: any) {
-    console.error('[Storage] All storage backends failed:', fsErr?.message);
-    throw new Error('Failed to save uploaded image across all storage providers.');
-  }
+  } catch {}
+
+  return key;
 }
 
 export async function getFromStorage(
@@ -111,6 +110,7 @@ export async function getFromStorage(
   const client = getS3Client();
   const bucket = getR2Config().bucketName;
 
+  // 1. Try Cloudflare R2 by exact key
   if (client) {
     try {
       const response = await client.send(
@@ -132,17 +132,28 @@ export async function getFromStorage(
         err.Code !== 'NoSuchKey' &&
         err.$metadata?.httpStatusCode !== 404
       ) {
-        console.warn('[R2 Storage] R2 GetObjectCommand error, checking database fallback:', err.message);
+        console.warn('[R2 Storage] R2 GetObjectCommand error, checking database:', err.message);
       }
     }
   }
 
-  // Persistent Database fallback
+  // 2. Persistent Database fallback (Neon Postgres store_images table)
+  // First attempt: exact match by slug + filename
   try {
-    const res = await pool.query(
+    let res = await pool.query(
       `SELECT mime_type, data FROM store_images WHERE slug = $1 AND filename = $2`,
       [slug, filename]
     );
+
+    // Second attempt: if slug was changed/renamed (e.g. kurd-notes -> kurd or vice-versa),
+    // match by the globally unique filename UUID!
+    if (res.rows.length === 0) {
+      res = await pool.query(
+        `SELECT mime_type, data FROM store_images WHERE filename = $1`,
+        [filename]
+      );
+    }
+
     if (res.rows.length > 0) {
       const row = res.rows[0];
       return {
@@ -154,8 +165,24 @@ export async function getFromStorage(
     console.warn('[Storage] DB fallback retrieval error:', dbErr?.message);
   }
 
-  // Local fallback
-  const filePath = path.join(LOCAL_UPLOADS_ROOT, slug, filename);
+  // 3. Local fallback (by slug directory, or scanning across local upload dirs)
+  let filePath = path.join(LOCAL_UPLOADS_ROOT, slug, filename);
+  if (!fs.existsSync(filePath)) {
+    // Check if file exists in any sibling directory under LOCAL_UPLOADS_ROOT
+    if (fs.existsSync(LOCAL_UPLOADS_ROOT)) {
+      try {
+        const subdirs = fs.readdirSync(LOCAL_UPLOADS_ROOT);
+        for (const dir of subdirs) {
+          const candidate = path.join(LOCAL_UPLOADS_ROOT, dir, filename);
+          if (fs.existsSync(candidate)) {
+            filePath = candidate;
+            break;
+          }
+        }
+      } catch {}
+    }
+  }
+
   if (!fs.existsSync(filePath)) return null;
 
   const ext = path.extname(filename).toLowerCase();

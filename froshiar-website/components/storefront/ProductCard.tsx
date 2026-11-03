@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { ImageOff, Plus, Check, ExternalLink } from 'lucide-react';
 import type { StoreProduct } from '@/lib/storefront/storeApi';
@@ -14,7 +15,8 @@ interface Props {
 
 export function ProductCard({ product, slug }: Props) {
   const { isItemSelected, getItemQuantity, toggleSelect } = useCart();
-  const { t } = useStoreLanguage();
+  const { t, isRTL } = useStoreLanguage();
+  const [imgError, setImgError] = useState(false);
   const selected = isItemSelected(product.productId);
   const quantity = getItemQuantity(product.productId);
 
@@ -65,18 +67,23 @@ export function ProductCard({ product, slug }: Props) {
             </Link>
           )}
 
-          {product.imageUrl ? (
+          {product.imageUrl && !imgError ? (
             <img
               src={product.imageUrl}
               alt={product.name}
+              onError={() => setImgError(true)}
               className={`h-full w-full object-cover transition duration-300 group-hover:scale-105 ${
                 selected ? 'brightness-95' : ''
               }`}
             />
           ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-1 text-slate-400">
-              <ImageOff size={28} />
-              <span className="text-xs">No image</span>
+            <div className="flex h-full flex-col items-center justify-center gap-1.5 text-slate-400 bg-slate-50 dark:bg-slate-900/50">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-200/50 dark:bg-slate-800/60 text-slate-400 dark:text-slate-500">
+                <ImageOff size={22} />
+              </div>
+              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                {isRTL ? 'بێ وێنە' : 'No image'}
+              </span>
             </div>
           )}
         </div>

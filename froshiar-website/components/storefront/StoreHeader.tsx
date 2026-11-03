@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Search, X, ShoppingBag } from 'lucide-react';
 import type { StoreInfo } from '@/lib/storefront/storeApi';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
@@ -29,16 +29,18 @@ export function StoreHeader({
 }: Props) {
   const { totalCount, openCart } = useCart();
   const { t, isRTL } = useStoreLanguage();
+  const [imgError, setImgError] = useState(false);
 
   return (
     <div className="w-full">
       {/* 1. Main Cover Banner: Completely empty of text/overlays; uploaded business picture covers full banner */}
       <div className="mx-auto mt-4 w-full max-w-5xl px-4 sm:mt-6">
         <div className="relative h-48 w-full overflow-hidden rounded-3xl border border-slate-200/80 bg-slate-900 shadow-xl transition-all sm:h-64 md:h-80 lg:h-96 dark:border-slate-800">
-          {info.logoUrl ? (
+          {info.logoUrl && !imgError ? (
             <img
               src={info.logoUrl}
               alt={businessName}
+              onError={() => setImgError(true)}
               className="h-full w-full object-cover object-center"
             />
           ) : (
@@ -51,6 +53,12 @@ export function StoreHeader({
                 aria-hidden="true"
                 className="pointer-events-none absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-amber-400/15 blur-3xl"
               />
+              <div className="z-10 flex flex-col items-center gap-2 text-white/90">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-lg">
+                  <span className="text-2xl font-black">{businessName.slice(0, 1).toUpperCase()}</span>
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-white/70">{businessName}</span>
+              </div>
             </div>
           )}
         </div>

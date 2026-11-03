@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { Store as StoreIcon } from 'lucide-react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
@@ -15,6 +16,7 @@ interface Props {
 export function StoreNavbar({ businessName, logoUrl, slug }: Props) {
   const homeHref = slug ? `/${slug}` : '#';
   const { t } = useStoreLanguage();
+  const [imgError, setImgError] = useState(false);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/85 backdrop-blur-md transition-colors duration-200 dark:border-slate-800 dark:bg-slate-950/85">
@@ -24,10 +26,11 @@ export function StoreNavbar({ businessName, logoUrl, slug }: Props) {
           href={homeHref}
           className="group flex items-center gap-2.5 transition-opacity hover:opacity-90"
         >
-          {logoUrl ? (
+          {logoUrl && !imgError ? (
             <img
               src={logoUrl}
               alt={businessName}
+              onError={() => setImgError(true)}
               className="h-8 w-8 rounded-full border border-amber-500/40 object-cover shadow-xs"
             />
           ) : (

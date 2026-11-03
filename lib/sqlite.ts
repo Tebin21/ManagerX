@@ -1848,18 +1848,30 @@ export async function setProductImageRemoteUrl(id: number, url: string): Promise
 }
 
 // Enqueues any active store products that have a local image but whose remote
-// URL hasn't been uploaded yet (e.g. initial upload or recovering from a transient failure).
-export async function enqueueProductsWithPendingImages(): Promise<number> {
+// URL hasn't been uploaded yet (e.g. initial upload or recovering from a transient failure
+// or slug change).
+export async function enqueueProductsWithPendingImages(currentSlug?: string): Promise<number> {
   const database = await getDatabase();
-  const result = await database.runAsync(`
+  let query = `
     INSERT INTO sync_queue (entity_type, entity_id, operation, updated_at)
     SELECT 'product', id, 'upsert', CURRENT_TIMESTAMP FROM products
     WHERE store_visible = 1
       AND image_uri IS NOT NULL
       AND image_uri != ''
-      AND (image_remote_url IS NULL OR image_remote_url = '')
+      AND (
+        image_remote_url IS NULL
+        OR image_remote_url = ''
+  `;
+  const params: any[] = [];
+  if (currentSlug && currentSlug.trim()) {
+    query += ` OR image_remote_url NOT LIKE ?`;
+    params.push(`%/uploads/${currentSlug.trim()}/%`);
+  }
+  query += `
+      )
       AND id NOT IN (SELECT entity_id FROM sync_queue WHERE entity_type = 'product')
-  `);
+  `;
+  const result = await database.runAsync(query, params);
   return result.changes;
 }
 

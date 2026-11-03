@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ImageOff } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import type { StoreProduct } from '../lib/api';
@@ -8,6 +9,7 @@ import { formatIQD } from '../lib/format';
 // /demo (DemoStorefrontPage.tsx) there is no slug, so the card stays non-interactive.
 export function ProductCard({ product }: { product: StoreProduct }) {
   const { slug } = useParams<{ slug: string }>();
+  const [imgError, setImgError] = useState(false);
 
   const card = (
     <div className="group overflow-hidden rounded-2xl bg-white shadow-card transition duration-300 hover:-translate-y-0.5 hover:shadow-lg">
@@ -17,10 +19,11 @@ export function ProductCard({ product }: { product: StoreProduct }) {
             {product.category}
           </span>
         )}
-        {product.imageUrl ? (
+        {product.imageUrl && !imgError ? (
           <img
             src={product.imageUrl}
             alt={product.name}
+            onError={() => setImgError(true)}
             className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
           />
         ) : (

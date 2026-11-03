@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Phone, MapPin, Store as StoreIcon } from 'lucide-react';
 import type { StoreInfo } from '../lib/api';
 import { SocialIcons } from './SocialIcons';
@@ -14,13 +15,16 @@ interface Props {
 // Pure storefront-info display — logo, name, description, phone, address, and
 // social icons only. This is a catalog, not a shop: no cart, no checkout flow.
 export function StoreHeader({ businessName, info }: Props) {
+  const [imgError, setImgError] = useState(false);
+
   return (
     <header className="relative bg-gradient-to-br from-brand-700 via-brand-600 to-brand-500 px-6 py-10 text-white shadow-card">
       <div className="mx-auto flex max-w-5xl flex-col items-center text-center">
-        {info.logoUrl ? (
+        {info.logoUrl && !imgError ? (
           <img
             src={info.logoUrl}
             alt={businessName}
+            onError={() => setImgError(true)}
             className="mb-3 h-20 w-20 rounded-full border-2 border-white/40 object-cover shadow-lg"
           />
         ) : (
