@@ -155,19 +155,9 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
       ? hasActiveSubArg
       : await hasActiveOnlineStoreSubscription();
     const isCurrentlyEnabled = await getStoreEnabled();
-    if (!hasActiveSub) {
-      // Subscription expired or revoked / store not activated by admin: auto-disable
-      if (isCurrentlyEnabled) {
-        await setStoreEnabled(false);
-      }
-      const slug = await getStoreSlug();
-      const apiKey = await getStoreApiKey();
-      if (slug && apiKey) {
-        try { await setStoreStatus(slug, apiKey, false); } catch { /* best effort */ }
-      }
-      set({ enabled: false, slug: null, storeUrl: null });
-    } else if (hasActiveSub && !isCurrentlyEnabled) {
-      // Subscription activated or renewed: auto-enable
+
+    // Auto-enable when subscription or admin activation is detected and store is not yet enabled
+    if (hasActiveSub && !isCurrentlyEnabled) {
       await setStoreEnabled(true);
       const slug = await getStoreSlug();
       const apiKey = await getStoreApiKey();
@@ -177,44 +167,39 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
       set({ enabled: true });
       processQueue();
     }
+    // CRITICAL: NEVER automatically call setStoreStatus(..., false) in background!
+    // A store must ONLY be deactivated when the user explicitly taps "Disable" in settings.
   },
 
   load: async () => {
-    // Check if store subscription / admin activation is actually active
-    const hasActiveSub = await hasActiveOnlineStoreSubscription();
     let slug: string | null = null;
-
-    if (hasActiveSub) {
+    try {
+      // 1. Check if admin explicitly assigned a subdomain for this account
       try {
-        // 1. Check if admin explicitly assigned a subdomain for this account
-        try {
-          const { getOnlineStoreConfigFromAdmin } = await import('@/lib/onlineStore/storeActivationService');
-          const adminConfig = await getOnlineStoreConfigFromAdmin();
-          if (adminConfig?.subdomain && adminConfig.subdomain.trim()) {
-            slug = adminConfig.subdomain.trim().toLowerCase();
-            await setStoreSlug(slug);
-          }
-        } catch (err) {
-          if (__DEV__) console.warn('[onlineStore] admin config lookup warning:', err);
-        }
-
-        // 2. Fall back to local SQLite slug or business name slug
-        if (!slug) {
-          slug = await getStoreSlug();
-        }
-        if (!slug) {
-          await waitForBusinessHydration();
-          const businessName = useBusinessStore.getState().name?.trim();
-          if (businessName) {
-            slug = slugify(businessName);
-            await setStoreSlug(slug);
-          }
+        const { getOnlineStoreConfigFromAdmin } = await import('@/lib/onlineStore/storeActivationService');
+        const adminConfig = await getOnlineStoreConfigFromAdmin();
+        if (adminConfig?.subdomain && adminConfig.subdomain.trim()) {
+          slug = adminConfig.subdomain.trim().toLowerCase();
+          await setStoreSlug(slug);
         }
       } catch (err) {
-        if (__DEV__) console.warn('[onlineStore] slug resolution failed:', err);
+        if (__DEV__) console.warn('[onlineStore] admin config lookup warning:', err);
       }
-    } else {
-      slug = null;
+
+      // 2. Fall back to local SQLite slug or business name slug
+      if (!slug) {
+        slug = await getStoreSlug();
+      }
+      if (!slug) {
+        await waitForBusinessHydration();
+        const businessName = useBusinessStore.getState().name?.trim();
+        if (businessName) {
+          slug = slugify(businessName);
+          await setStoreSlug(slug);
+        }
+      }
+    } catch (err) {
+      if (__DEV__) console.warn('[onlineStore] slug resolution failed:', err);
     }
     set({ slug, storeUrl: buildStoreUrl(slug) });
 
@@ -229,26 +214,13 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
         getBulkPublishEnabled(),
       ]);
 
-      // Automatic subscription status reconciliation:
-      // If store is not activated by admin or subscription has lapsed, auto-disable.
-      if (!hasActiveSub) {
-        if (enabled) {
-          await setStoreEnabled(false);
-          enabled = false;
-        }
-        if (apiKey) {
-          const currentSlug = await getStoreSlug();
-          if (currentSlug) {
-            try { await setStoreStatus(currentSlug, apiKey, false); } catch {}
-          }
-        }
-      }
-
+      // CRITICAL: Do NOT auto-disable on load!
+      // Once enabled by the merchant or admin, the store remains active until manually disabled.
       set({
-        enabled: Boolean(enabled && hasActiveSub),
+        enabled: Boolean(enabled),
         lastSyncAt,
         pendingCount,
-        isRegistering: Boolean(enabled && hasActiveSub && !apiKey),
+        isRegistering: Boolean(enabled && !apiKey),
         storeInfoFields,
         lastSyncError: lastSyncError || null,
         bulkPublishEnabled,

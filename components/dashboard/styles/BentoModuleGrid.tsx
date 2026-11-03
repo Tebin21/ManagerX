@@ -204,6 +204,9 @@ function BentoHeroCard({
                   isSelected && { color: colors.primary },
                   isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+                minimumFontScale={0.8}
               >
                 {title}
               </Text>
@@ -213,7 +216,12 @@ function BentoHeroCard({
                 </Text>
               </View>
             </View>
-            <Text style={[styles.heroSub, { color: colors.gray400, textAlign, fontSize: isTabletLandscape ? 15.5 : isTablet ? 14 : 12 }]}>
+            <Text
+              style={[styles.heroSub, { color: colors.gray400, textAlign, fontSize: isTabletLandscape ? 15.5 : isTablet ? 14 : 12 }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit={true}
+              minimumFontScale={0.8}
+            >
               {sub}
             </Text>
           </View>
@@ -410,6 +418,8 @@ function BentoRegularTile({
             isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
           ]}
           numberOfLines={1}
+          adjustsFontSizeToFit={true}
+          minimumFontScale={0.8}
         >
           {title}
         </Text>
@@ -423,6 +433,8 @@ function BentoRegularTile({
             },
           ]}
           numberOfLines={1}
+          adjustsFontSizeToFit={true}
+          minimumFontScale={0.8}
         >
           {sub}
         </Text>

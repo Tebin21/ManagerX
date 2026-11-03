@@ -223,6 +223,8 @@ function CompactItem({
           isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
         ]}
         numberOfLines={1}
+        adjustsFontSizeToFit={true}
+        minimumFontScale={0.8}
       >
         {title}
       </Text>

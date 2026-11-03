@@ -234,6 +234,8 @@ function ModernItem({
               isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
             ]}
             numberOfLines={1}
+            adjustsFontSizeToFit={true}
+            minimumFontScale={0.8}
           >
             {title}
           </Text>
@@ -247,6 +249,8 @@ function ModernItem({
               },
             ]}
             numberOfLines={1}
+            adjustsFontSizeToFit={true}
+            minimumFontScale={0.8}
           >
             {sub}
           </Text>

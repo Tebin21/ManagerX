@@ -838,6 +838,7 @@
     "itemLimitReachedBody":   "You've used {{used}} of {{limit}} items. Upgrade your plan to add more.",
     "manageCategoriesTitle":  "Manage Categories",
     "categoryHasProducts":    "Cannot delete — {{count}} product(s) still use this category.",
+    "deleteCategoryHasProductsConfirm": "This category has {{count}} product(s). Upon deletion, all products will be moved to the default category ({{defaultName}}). Are you sure you want to delete it?",
     "deleteCategoryConfirm":  "Delete '{{name}}' permanently? This cannot be undone.",
     "addCategory":            "Add category…",
     "newCategoryPlaceholder": "e.g. Beverages, Clothes...",

@@ -148,9 +148,6 @@ export const useIapStore = create<IapState>((set, get) => ({
         '@/store/onlineStoreSubscriptionStore'
       );
       await useOnlineStoreSubscriptionStore.getState().loadSubscription();
-
-      const { useOnlineStoreStore } = await import('@/store/onlineStoreStore');
-      await useOnlineStoreStore.getState().syncWithSubscription(false);
     } catch (e) {
       if (__DEV__) console.warn('[Froshiar IAP] clearUserSession sync error:', e);
     }
@@ -348,8 +345,10 @@ async function notifyEntitlementsChanged(proActive: boolean, storeActive: boolea
     );
     await useOnlineStoreSubscriptionStore.getState().loadSubscription();
 
-    const { useOnlineStoreStore } = await import('@/store/onlineStoreStore');
-    await useOnlineStoreStore.getState().syncWithSubscription(storeActive);
+    if (storeActive) {
+      const { useOnlineStoreStore } = await import('@/store/onlineStoreStore');
+      await useOnlineStoreStore.getState().syncWithSubscription(true);
+    }
   } catch (err) {
     if (__DEV__) console.warn('[Froshiar IAP] notifyEntitlementsChanged error:', err);
   }

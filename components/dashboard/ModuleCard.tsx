@@ -471,6 +471,8 @@ function ModuleCardImpl({
                     (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                   ]}
                   numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.75}
                 >
                   {label}
                 </Text>
@@ -481,6 +483,8 @@ function ModuleCardImpl({
                     (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                   ]}
                   numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.75}
                 >
                   {subtitle}
                 </Text>
@@ -525,6 +529,8 @@ function ModuleCardImpl({
                   (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                 ]}
                 numberOfLines={1}
+                adjustsFontSizeToFit={true}
+                minimumFontScale={0.75}
               >
                 {label}
               </Text>
@@ -537,6 +543,8 @@ function ModuleCardImpl({
                   (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                 ]}
                 numberOfLines={1}
+                adjustsFontSizeToFit={true}
+                minimumFontScale={0.75}
               >
                 {subtitle}
               </Text>
@@ -655,17 +663,19 @@ function getStyles(
       elevation: 4,
     },
     titleSquare: {
-      fontSize: Math.round((isTabletLandscape ? 21 : isTablet ? (isLastRowPair ? 20.5 : 19) : 14.5) * scale * 10) / 10,
+      fontSize: isTabletLandscape ? 21 : isTablet ? (isLastRowPair ? 20.5 : 19) : 14,
       fontWeight: '700',
       textAlign: 'center',
-      letterSpacing: -0.2,
       marginBottom: 3,
+      width: '100%',
+      paddingHorizontal: 2,
     },
     subtitleSquare: {
-      fontSize: Math.round((isTabletLandscape ? 14.5 : isTablet ? (isLastRowPair ? 13.5 : 13) : 9.5) * scale * 10) / 10,
+      fontSize: isTabletLandscape ? 14.5 : isTablet ? (isLastRowPair ? 13.5 : 13) : 9.5,
       fontWeight: '500',
       textAlign: 'center',
-      paddingHorizontal: 4,
+      width: '100%',
+      paddingHorizontal: 2,
     },
 
     /* WIDE LAYOUT STYLES */
@@ -692,13 +702,12 @@ function getStyles(
       justifyContent: 'center',
     },
     titleWide: {
-      fontSize: Math.round((isTabletLandscape ? 23 : isTablet ? 20 : 15) * scale * 10) / 10,
+      fontSize: isTabletLandscape ? 23 : isTablet ? 20 : 15,
       fontWeight: '700',
-      letterSpacing: -0.2,
       marginBottom: 2,
     },
     subtitleWide: {
-      fontSize: Math.round((isTabletLandscape ? 15.5 : isTablet ? 14 : 10) * scale * 10) / 10,
+      fontSize: isTabletLandscape ? 15.5 : isTablet ? 14 : 10,
       fontWeight: '500',
     },
     wideTrailingGroup: {

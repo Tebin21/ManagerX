@@ -91,21 +91,19 @@ const FAST_SEARCH_ANIMATION = {
 export default function InventoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const {
-    stats,
-    categories,
-    managedCategories,
-    isLoading,
-    selectedCategory,
-    loadInventory,
-    setCategory,
-    loadManagedCategories,
-    addCategory,
-    deleteCategory,
-    renameCategory,
-  } = useInventoryStore();
-
+  const categories = useInventoryStore((s) => s.categories);
+  const managedCategories = useInventoryStore((s) => s.managedCategories);
+  const selectedCategory = useInventoryStore((s) => s.selectedCategory);
+  const stats = useInventoryStore((s) => s.stats);
+  const isLoading = useInventoryStore((s) => s.isLoading);
   const products = useInventoryStore((s) => s.products);
+
+  const loadInventory = useInventoryStore((s) => s.loadInventory);
+  const setCategory = useInventoryStore((s) => s.setCategory);
+  const loadManagedCategories = useInventoryStore((s) => s.loadManagedCategories);
+  const addCategory = useInventoryStore((s) => s.addCategory);
+  const deleteCategory = useInventoryStore((s) => s.deleteCategory);
+  const renameCategory = useInventoryStore((s) => s.renameCategory);
 
   const { colors, isDark } = useAppTheme();
   const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
@@ -386,16 +384,20 @@ export default function InventoryScreen() {
         Alert.alert(t('inventory.manageCategoriesTitle'), t('inventory.categoryIsDefault'));
         return;
       }
-      if (cat.productCount > 0) {
-        Alert.alert(
-          t('inventory.manageCategoriesTitle'),
-          t('inventory.categoryHasProducts', { count: cat.productCount })
-        );
-        return;
-      }
+
+      const defaultCatName = managedCategories.find((c) => c.isDefault)?.name || (isKuLanguage ? 'گشتی' : 'General');
+
+      const message =
+        cat.productCount > 0
+          ? t('inventory.deleteCategoryHasProductsConfirm', {
+              count: cat.productCount,
+              defaultName: defaultCatName,
+            })
+          : t('inventory.deleteCategoryConfirm', { name: cat.name });
+
       Alert.alert(
         t('inventory.manageCategoriesTitle'),
-        t('inventory.deleteCategoryConfirm', { name: cat.name }),
+        message,
         [
           { text: t('common.cancel'), style: 'cancel' },
           {
@@ -404,15 +406,20 @@ export default function InventoryScreen() {
             onPress: async () => {
               try {
                 await deleteCategory(cat.name);
-              } catch {
-                Alert.alert(t('common.error'), t('common.tryAgain'));
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : '';
+                if (msg === 'CATEGORY_IS_DEFAULT') {
+                  Alert.alert(t('inventory.manageCategoriesTitle'), t('inventory.categoryIsDefault'));
+                } else {
+                  Alert.alert(t('common.error'), t('common.tryAgain'));
+                }
               }
             },
           },
         ]
       );
     },
-    [deleteCategory, t]
+    [deleteCategory, managedCategories, isKuLanguage, t]
   );
 
   const handleStartRename = useCallback((cat: { name: string; isDefault: boolean }) => {
@@ -1068,8 +1075,8 @@ export default function InventoryScreen() {
                 {/* Category Management */}
                 <TouchableOpacity
                   activeOpacity={0.8}
-                  onPress={() => {
-                    loadManagedCategories();
+                  onPress={async () => {
+                    await loadManagedCategories();
                     setCatModalVisible(true);
                   }}
                   style={[

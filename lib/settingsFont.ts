@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text as RNText, TextInputProps, TextStyle } from 'react-native';
+import { Platform, StyleSheet, Text as RNText, TextInputProps, TextStyle } from 'react-native';
 import { resolveInterFont } from '@/constants/typography';
 
 // Loaded in app/_layout.tsx. These are the app-wide Kurdish typefaces (Bahij Janna):
@@ -42,7 +42,13 @@ export function applyKurdishFont<T extends TextStyle | TextStyle[] | undefined>(
   const flat = (StyleSheet.flatten(style) ?? {}) as TextStyle;
 
   if (!isKurdish) {
-    return [style, { fontFamily: resolveInterFont(flat.fontWeight) }] as unknown as T;
+    return [
+      style,
+      {
+        fontFamily: resolveInterFont(flat.fontWeight),
+        ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+      },
+    ] as unknown as T;
   }
 
   const fontSize = typeof flat.fontSize === 'number' ? flat.fontSize : 14;
@@ -54,6 +60,8 @@ export function applyKurdishFont<T extends TextStyle | TextStyle[] | undefined>(
       fontFamily: resolveKurdishFont(flat.fontWeight),
       fontWeight: 'normal',
       lineHeight: Math.max(flat.lineHeight ?? 0, minLineHeight),
+      letterSpacing: 0,
+      ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
     },
   ] as unknown as T;
 }

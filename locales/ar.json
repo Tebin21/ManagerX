@@ -889,6 +889,7 @@
     "category": "التصنيف",
     "categoryDistribution": "توزيع البضائع حسب التصنيف",
     "categoryHasProducts": "تعذر الحذف — ما زال هناك {{count}} منتج(ات) يستخدم هذا التصنيف.",
+    "deleteCategoryHasProductsConfirm": "هذا التصنيف يحتوي على ({{count}}) منتج. عند الحذف، سيتم نقل المنتجات إلى التصنيف الافتراضي ({{defaultName}}). هل أنت متأكد من الحذف؟",
     "categoryIsDefault": "لا يمكن حذف التصنيف الافتراضي.",
     "chooseFromGallery": "اختيار من المعرض",
     "date": "التاريخ",

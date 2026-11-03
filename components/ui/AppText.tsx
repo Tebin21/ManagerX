@@ -45,7 +45,11 @@ function AppText({ style, children, ...props }: TextProps) {
     : parentStyle;
 
   return (
-    <RNText {...props} style={applyKurdishFont(hasKurdish, scaledStyle as never)}>
+    <RNText
+      maxFontSizeMultiplier={props.maxFontSizeMultiplier ?? 1.25}
+      {...props}
+      style={applyKurdishFont(hasKurdish, scaledStyle as never)}
+    >
       {hasKurdish ? withSystemFontLatin(normalizedChildren, scaledStyle) : normalizedChildren}
     </RNText>
   );

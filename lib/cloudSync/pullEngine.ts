@@ -246,13 +246,13 @@ export async function applyRootDoc(data: Record<string, unknown> | undefined): P
       }
       const onlineStore = preferences.onlineStore as Record<string, unknown> | undefined;
       if (onlineStore) {
-        const { setStoreEnabled, setStoreSlug } = await import('@/lib/onlineStore/storage');
+        const { getStoreEnabled, setStoreEnabled, setStoreSlug } = await import('@/lib/onlineStore/storage');
         const { saveStoreInfoFields } = await import('@/lib/onlineStore/storeInfo');
-        // silent:true — applying an incoming cloud value must not itself
-        // enqueue a fresh push of that same value back to Firestore (see
-        // setStoreEnabled's doc comment for the pull-triggers-push-triggers-
-        // pull loop this avoids).
-        await setStoreEnabled((onlineStore.enabled as boolean) ?? false, true);
+        // Only enable if cloud says enabled: true; never automatically disable an already-active store
+        const isLocallyEnabled = await getStoreEnabled();
+        if (onlineStore.enabled === true && !isLocallyEnabled) {
+          await setStoreEnabled(true, true);
+        }
         if (onlineStore.slug) await setStoreSlug(onlineStore.slug as string, true);
         await saveStoreInfoFields({
           description: (onlineStore.description as string) ?? '',

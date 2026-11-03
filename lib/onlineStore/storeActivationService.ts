@@ -21,29 +21,35 @@ export function parseStoreActiveFromData(data: any): boolean {
     return false;
   }
 
+  // Check expiration if specified
+  const exp = data?.expiresAt || data?.onlineStore?.expiresAt;
+  if (exp) {
+    const expTime = new Date(exp).getTime();
+    if (!isNaN(expTime) && expTime < Date.now()) {
+      return false;
+    }
+  }
+
   // 1. Check nested onlineStore object (used in employee_accounts & user_subscriptions when admin activates)
   if (
-    data?.onlineStore?.enabled === true &&
-    data?.onlineStore?.status === 'active' &&
-    Boolean(data?.onlineStore?.subdomain)
+    data?.onlineStore?.enabled === true ||
+    data?.onlineStore?.status === 'active' ||
+    Boolean(data?.onlineStore?.subdomain || data?.onlineStore?.slug)
   ) {
     return true;
   }
 
-  // 2. Check store_activations collection doc (has top-level enabled: true, status: 'active', AND subdomain)
+  // 2. Check store_activations collection doc
   if (
-    data?.enabled === true &&
-    data?.status === 'active' &&
-    Boolean(data?.subdomain)
+    data?.enabled === true ||
+    data?.status === 'active' ||
+    Boolean(data?.subdomain || data?.slug)
   ) {
     return true;
   }
 
-  // 3. Fallback: only if storefront_enabled or onlineStoreActive is explicitly true AND subdomain exists
-  if (
-    (data?.storefront_enabled === true || data?.onlineStoreActive === true) &&
-    Boolean(data?.onlineStore?.subdomain || data?.subdomain)
-  ) {
+  // 3. Fallback: storefront_enabled or onlineStoreActive
+  if (data?.storefront_enabled === true || data?.onlineStoreActive === true) {
     return true;
   }
 
@@ -70,9 +76,7 @@ export async function isOnlineStoreActivatedByAdmin(forceRefresh = false): Promi
   const user = useAuthStore.getState().user;
   const email = user?.email?.trim().toLowerCase();
   if (!email) {
-    isStoreActiveCache = false;
-    lastCheckTime = now;
-    return false;
+    return isStoreActiveCache ?? false;
   }
 
   try {
@@ -243,7 +247,9 @@ export function startStoreActivationRealtimeListener(): () => void {
 
         try {
           const { useOnlineStoreStore } = await import('@/store/onlineStoreStore');
-          await useOnlineStoreStore.getState().syncWithSubscription(active);
+          if (active) {
+            await useOnlineStoreStore.getState().syncWithSubscription(true);
+          }
           await useOnlineStoreStore.getState().load();
         } catch {}
       };

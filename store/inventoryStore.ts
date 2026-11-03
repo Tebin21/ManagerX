@@ -270,37 +270,50 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       getAllManagedCategories(),
     ]);
     set({ categories, managedCategories });
-    await get().loadInventory();
   },
 
   deleteCategory: async (name: string) => {
     await deleteManagedCategory(name);
-    const [categories, managedCategories] = await Promise.all([
+    const [products, rawStats, categories, managedCategories, inventoryHistory] = await Promise.all([
+      getAllInventoryProducts(),
+      getInventoryStats(),
       getProductCategories(),
       getAllManagedCategories(),
+      getAllInventoryHistory(),
     ]);
+    const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
+    const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
     const { selectedCategory } = get();
     set({
+      products,
+      stats,
       categories,
       managedCategories,
-      ...(selectedCategory === name ? { selectedCategory: 'all' } : {}),
+      inventoryHistory,
+      ...(selectedCategory.trim().toLowerCase() === name.trim().toLowerCase() ? { selectedCategory: 'all' } : {}),
     });
-    await get().loadInventory();
   },
 
   renameCategory: async (oldName: string, newName: string) => {
     await renameManagedCategory(oldName, newName);
-    const [categories, managedCategories] = await Promise.all([
+    const [products, rawStats, categories, managedCategories, inventoryHistory] = await Promise.all([
+      getAllInventoryProducts(),
+      getInventoryStats(),
       getProductCategories(),
       getAllManagedCategories(),
+      getAllInventoryHistory(),
     ]);
+    const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
+    const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
     const { selectedCategory } = get();
     set({
+      products,
+      stats,
       categories,
       managedCategories,
-      ...(selectedCategory === oldName ? { selectedCategory: newName.trim() } : {}),
+      inventoryHistory,
+      ...(selectedCategory.trim().toLowerCase() === oldName.trim().toLowerCase() ? { selectedCategory: newName.trim() } : {}),
     });
-    await get().loadInventory();
   },
 
   loadInventoryHistory: async () => {

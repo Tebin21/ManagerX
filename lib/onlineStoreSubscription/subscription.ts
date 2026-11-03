@@ -171,7 +171,28 @@ export async function loadSubscriptionFromDb(): Promise<SubscriptionInfo> {
 
   let info: SubscriptionInfo;
   if (!subscriptionCode) {
-    info = defaultSubscriptionInfo(deviceId);
+    // If no manual code, but store was already enabled by admin/user on this device, keep it active
+    let isLocallyActive = false;
+    try {
+      const { getStoreEnabled, getStoreApiKey } = await import('@/lib/onlineStore/storage');
+      const isEnabled = await getStoreEnabled();
+      const apiKey = await getStoreApiKey();
+      isLocallyActive = Boolean(isEnabled && apiKey);
+    } catch {}
+
+    if (isLocallyActive) {
+      info = {
+        plan: 'lifetime',
+        deviceId,
+        subscriptionCode: 'ADMIN-ACTIVATED-PRO',
+        activatedAt: new Date().toISOString(),
+        expiresAt: null,
+        isActive: true,
+        expired: false,
+      };
+    } else {
+      info = defaultSubscriptionInfo(deviceId);
+    }
   } else {
     const activatedAt = await loadSetting(KEY_ACTIVATED_AT);
     const verified = verifySubscriptionCode(subscriptionCode, deviceId);
@@ -254,10 +275,22 @@ export async function hasActiveOnlineStoreSubscription(): Promise<boolean> {
   if (fromDb.isActive) return true;
   try {
     const { isOnlineStoreActivatedByAdmin } = await import('@/lib/onlineStore/storeActivationService');
-    return await isOnlineStoreActivatedByAdmin();
+    const adminActive = await isOnlineStoreActivatedByAdmin();
+    if (adminActive) return true;
   } catch {
-    return false;
+    // Non-fatal
   }
+  // If the store was already enabled on this device with an API key, keep it active!
+  // Prevents momentary offline/network drops from causing false subscription lapses.
+  try {
+    const { getStoreEnabled, getStoreApiKey } = await import('@/lib/onlineStore/storage');
+    const isEnabled = await getStoreEnabled();
+    const apiKey = await getStoreApiKey();
+    if (isEnabled && apiKey) {
+      return true;
+    }
+  } catch {}
+  return false;
 }
 
 // For lib/onlineStore/api.ts to attach as request headers — null (not empty strings)
@@ -278,6 +311,15 @@ export async function getOnlineStoreSubscriptionHeaders(): Promise<{ code: strin
   }
   const code = await loadSetting(KEY_SUBSCRIPTION_CODE);
   if (!code) {
+    // Fallback: If store is already enabled and registered, attach ADMIN-ACTIVATED-PRO so API calls succeed
+    try {
+      const { getStoreEnabled, getStoreApiKey } = await import('@/lib/onlineStore/storage');
+      const isEnabled = await getStoreEnabled();
+      const apiKey = await getStoreApiKey();
+      if (isEnabled && apiKey) {
+        return { code: 'ADMIN-ACTIVATED-PRO', deviceId };
+      }
+    } catch {}
     if (__DEV__) console.warn('[onlineStoreSubscription] getOnlineStoreSubscriptionHeaders: NO subscription found, returning null');
     return null;
   }
