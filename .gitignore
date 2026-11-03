@@ -58,3 +58,7 @@ desktop.ini
 .firebase/
 .vercel
 .env*
+
+# Desktop / Electron build artifacts
+dist-electron/
+desktop/dist/

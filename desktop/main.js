@@ -31,7 +31,9 @@ function createWindow() {
   if (isDev && process.env.ELECTRON_START_URL) {
     mainWindow.loadURL(process.env.ELECTRON_START_URL);
   } else {
-    const indexPath = path.join(__dirname, '../dist/index.html');
+    const bundledPath = path.join(__dirname, 'dist/index.html');
+    const devPath = path.join(__dirname, '../dist/index.html');
+    const indexPath = fs.existsSync(bundledPath) ? bundledPath : devPath;
     if (fs.existsSync(indexPath)) {
       mainWindow.loadFile(indexPath);
     } else {

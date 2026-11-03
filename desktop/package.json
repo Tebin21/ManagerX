@@ -27,7 +27,7 @@
       "main.js",
       "preload.js",
       "assets/**/*",
-      "../dist/**/*"
+      "dist/**/*"
     ],
     "win": {
       "target": [
