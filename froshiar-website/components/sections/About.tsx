@@ -100,17 +100,17 @@ export function About() {
             return (
               <div
                 key={idx}
-                className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/20 dark:border-white/[0.12] bg-white/70 dark:bg-white/[0.03] backdrop-blur-2xl p-4 sm:p-5 text-center shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.2),0_15px_30px_rgba(0,0,0,0.4)] transition-all hover:border-gold-400/40"
+                className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/15 dark:border-white/[0.12] bg-slate-900/45 dark:bg-white/[0.035] backdrop-blur-2xl [-webkit-backdrop-filter:blur(24px)] p-4 sm:p-5 text-center shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.2),0_15px_30px_rgba(0,0,0,0.4)] transition-all hover:border-gold-400/40"
               >
                 <div className="absolute inset-0 bg-gradient-to-b from-white/[0.08] via-transparent to-transparent pointer-events-none" />
                 <div className="relative z-10 flex flex-col items-center">
-                  <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-gold-500/15 text-gold-500 dark:text-gold-400 border border-white/10 mb-2.5">
+                  <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-gold-500/15 text-gold-400 border border-white/10 mb-2.5">
                     <Icon size={18} />
                   </div>
-                  <span className="text-xl sm:text-3xl font-black text-amber-600 dark:text-[#f8c61e] tracking-tight">
+                  <span className="text-xl sm:text-3xl font-black text-amber-400 dark:text-[#f8c61e] tracking-tight">
                     {stat.value}
                   </span>
-                  <span className="mt-1 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
+                  <span className="mt-1 text-xs sm:text-sm font-semibold text-slate-200 dark:text-slate-300">
                     {stat.label}
                   </span>
                 </div>
@@ -126,7 +126,7 @@ export function About() {
             return (
               <div
                 key={pillar.key}
-                className="group relative overflow-hidden rounded-3xl border border-white/20 dark:border-white/[0.12] bg-white/70 dark:bg-white/[0.03] backdrop-blur-3xl p-6 sm:p-8 lg:p-9 shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.25),0_20px_45px_rgba(0,0,0,0.5)] transition-all duration-300 hover:border-gold-400/40 hover:-translate-y-1"
+                className="group relative overflow-hidden rounded-3xl border border-white/15 dark:border-white/[0.12] bg-slate-900/45 dark:bg-white/[0.035] backdrop-blur-3xl [-webkit-backdrop-filter:blur(32px)] p-6 sm:p-8 lg:p-9 shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.25),0_20px_45px_rgba(0,0,0,0.5)] transition-all duration-300 hover:border-gold-400/40 hover:-translate-y-1"
               >
                 {/* Specular glass reflection */}
                 <div className="absolute inset-0 bg-gradient-to-b from-white/[0.10] via-white/[0.02] to-transparent pointer-events-none" />
@@ -137,18 +137,18 @@ export function About() {
                 <div className="relative z-10">
                   <div className="flex items-center gap-3.5 mb-5">
                     <div className="flex h-12 w-12 sm:h-13 sm:w-13 items-center justify-center rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/[0.03] text-gold-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),0_4px_12px_rgba(0,0,0,0.2)]">
-                      <Icon size={24} className="text-amber-500 dark:text-gold-400" />
+                      <Icon size={24} className="text-amber-400 dark:text-gold-400" />
                     </div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-amber-500/90 dark:text-gold-400/90 px-3 py-1 rounded-full border border-gold-400/20 bg-gold-500/10">
+                    <span className="text-xs font-bold uppercase tracking-wider text-amber-400 dark:text-gold-400/90 px-3 py-1 rounded-full border border-gold-400/20 bg-gold-500/10">
                       Froshiar Core
                     </span>
                   </div>
 
-                  <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-ink dark:text-white tracking-tight">
+                  <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-white tracking-tight">
                     {pillar.title}
                   </h3>
 
-                  <p className="mt-3.5 text-sm sm:text-base leading-relaxed text-slate-600 dark:text-slate-300 font-normal">
+                  <p className="mt-3.5 text-sm sm:text-base leading-relaxed text-slate-200 dark:text-slate-300 font-normal">
                     {pillar.desc}
                   </p>
                 </div>

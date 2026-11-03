@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { useTranslations, useLocale } from "next-intl";
+import { useTheme } from "next-themes";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X, Globe } from "lucide-react";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -26,6 +27,15 @@ export function Navbar() {
   // Mobile In-Place Navigation State Machine: 0: Main Links -> 1: Secondary Links -> 2: Flags -> 0
   const [mobileNavStep, setMobileNavStep] = useState<0 | 1 | 2>(0);
   const headerRef = useRef<HTMLElement>(null);
+  const { setTheme, resolvedTheme } = useTheme();
+
+  // Marketing site is a permanent luxury dark-frosted theme:
+  // If user previously visited an online storefront in light mode, restore dark theme immediately.
+  useEffect(() => {
+    if (resolvedTheme && resolvedTheme !== "dark") {
+      setTheme("dark");
+    }
+  }, [resolvedTheme, setTheme]);
 
   // Close / Reset to step 0 when clicking outside the navbar on mobile
   useEffect(() => {

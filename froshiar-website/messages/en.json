@@ -235,6 +235,53 @@
       "more": "And Many More..."
     }
   },
+  "onlineStore": {
+    "badge": "Online Storefront Service",
+    "heading": "Launch Your Own Dedicated Store Website",
+    "subtitle": "Turn your entire inventory into a modern branded storefront in one click. Share your custom store link and let customers browse and send orders directly to you.",
+    "viewDemo": "Explore Live Demo Store",
+    "previewBadge": "Live Storefront",
+    "previewUrl": "froshiar.store/demo",
+    "previewStoreName": "Official Demo Store",
+    "previewVerified": "Froshiar Verified",
+    "previewBio": "Premium selection • Nationwide delivery • Instant online ordering",
+    "previewOrderNotice": "New web store order received!",
+    "previewOrderDetail": "Customer: Danar Aras • 3 items • 125,000 IQD",
+    "product1": "Wireless Bluetooth Earbuds Pro",
+    "price1": "145,000 IQD",
+    "product2": "Stainless Steel Water Bottle",
+    "price2": "25,000 IQD",
+    "product3": "Genuine Leather Wallet",
+    "price3": "35,000 IQD",
+    "addToCart": "Add to Cart",
+    "copyLink": "Copy Store Link",
+    "features": {
+      "ownWebsite": {
+        "title": "Your Own Dedicated Website",
+        "desc": "Without coding or agency costs, get a sleek official website running on your own brand's unique link."
+      },
+      "catalogDisplay": {
+        "title": "Complete Product Catalog & Photos",
+        "desc": "Showcase all your items with high-resolution images, prices in IQD & USD, categories, and live availability."
+      },
+      "dedicatedLink": {
+        "title": "Custom Shareable Link for Customers",
+        "desc": "Place your personal store link in your Instagram bio, WhatsApp, Facebook, or send directly to any client."
+      },
+      "directOrdering": {
+        "title": "Receive Direct Customer Orders",
+        "desc": "Customers add items to cart, enter their address & phone number, and send the order straight to your dashboard."
+      },
+      "customBranding": {
+        "title": "Custom Logo, Bio & Social Links",
+        "desc": "Easily brand your storefront with your logo, cover photo, business location, phone, and Instagram & WhatsApp pages."
+      },
+      "realtimeSync": {
+        "title": "Realtime 1-Click Inventory Sync",
+        "desc": "Any changes made to stock, prices, or descriptions inside the Froshiar mobile app sync live to your website in 1 click."
+      }
+    }
+  },
   "contact": {
     "heading": "Get in touch",
     "websiteLabel": "Website",
@@ -249,6 +296,6 @@
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
     "deleteAccount": "Delete Account",
-    "designedBy": "Designed & Developed by BexDre"
+    "designedBy": "Designed & Developed by"
   }
 }

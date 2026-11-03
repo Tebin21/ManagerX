@@ -77,8 +77,8 @@ export function Pricing() {
               key={plan.key}
               className={`relative flex flex-col justify-between rounded-3xl p-7 sm:p-8 transition-all duration-300 ${
                 plan.isPopular
-                  ? "border-2 border-gold-500 bg-white shadow-xl shadow-gold-500/10 dark:bg-[#1a160d] dark:shadow-gold-500/5 lg:-translate-y-2"
-                  : "border border-gray-100 bg-white/70 shadow-sm hover:shadow-md dark:border-gold-900/30 dark:bg-white/[0.03]"
+                  ? "border-2 border-gold-500 bg-slate-900/60 shadow-xl shadow-gold-500/10 dark:bg-gold-500/[0.08] backdrop-blur-2xl [-webkit-backdrop-filter:blur(24px)] lg:-translate-y-2"
+                  : "border border-white/15 bg-slate-900/45 shadow-sm hover:shadow-md dark:border-white/[0.12] dark:bg-white/[0.035] backdrop-blur-2xl [-webkit-backdrop-filter:blur(24px)]"
               }`}
             >
               {plan.isPopular && (

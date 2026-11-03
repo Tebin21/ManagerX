@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { ScrollView, TouchableOpacity, View, StyleSheet, TextStyle } from 'react-native';
+import { ScrollView, TouchableOpacity, View, StyleSheet, TextStyle, Platform, Text as RNText } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
@@ -72,6 +72,11 @@ export function BusinessTypeSelector({
   const renderChip = (type: (typeof BUSINESS_TYPES)[number], inGrid: boolean) => {
     const isActive = value === type.id;
     const chipLabel = getLabel(type);
+    const chipBg = isActive
+      ? hexToRgba(colors.primary, isDark ? 0.22 : 0.12)
+      : isDark
+      ? 'rgba(30, 41, 59, 0.65)'
+      : '#F8FAFC';
 
     return (
       <TouchableOpacity
@@ -81,18 +86,18 @@ export function BusinessTypeSelector({
         style={inGrid ? { flex: 1 } : undefined}
       >
         <MotiView
+          key={`${type.id}-${isActive ? 'active' : 'idle'}`}
           animate={{
             borderColor: isActive ? colors.primary : isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
-            backgroundColor: isActive
-              ? hexToRgba(colors.primary, isDark ? 0.22 : 0.12)
-              : isDark
-              ? 'rgba(30, 41, 59, 0.65)'
-              : '#F8FAFC',
+            backgroundColor: chipBg,
             scale: isActive ? 1.02 : 1,
           }}
           transition={{ type: 'spring', damping: 18, stiffness: 220 }}
           style={[
             styles.chip,
+            {
+              backgroundColor: chipBg,
+            },
             inGrid && [
               styles.gridChip,
               {
@@ -122,14 +127,16 @@ export function BusinessTypeSelector({
               <Ionicons name="checkmark" size={10} color="#FFFFFF" />
             </View>
           )}
-          <Text
-            style={[
-              styles.chipEmoji,
-              inGrid && { fontSize: isTabletLandscape ? 30 : 26, marginBottom: 5 },
-            ]}
-          >
-            {type.emoji}
-          </Text>
+          <View style={styles.emojiContainer}>
+            <RNText
+              style={[
+                styles.chipEmoji,
+                inGrid && { fontSize: isTabletLandscape ? 30 : 26 },
+              ]}
+            >
+              {type.emoji}
+            </RNText>
+          </View>
           <Text
             style={[
               styles.chipLabel,
@@ -246,14 +253,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  emojiContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    marginBottom: 4,
+  },
   chipEmoji: {
     fontSize: 22,
-    marginBottom: 4,
+    textAlign: 'center',
+    backgroundColor: 'transparent',
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
   chipLabel: {
     fontSize: 11.5,
     fontWeight: '500',
     textAlign: 'center',
+    backgroundColor: 'transparent',
   },
   chipLabelActive: {
     fontWeight: '700',
