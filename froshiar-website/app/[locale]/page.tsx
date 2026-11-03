@@ -6,6 +6,7 @@ import { Features } from "@/components/sections/Features";
 import { AppDownloadSection } from "@/components/sections/AppDownloadSection";
 import { About } from "@/components/sections/About";
 import { BusinessTypes } from "@/components/sections/BusinessTypes";
+import { OnlineStoreSection } from "@/components/sections/OnlineStoreSection";
 import { Contact } from "@/components/sections/Contact";
 import { SplashScreen } from "@/components/ui/SplashScreen";
 import { routing } from "@/i18n/routing";
@@ -32,6 +33,7 @@ export default async function Home({
         <AppDownloadSection />
         <About />
         <BusinessTypes />
+        <OnlineStoreSection />
         <Contact />
       </main>
       <Footer />
