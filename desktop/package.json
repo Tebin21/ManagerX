@@ -1,0 +1,52 @@
+{
+  "name": "froshiar-pos",
+  "productName": "Froshiar POS",
+  "version": "1.0.1",
+  "description": "فرۆشیار - سیستەمی بەڕێوەبردنی فرۆشگا و ژمێریاری و خاڵی فرۆشتن",
+  "main": "main.js",
+  "author": "BexDre",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win nsis --x64"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.froshiar.pos",
+    "productName": "Froshiar POS",
+    "copyright": "Copyright © 2026 Froshiar",
+    "directories": {
+      "output": "../dist-electron"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "assets/**/*",
+      "../dist/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png",
+      "artifactName": "Froshiar-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Froshiar POS"
+    }
+  }
+}

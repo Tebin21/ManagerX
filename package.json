@@ -13,7 +13,10 @@
     "clean": "npx expo clean",
     "lint": "expo lint",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "desktop:export": "npx expo export --platform web",
+    "desktop:start": "cd desktop && npm start",
+    "desktop:build": "npm run desktop:export && cd desktop && npm run dist"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.2.3",
