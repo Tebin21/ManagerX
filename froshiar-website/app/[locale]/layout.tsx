@@ -75,10 +75,10 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       dir={dir}
-      className={`${inter.variable} ${rudaw.variable} ${bahijJanna.variable} h-full dark`}
+      className={`${inter.variable} ${rudaw.variable} ${bahijJanna.variable} h-full`}
       suppressHydrationWarning
     >
-      <body className={`min-h-full flex flex-col antialiased ${bodyFontClass} bg-[#090C10] text-[#f1f5f9] relative`}>
+      <body className={`min-h-full flex flex-col antialiased ${bodyFontClass} bg-slate-50 dark:bg-[#090C10] text-slate-900 dark:text-[#f1f5f9] relative`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           <SplashProvider>
             <GlobalBackground />

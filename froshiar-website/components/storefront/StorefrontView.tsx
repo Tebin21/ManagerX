@@ -35,15 +35,21 @@ function StorefrontContent({ store, slug }: Props) {
   const { isRTL, dir, t } = useStoreLanguage();
   const { setTheme } = useTheme();
 
-  // If merchant has a theme mode (dark or light) and visitor hasn't set a personal preference yet:
+  // Set theme on mount or when slug changes, respecting visitor preference or merchant default
   useEffect(() => {
-    if (store.info.themeMode && (store.info.themeMode === 'light' || store.info.themeMode === 'dark')) {
-      const storedTheme = localStorage.getItem(`froshiar_store_theme_${slug || 'demo'}`);
-      if (!storedTheme) {
+    const safeSlug = (slug || 'demo').trim().toLowerCase();
+    try {
+      const storedTheme = localStorage.getItem(`froshiar_store_theme_${safeSlug}`);
+      if (storedTheme === 'light' || storedTheme === 'dark') {
+        setTheme(storedTheme);
+      } else if (store.info.themeMode === 'light' || store.info.themeMode === 'dark') {
         setTheme(store.info.themeMode);
       }
+    } catch {
+      // Ignore
     }
-  }, [store.info.themeMode, slug, setTheme]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug]);
 
   const brandStyle = useMemo(() => getBrandCssVars(store.info.themeColor), [store.info.themeColor]);
 

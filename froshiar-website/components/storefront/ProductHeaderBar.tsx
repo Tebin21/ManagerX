@@ -1,7 +1,9 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, ShoppingBag } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { useCart } from './CartContext';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { StoreLanguageSwitcher } from './StoreLanguageSwitcher';
@@ -15,6 +17,20 @@ interface Props {
 export function ProductHeaderBar({ storeSlug }: Props) {
   const { totalCount, openCart } = useCart();
   const { t, isRTL } = useStoreLanguage();
+  const { setTheme } = useTheme();
+
+  useEffect(() => {
+    const safeSlug = (storeSlug || 'demo').trim().toLowerCase();
+    try {
+      const storedTheme = localStorage.getItem(`froshiar_store_theme_${safeSlug}`);
+      if (storedTheme === 'light' || storedTheme === 'dark') {
+        setTheme(storedTheme);
+      }
+    } catch {
+      // Ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeSlug]);
 
   return (
     <div className="mb-6 flex items-center justify-between gap-3">
@@ -42,7 +58,7 @@ export function ProductHeaderBar({ storeSlug }: Props) {
           )}
         </button>
 
-        <ThemeToggle />
+        <ThemeToggle storeSlug={storeSlug} />
         <StoreLanguageSwitcher />
       </div>
     </div>

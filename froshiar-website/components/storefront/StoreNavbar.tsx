@@ -52,7 +52,7 @@ export function StoreNavbar({ businessName, logoUrl, slug }: Props) {
 
         {/* Corner 2 (Left in RTL): Dark/Light Theme Switcher + 3-Flag Language Switcher */}
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <ThemeToggle />
+          <ThemeToggle storeSlug={slug} />
           <StoreLanguageSwitcher />
         </div>
       </div>

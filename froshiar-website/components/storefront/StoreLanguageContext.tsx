@@ -14,6 +14,7 @@ interface StoreLanguageContextValue {
   t: (key: keyof StoreTranslations, params?: Record<string, string | number>) => string;
   isRTL: boolean;
   dir: 'rtl' | 'ltr';
+  slug?: string;
 }
 
 const StoreLanguageContext = createContext<StoreLanguageContextValue | null>(null);
@@ -90,8 +91,9 @@ export function StoreLanguageProvider({
       t,
       isRTL,
       dir,
+      slug: safeSlug,
     }),
-    [locale, setLocale, cycleLocale, t, isRTL, dir]
+    [locale, setLocale, cycleLocale, t, isRTL, dir, safeSlug]
   );
 
   return (
@@ -120,6 +122,7 @@ export function useStoreLanguage() {
       },
       isRTL: true,
       dir: 'rtl' as const,
+      slug: undefined,
     };
   }
   return ctx;
