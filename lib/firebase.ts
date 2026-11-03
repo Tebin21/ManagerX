@@ -37,6 +37,11 @@ export { firebaseSignOut as signOut };
 export { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, reload, updateProfile, getIdToken };
 export { collection, doc, getDoc, getDocs, setDoc, deleteDoc, writeBatch, onSnapshot, serverTimestamp, query, where };
 
+export async function signInWithIdToken(idToken: string): Promise<{ user: any }> {
+  const credential = GoogleAuthProvider.credential(idToken);
+  return signInWithCredential(getFirebaseAuth(), credential);
+}
+
 export function getFirebaseAuth(): Auth {
   if (getApps().length === 0) {
     throw new Error(

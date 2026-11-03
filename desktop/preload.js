@@ -24,5 +24,8 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   openExternal: (url) => ipcRenderer.invoke('desktop:openExternal', url),
   pickLocalBackupFolder: () => ipcRenderer.invoke('desktop:pickLocalBackupFolder'),
   saveLocalBackupFile: (data, filename) => ipcRenderer.invoke('desktop:saveLocalBackupFile', { data, filename }),
+
+  // Google Authentication on Desktop
+  signInWithGoogle: () => ipcRenderer.invoke('desktop:signInWithGoogle'),
 });
 

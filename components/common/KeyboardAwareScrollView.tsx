@@ -129,7 +129,8 @@ export const KeyboardAwareScrollView = forwardRef<ScrollView, Props>(
       onScrollBeginDrag?.(e);
     }, [onScrollBeginDrag]);
 
-    const content = wrapForTapDismiss ? (
+    const isWeb = Platform.OS === 'web';
+    const content = wrapForTapDismiss && !isWeb ? (
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View>{children}</View>
       </TouchableWithoutFeedback>

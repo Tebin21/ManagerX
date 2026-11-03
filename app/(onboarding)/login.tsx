@@ -689,9 +689,11 @@ export default function LoginScreen() {
     </View>
   );
 
-  // Dismiss keyboard when background is pressed
+  // Dismiss keyboard when background is pressed (mobile only)
   const handleDismissDropdown = () => {
-    Keyboard.dismiss();
+    if (Platform.OS !== 'web') {
+      Keyboard.dismiss();
+    }
   };
 
   // ==========================================

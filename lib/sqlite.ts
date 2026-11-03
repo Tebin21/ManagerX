@@ -3701,21 +3701,8 @@ function rowToSupplierWithStats(row: Record<string, unknown>): SupplierWithStats
   };
 }
 
-export const DIRECT_SUPPLIER_NAME = 'دابینکەری ڕاستەوخۆ';
-
-export function isDirectSupplierName(name?: string | null): boolean {
-  if (!name) return false;
-  const n = name.trim().toLowerCase();
-  return (
-    n === DIRECT_SUPPLIER_NAME.toLowerCase() ||
-    n === 'direct supplier' ||
-    n === 'walk-in supplier' ||
-    n === 'دابینکەری راستەوخۆ' ||
-    n === 'دابینکەری دەستبەجێ' ||
-    n === 'المورد المباشر' ||
-    n === 'مورد مباشر'
-  );
-}
+export { DIRECT_SUPPLIER_NAME, isDirectSupplierName } from '@/lib/supplierUtils';
+import { DIRECT_SUPPLIER_NAME, isDirectSupplierName } from '@/lib/supplierUtils';
 
 export async function ensureDirectSupplier(db?: SQLite.SQLiteDatabase): Promise<number> {
   const database = db ?? (await getDatabase());

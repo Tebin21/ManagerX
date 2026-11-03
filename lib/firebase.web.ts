@@ -158,6 +158,34 @@ export async function signInWithEmailAndPassword(_auth: any, email: string, pass
   }
 }
 
+export async function signInWithIdToken(idToken: string): Promise<{ user: WebUser }> {
+  try {
+    const res = await fetch(`${BASE_AUTH_URL}:signInWithIdp?key=${FIREBASE_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        postBody: `id_token=${idToken}&providerId=google.com`,
+        requestUri: 'http://localhost',
+        returnIdpCredential: true,
+        returnSecureToken: true,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw parseFirebaseError(data);
+    }
+    const user = createWebUser(data);
+    currentWebUser = user;
+    notifyAuthListeners();
+    return { user };
+  } catch (err: any) {
+    if (err.code) throw err;
+    const networkErr: any = new Error(err.message || 'Network request failed');
+    networkErr.code = 'auth/network-request-failed';
+    throw networkErr;
+  }
+}
+
 export async function sendPasswordResetEmail(_auth: any, email: string): Promise<void> {
   try {
     const res = await fetch(`${BASE_AUTH_URL}:sendOobCode?key=${FIREBASE_API_KEY}`, {

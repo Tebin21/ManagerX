@@ -736,11 +736,35 @@ export const useAuthStore = create<AuthState>()(
       pendingPasswordResetToken: null,
 
       signInWithGoogle: async () => {
-        if (Platform.OS === 'web' || !isFirebaseAvailable) {
-          return { error: i18n.t('authErrors.googleUnavailableWeb') };
-        }
         set({ isLoading: true });
         try {
+          if (Platform.OS === 'web') {
+            const desktopAPI = typeof window !== 'undefined' ? (window as any).desktopAPI : null;
+            if (desktopAPI && typeof desktopAPI.signInWithGoogle === 'function') {
+              const res = await desktopAPI.signInWithGoogle();
+              if (res?.cancelled) {
+                set({ isLoading: false });
+                return { error: i18n.t('authErrors.googleSignInCancelled') };
+              }
+              if (!res?.success || !res?.idToken) {
+                set({ isLoading: false });
+                return { error: res?.error || i18n.t('authErrors.googleNoIdToken') };
+              }
+
+              const { signInWithIdToken } = await import('@/lib/firebase');
+              const { user } = await signInWithIdToken(res.idToken);
+              await adoptSignedInUser(user, set);
+              set({ isLoading: false });
+              return { error: null };
+            }
+
+            set({ isLoading: false });
+            return { error: i18n.t('authErrors.googleUnavailableWeb') };
+          }
+
+          if (!isFirebaseAvailable) {
+            return { error: i18n.t('authErrors.googleUnavailableWeb') };
+          }
           const GoogleSignin = await getGoogleSignin();
           await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
