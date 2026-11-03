@@ -25,3 +25,4 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   pickLocalBackupFolder: () => ipcRenderer.invoke('desktop:pickLocalBackupFolder'),
   saveLocalBackupFile: (data, filename) => ipcRenderer.invoke('desktop:saveLocalBackupFile', { data, filename }),
 });
+

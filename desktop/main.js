@@ -218,3 +218,4 @@ ipcMain.handle('desktop:saveLocalBackupFile', async (event, { data, filename }) 
     return { success: false, error: err.message };
   }
 });
+

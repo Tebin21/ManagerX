@@ -105,3 +105,4 @@ export function installAutoEnglishDigits(): void {
     } catch {}
   }
 }
+
