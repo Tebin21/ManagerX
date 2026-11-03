@@ -1,13 +1,116 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
 
 let mainWindow = null;
+let localServer = null;
+let serverPort = null;
 
 // Determine if running in local development mode
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+const isDev = process.env.NODE_ENV === 'development';
 
-function createWindow() {
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.ttf': 'font/ttf',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.wasm': 'application/wasm',
+};
+
+/**
+ * Spawns an internal, offline-only HTTP static server on 127.0.0.1.
+ * This guarantees that root-relative bundle paths (/_expo/..., /assets/...)
+ * resolve cleanly without 404 or file:// protocol security restrictions.
+ */
+function startLocalServer(distDir) {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      try {
+        let cleanUrl = req.url.split('?')[0];
+        let reqPath = decodeURIComponent(cleanUrl);
+
+        if (reqPath === '/' || reqPath === '') {
+          reqPath = '/index.html';
+        }
+
+        let filePath = path.join(distDir, reqPath);
+        const ext = path.extname(reqPath).toLowerCase();
+        const isAsset = Boolean(ext && ext !== '.html');
+
+        // If file doesn't exist directly, check for .html extension or fallback to index.html for SPA
+        if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+          if (isAsset) {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Not found: ' + reqPath);
+            return;
+          }
+          const potentialHtml = filePath + '.html';
+          if (fs.existsSync(potentialHtml) && fs.statSync(potentialHtml).isFile()) {
+            filePath = potentialHtml;
+          } else {
+            filePath = path.join(distDir, 'index.html');
+          }
+        }
+
+        const fileExt = path.extname(filePath).toLowerCase();
+        const contentType = MIME_TYPES[fileExt] || 'application/octet-stream';
+
+        fs.readFile(filePath, (err, data) => {
+          if (err) {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Not found: ' + reqPath);
+            return;
+          }
+          res.writeHead(200, {
+            'Content-Type': contentType,
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'no-cache',
+          });
+          res.end(data);
+        });
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Internal server error: ' + err.message);
+      }
+    });
+
+    server.on('error', (err) => {
+      console.error('[Server Error]', err);
+      reject(err);
+    });
+
+    // Bind strictly to 127.0.0.1 (local loopback) on an ephemeral port
+    server.listen(0, '127.0.0.1', () => {
+      const port = server.address().port;
+      resolve({ port, server });
+    });
+  });
+}
+
+async function createWindow() {
+  const bundledDist = path.join(__dirname, 'dist');
+  const parentDist = path.join(__dirname, '../dist');
+  const distDir = fs.existsSync(bundledDist) ? bundledDist : parentDist;
+
+  // Start internal loopback server
+  try {
+    const s = await startLocalServer(distDir);
+    localServer = s.server;
+    serverPort = s.port;
+  } catch (err) {
+    console.error('Failed to start local server, fallback to file:', err);
+  }
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -21,34 +124,58 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: true,
+      webSecurity: false, // Allows cross-origin for fonts and local wasm
     },
-    backgroundColor: '#0F172A', // Froshiar dark background
+    backgroundColor: '#0F172A',
     show: false,
   });
 
-  // Load the web app
-  if (isDev && process.env.ELECTRON_START_URL) {
-    mainWindow.loadURL(process.env.ELECTRON_START_URL);
+  // Load via internal loopback server if available, or fallback
+  if (serverPort) {
+    mainWindow.loadURL(`http://127.0.0.1:${serverPort}/index.html`);
   } else {
-    const bundledPath = path.join(__dirname, 'dist/index.html');
-    const devPath = path.join(__dirname, '../dist/index.html');
-    const indexPath = fs.existsSync(bundledPath) ? bundledPath : devPath;
-    if (fs.existsSync(indexPath)) {
-      mainWindow.loadFile(indexPath);
-    } else {
-      mainWindow.loadURL('http://localhost:8081');
-    }
+    mainWindow.loadFile(path.join(distDir, 'index.html'));
   }
 
+  let shown = false;
   mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
+    if (!shown) {
+      shown = true;
+      mainWindow.show();
+    }
   });
 
-  // Keyboard shortcut: F11 toggles fullscreen
+  // Safety fallback: if ready-to-show doesn't fire within 2.5 seconds, force show
+  setTimeout(() => {
+    if (mainWindow && !shown) {
+      shown = true;
+      mainWindow.show();
+    }
+  }, 2500);
+
+  // Capture load failures for debugging
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+    console.error('[MainWindow] Failed to load:', errorCode, errorDescription);
+  });
+
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    if (level >= 2) {
+      console.log(`[Renderer ${level === 3 ? 'ERROR' : 'WARN'}] ${message} (${sourceId}:${line})`);
+    }
+  });
+
+  // Keyboard shortcuts: F11 toggles fullscreen, Escape exits fullscreen, F12 toggles DevTools
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.key === 'F11' && input.type === 'keyDown') {
       mainWindow.setFullScreen(!mainWindow.isFullScreen());
+      event.preventDefault();
+    }
+    if (input.key === 'Escape' && input.type === 'keyDown' && mainWindow.isFullScreen()) {
+      mainWindow.setFullScreen(false);
+      event.preventDefault();
+    }
+    if (input.key === 'F12' && input.type === 'keyDown') {
+      mainWindow.webContents.toggleDevTools();
       event.preventDefault();
     }
   });
@@ -58,8 +185,8 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
-  createWindow();
+app.whenReady().then(async () => {
+  await createWindow();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -67,8 +194,21 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  if (localServer) {
+    try {
+      localServer.close();
+    } catch {}
+  }
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+app.on('will-quit', () => {
+  if (localServer) {
+    try {
+      localServer.close();
+    } catch {}
   }
 });
 
@@ -120,7 +260,6 @@ ipcMain.handle('desktop:printReceipt', async (event, { html, pageSize = '80mm', 
         },
       });
 
-      // Wrap HTML with thermal / print CSS reset
       const fullHtml = `
         <!DOCTYPE html>
         <html>
@@ -155,7 +294,6 @@ ipcMain.handle('desktop:printReceipt', async (event, { html, pageSize = '80mm', 
           deviceName: printerName || '',
         };
 
-        // Configure page dimensions based on the 4 supported formats
         if (pageSize === '80mm') {
           printOptions.pageSize = { width: 80000, height: 297000 };
           printOptions.margins = { marginType: 'none' };
@@ -220,4 +358,3 @@ ipcMain.handle('desktop:saveLocalBackupFile', async (event, { data, filename }) 
     return { success: false, error: err.message };
   }
 });
-
