@@ -125,6 +125,7 @@ export default function RootLayout() {
     RudawRegular: require('@/assets/fonts/BahijJanna-Regular.ttf'),
   });
 
+  const [isObscured, setIsObscured] = React.useState(false);
   const initialize = useAuthStore((s) => s.initialize);
 
   useEffect(() => {
@@ -137,6 +138,16 @@ export default function RootLayout() {
       .then((m) => m.resumeInterruptedDeletionIfNeeded())
       .catch((e) => console.error('DB init failed:', e));
 
+    // Anti-tamper & device integrity check
+    import('@/lib/security')
+      .then((m) => m.isDeviceRootedAsync())
+      .then((isRooted) => {
+        if (isRooted) {
+          console.warn('[Security] Device integrity alert: Root/Jailbreak indicators present.');
+        }
+      })
+      .catch(() => {});
+
     // Telemetry tracking & Google Drive auto-backup lifecycle triggers
     import('@/lib/telemetry').then((m) => m.trackAppInstallOrOpen()).catch(() => {});
     import('@/lib/googleDriveBackup').then((m) => m.triggerGoogleDriveAutoBackup('app_open')).catch(() => {});
@@ -146,6 +157,9 @@ export default function RootLayout() {
 
     const { AppState } = require('react-native');
     const appStateSub = AppState.addEventListener('change', (state: string) => {
+      if (Platform.OS !== 'web') {
+        setIsObscured(state === 'background' || state === 'inactive');
+      }
       if (state === 'background') {
         import('@/lib/googleDriveBackup')
           .then((m) => m.triggerGoogleDriveAutoBackup('app_close'))
@@ -203,6 +217,28 @@ export default function RootLayout() {
           <UsageLimitModal />
           <AccountUpgradeReceiptModal />
           <SplashScreenOverlay />
+          {isObscured && Platform.OS !== 'web' && (
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: '#0F172A',
+                zIndex: 999999,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Image
+                source={require('@/assets/images/logo.png')}
+                style={{ width: 140, height: 140, opacity: 0.9 }}
+                resizeMode="contain"
+              />
+            </View>
+          )}
         </ThemeProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>

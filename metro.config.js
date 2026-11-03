@@ -53,6 +53,34 @@ config.resolver.blockList = [
 // Apply NativeWind first so we can safely wrap its resolveRequest
 const finalConfig = withNativeWind(config, { input: './global.css' });
 
+// Production code obfuscation, dead-code elimination, and console stripping
+const isProduction = process.env.NODE_ENV === 'production' || process.env.BABEL_ENV === 'production';
+finalConfig.transformer = {
+  ...finalConfig.transformer,
+  minifierPath: require.resolve('metro-minify-terser'),
+  minifierConfig: {
+    ...finalConfig.transformer?.minifierConfig,
+    ecma: 8,
+    keep_classnames: false,
+    keep_fnames: false,
+    mangle: {
+      toplevel: isProduction,
+      keep_fnames: false,
+      keep_classnames: false,
+    },
+    compress: {
+      ...(finalConfig.transformer?.minifierConfig?.compress || {}),
+      drop_console: isProduction,
+      drop_debugger: isProduction,
+      passes: 2,
+    },
+    output: {
+      ascii_only: true,
+      comments: false,
+    },
+  },
+};
+
 // Fix: "Cannot destructure property '__extends' of 'tslib.default' as undefined"
 // Metro on web picks up tslib's ESM export; force the CJS entry for all platforms.
 const nativeWindResolve = finalConfig.resolver.resolveRequest;

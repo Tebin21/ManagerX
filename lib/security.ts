@@ -66,3 +66,47 @@ export function assertSafeSqlIdentifier(identifier: string): string {
   }
   return `"${identifier}"`;
 }
+
+/**
+ * Common system paths indicating root (Android) or jailbreak (iOS).
+ */
+const ROOT_INDICATOR_PATHS = [
+  '/system/app/Superuser.apk',
+  '/sbin/su',
+  '/system/bin/su',
+  '/system/xbin/su',
+  '/data/local/xbin/su',
+  '/data/local/bin/su',
+  '/system/sd/xbin/su',
+  '/system/bin/failsafe/su',
+  '/data/local/su',
+  '/su/bin/su',
+  // iOS jailbreak paths
+  '/Applications/Cydia.app',
+  '/Library/MobileSubstrate/MobileSubstrate.dylib',
+  '/bin/bash',
+  '/usr/sbin/sshd',
+  '/etc/apt',
+];
+
+/**
+ * Checks if the underlying device exhibits root / jailbreak indicators.
+ * Used for anti-tamper and sandbox integrity checks.
+ */
+export async function isDeviceRootedAsync(): Promise<boolean> {
+  try {
+    const { Platform } = await import('react-native');
+    if (Platform.OS === 'web') return false;
+    const FileSystem = await import('expo-file-system');
+    for (const path of ROOT_INDICATOR_PATHS) {
+      const info = await FileSystem.getInfoAsync(path).catch(() => ({ exists: false }));
+      if (info && info.exists) {
+        return true;
+      }
+    }
+  } catch {
+    // Fail safe on restricted sandbox environments
+  }
+  return false;
+}
+

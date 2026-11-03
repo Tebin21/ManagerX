@@ -7,6 +7,7 @@
     "icon": "./assets/images/logo-icon.png",
     "scheme": "froshiar",
     "userInterfaceStyle": "light",
+    "jsEngine": "hermes",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/logo-splash.png",
@@ -35,6 +36,7 @@
       },
       "package": "com.froshiar.app",
       "googleServicesFile": "./google-services.json",
+      "allowBackup": false,
       "permissions": [
         "android.permission.CAMERA"
       ],
@@ -67,7 +69,7 @@
             "ndkVersion": "28.2.13676358",
             "enableMinifyInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "extraProguardRules": "-keep class com.google.android.gms.auth.** { *; }\n-keep class com.google.android.gms.common.** { *; }\n-keep class com.google.android.gms.signin.** { *; }\n-keep class com.google.android.gms.internal.auth** { *; }\n-keep class com.google.android.gms.internal.identity** { *; }\n-dontwarn com.google.android.gms.**"
+            "extraProguardRules": "-repackageclasses ''\n-allowaccessmodification\n-flattenpackagehierarchy ''\n-renamesourcefileattribute SourceFile\n-keepattributes !SourceFile,!LineNumberTable\n-assumenosideeffects class android.util.Log { public static boolean isLoggable(java.lang.String, int); public static int v(...); public static int d(...); public static int i(...); public static int w(...); public static int e(...); }\n-keep class com.google.android.gms.auth.** { *; }\n-keep class com.google.android.gms.common.** { *; }\n-keep class com.google.android.gms.signin.** { *; }\n-keep class com.google.android.gms.internal.auth** { *; }\n-keep class com.google.android.gms.internal.identity** { *; }\n-dontwarn com.google.android.gms.**"
           }
         }
       ],
