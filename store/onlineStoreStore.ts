@@ -145,7 +145,7 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
   isRegistering: false,
   isLoading: false,
   isSyncingNow: false,
-  storeInfoFields: { description: '', facebookUrl: '', instagramUrl: '', tiktokUrl: '', whatsappNumber: '' },
+  storeInfoFields: { description: '', facebookUrl: '', instagramUrl: '', tiktokUrl: '', whatsappNumber: '', themeMode: 'dark' },
   lastSyncError: null,
   bulkPublishEnabled: false,
   isBulkPublishing: false,

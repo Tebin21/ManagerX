@@ -6,6 +6,7 @@ import {
 import { Text } from '@/components/settings/SettingsText';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 
 import { KeyboardAwareScrollView } from '@/components/common/KeyboardAwareScrollView';
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
@@ -57,7 +58,7 @@ function normalizeSocialLink(raw: string, platform?: 'facebook' | 'instagram' | 
 
 export default function OnlineStoreInfoScreen() {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { isTablet, contentContainerStyle } = useResponsive();
   const { textAlign } = useRTL();
   const router = useRouter();
@@ -74,6 +75,7 @@ export default function OnlineStoreInfoScreen() {
   const [instagramUrl, setInstagramUrl] = useState(storeInfoFields.instagramUrl);
   const [tiktokUrl, setTiktokUrl] = useState(storeInfoFields.tiktokUrl);
   const [whatsappNumber, setWhatsappNumber] = useState(toLocalIraqiPhone(storeInfoFields.whatsappNumber));
+  const [themeMode, setThemeMode] = useState<'dark' | 'light'>(storeInfoFields.themeMode === 'light' ? 'light' : 'dark');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -89,6 +91,7 @@ export default function OnlineStoreInfoScreen() {
     setInstagramUrl(storeInfoFields.instagramUrl);
     setTiktokUrl(storeInfoFields.tiktokUrl);
     setWhatsappNumber(toLocalIraqiPhone(storeInfoFields.whatsappNumber));
+    setThemeMode(storeInfoFields.themeMode === 'light' ? 'light' : 'dark');
   }, [storeInfoFields]);
 
   async function handleSave() {
@@ -100,6 +103,7 @@ export default function OnlineStoreInfoScreen() {
         instagramUrl: normalizeSocialLink(instagramUrl, 'instagram'),
         tiktokUrl: normalizeSocialLink(tiktokUrl, 'tiktok'),
         whatsappNumber: toInternationalIraqiPhone(whatsappNumber.trim()),
+        themeMode,
       });
       if (Platform.OS === 'android') {
         ToastAndroid.show(t('settings.onlineStoreInfoScreen.saved'), ToastAndroid.SHORT);
@@ -171,6 +175,82 @@ export default function OnlineStoreInfoScreen() {
               onChangeText={setWhatsappNumber}
               keyboardType="phone-pad"
             />
+
+            {/* Online Store Theme Mode (Dark / Light) */}
+            <View style={{ marginTop: 14 }}>
+              <Text style={[{ fontSize: 13, fontWeight: '700', marginBottom: 8, color: colors.black, textAlign }]}>
+                {t('settings.onlineStoreInfoScreen.storeTheme') || 'ڕووکاری سەرەکی فرۆشگا'}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                {/* Dark Mode Option */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setThemeMode('dark')}
+                  style={{
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    paddingVertical: 12,
+                    paddingHorizontal: 14,
+                    borderRadius: 14,
+                    borderWidth: 1.5,
+                    borderColor: themeMode === 'dark' ? colors.primary : colors.gray200,
+                    backgroundColor: themeMode === 'dark' ? (isDark ? '#1E293B' : '#0F172A') : colors.white,
+                  }}
+                >
+                  <Ionicons
+                    name="moon"
+                    size={17}
+                    color={themeMode === 'dark' ? (isDark ? colors.primary : '#F1F5F9') : colors.gray400}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: '700',
+                      color: themeMode === 'dark' ? (isDark ? colors.primary : '#F1F5F9') : colors.gray500,
+                    }}
+                  >
+                    {t('settings.darkMode') || 'دۆخی تاریک'}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Light Mode Option */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setThemeMode('light')}
+                  style={{
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    paddingVertical: 12,
+                    paddingHorizontal: 14,
+                    borderRadius: 14,
+                    borderWidth: 1.5,
+                    borderColor: themeMode === 'light' ? colors.primary : colors.gray200,
+                    backgroundColor: themeMode === 'light' ? (isDark ? 'rgba(212, 175, 55, 0.15)' : '#F8FAFC') : colors.white,
+                  }}
+                >
+                  <Ionicons
+                    name="sunny"
+                    size={17}
+                    color={themeMode === 'light' ? colors.primary : colors.gray400}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: '700',
+                      color: themeMode === 'light' ? (isDark ? colors.primary : colors.black) : colors.gray500,
+                    }}
+                  >
+                    {t('settings.lightMode') || 'دۆخی ڕووناک'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </PremiumCard>
 
           <TouchableOpacity

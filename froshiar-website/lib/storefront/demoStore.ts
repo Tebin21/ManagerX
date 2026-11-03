@@ -11,6 +11,7 @@ export const DEMO_STORE: StoreResponse = {
     instagramUrl: 'https://www.instagram.com/froshiar.krd/?hl=am-et',
     whatsappNumber: '9647708229696',
     themeColor: '#D4AF37',
+    themeMode: 'dark',
   },
   products: [
     {

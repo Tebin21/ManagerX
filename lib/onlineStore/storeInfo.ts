@@ -14,6 +14,7 @@ export interface StoreInfoFields {
   instagramUrl: string;
   tiktokUrl: string;
   whatsappNumber: string;
+  themeMode?: 'dark' | 'light';
 }
 
 const FIELD_KEYS: Record<keyof StoreInfoFields, string> = {
@@ -22,6 +23,7 @@ const FIELD_KEYS: Record<keyof StoreInfoFields, string> = {
   instagramUrl: 'online_store_instagram',
   tiktokUrl: 'online_store_tiktok',
   whatsappNumber: 'online_store_whatsapp',
+  themeMode: 'online_store_theme_mode',
 };
 
 export async function loadStoreInfoFields(): Promise<StoreInfoFields> {
@@ -30,7 +32,11 @@ export async function loadStoreInfoFields(): Promise<StoreInfoFields> {
       async (key) => [key, (await loadSetting(FIELD_KEYS[key])) ?? ''] as const
     )
   );
-  return Object.fromEntries(entries) as unknown as StoreInfoFields;
+  const result = Object.fromEntries(entries) as unknown as StoreInfoFields;
+  if (!result.themeMode || (result.themeMode !== 'dark' && result.themeMode !== 'light')) {
+    result.themeMode = 'dark';
+  }
+  return result;
 }
 
 // `silent` — see lib/onlineStore/storage.ts's setStoreEnabled/setStoreSlug doc

@@ -6,17 +6,17 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --color-canvas: #14110a;
-  --color-canvas-soft: #1c1810;
-  --color-ink: #f1f5f9;
-  color-scheme: dark;
+  --color-canvas: #f8fafc;
+  --color-canvas-soft: #ffffff;
+  --color-ink: #0f172a;
+  color-scheme: light;
 }
 
 .dark {
-  /* Dark mode is the permanent universal theme for Froshiar */
-  --color-canvas: #14110a;
-  --color-canvas-soft: #1c1810;
+  --color-canvas: #090c10;
+  --color-canvas-soft: #14110a;
   --color-ink: #f1f5f9;
+  color-scheme: dark;
 }
 
 @theme inline {

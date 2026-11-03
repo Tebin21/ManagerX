@@ -20,7 +20,18 @@ export function ThemeToggle({ storeSlug }: { storeSlug?: string } = {}) {
   // trigger a synchronous cascading re-render.
   const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
-  if (!mounted) return <div className="h-9 w-9" />;
+  if (!mounted) {
+    return (
+      <button
+        type="button"
+        aria-label="Toggle theme"
+        className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200/90 bg-slate-100/70 text-slate-400 dark:border-gold-800/40 dark:bg-white/[0.05] dark:text-slate-500 opacity-60"
+        disabled
+      >
+        <Sun size={15} />
+      </button>
+    );
+  }
 
   const isDark = resolvedTheme === "dark";
 
