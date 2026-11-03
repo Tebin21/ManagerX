@@ -174,10 +174,11 @@ export async function loadSubscriptionFromDb(): Promise<SubscriptionInfo> {
     // If no manual code, but store was already enabled by admin/user on this device, keep it active
     let isLocallyActive = false;
     try {
-      const { getStoreEnabled, getStoreApiKey } = await import('@/lib/onlineStore/storage');
+      const { getStoreEnabled } = await import('@/lib/onlineStore/storage');
+      const { useOnlineStoreStore } = await import('@/store/onlineStoreStore');
       const isEnabled = await getStoreEnabled();
-      const apiKey = await getStoreApiKey();
-      isLocallyActive = Boolean(isEnabled && apiKey);
+      const inStoreEnabled = useOnlineStoreStore.getState().enabled;
+      isLocallyActive = Boolean(isEnabled || inStoreEnabled);
     } catch {}
 
     if (isLocallyActive) {

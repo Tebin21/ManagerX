@@ -1,4 +1,4 @@
-import { getFirebaseFirestore, doc, getDoc, onSnapshot } from '@/lib/firebase';
+import { getFirebaseFirestore, doc, getDoc, getDocs, collection, query, where, onSnapshot } from '@/lib/firebase';
 import { useManagementStore } from '@/store/managementStore';
 import { useAuthStore } from '@/store/authStore';
 
@@ -62,19 +62,21 @@ export async function isOnlineStoreActivatedByAdmin(forceRefresh = false): Promi
     return isStoreActiveCache;
   }
 
-  // 1. Employee Account Check
+  // 1. Employee Account Fast Check (in-memory)
   const { isEmployee, currentEmployeeAccount } = useManagementStore.getState();
-  if (isEmployee) {
-    const store = currentEmployeeAccount?.onlineStore;
+  if (isEmployee && currentEmployeeAccount?.onlineStore) {
+    const store = currentEmployeeAccount.onlineStore;
     const active = !!(store?.enabled && store?.status === 'active');
-    isStoreActiveCache = active;
-    lastCheckTime = now;
-    return active;
+    if (active) {
+      isStoreActiveCache = true;
+      lastCheckTime = now;
+      return true;
+    }
   }
 
-  // 2. Manager / Owner Check
+  // 2. Manager / Owner / User Check via Auth or Employee email
   const user = useAuthStore.getState().user;
-  const email = user?.email?.trim().toLowerCase();
+  const email = (user?.email || currentEmployeeAccount?.email)?.trim().toLowerCase();
   if (!email) {
     return isStoreActiveCache ?? false;
   }
@@ -119,6 +121,19 @@ export async function isOnlineStoreActivatedByAdmin(forceRefresh = false): Promi
         return true;
       }
     }
+
+    // 4. Query fallback for store_activations by email field
+    try {
+      const q = query(collection(db, 'store_activations'), where('email', '==', email));
+      const querySnap = await getDocs(q);
+      for (const d of querySnap.docs) {
+        if (parseStoreActiveFromData(d.data())) {
+          isStoreActiveCache = true;
+          lastCheckTime = now;
+          return true;
+        }
+      }
+    } catch {}
   } catch (err) {
     console.warn('[storeActivationService] Server check failed:', err);
   }
@@ -137,7 +152,7 @@ export interface AdminOnlineStoreConfig {
 
 export async function getOnlineStoreConfigFromAdmin(): Promise<AdminOnlineStoreConfig | null> {
   const { isEmployee, currentEmployeeAccount } = useManagementStore.getState();
-  if (isEmployee && currentEmployeeAccount?.onlineStore) {
+  if (isEmployee && currentEmployeeAccount?.onlineStore?.subdomain) {
     const store = currentEmployeeAccount.onlineStore;
     const active = !!(store?.enabled && store?.status === 'active');
     return {
@@ -149,7 +164,7 @@ export async function getOnlineStoreConfigFromAdmin(): Promise<AdminOnlineStoreC
   }
 
   const user = useAuthStore.getState().user;
-  const email = user?.email?.trim().toLowerCase();
+  const email = (user?.email || currentEmployeeAccount?.email)?.trim().toLowerCase();
   if (!email) return null;
 
   try {
@@ -201,6 +216,23 @@ export async function getOnlineStoreConfigFromAdmin(): Promise<AdminOnlineStoreC
         };
       }
     }
+
+    // 4. Query fallback for store_activations by email field
+    try {
+      const q = query(collection(db, 'store_activations'), where('email', '==', email));
+      const querySnap = await getDocs(q);
+      for (const d of querySnap.docs) {
+        const data = d.data();
+        if (parseStoreActiveFromData(data) && data?.subdomain) {
+          return {
+            isActive: true,
+            subdomain: data.subdomain,
+            storeName: data.storeName,
+            status: data.status,
+          };
+        }
+      }
+    } catch {}
   } catch (err) {
     console.warn('[storeActivationService] Failed to load config:', err);
   }

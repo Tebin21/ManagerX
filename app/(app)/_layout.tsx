@@ -1,5 +1,6 @@
 import { Stack, useRouter } from 'expo-router';
 import { useEffect } from 'react';
+import { AppState } from 'react-native';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useRTL } from '@/lib/rtl';
 import { useAuthStore } from '@/store/authStore';
@@ -51,9 +52,24 @@ export default function AppLayout() {
   useEffect(() => {
     if (!user) return;
     startAutoSync();
-    useOnlineStoreStore.getState().load();
+    useOnlineStoreStore.getState().load().then(async () => {
+      try {
+        const { isOnlineStoreActivatedByAdmin } = await import('@/lib/onlineStore/storeActivationService');
+        const active = await isOnlineStoreActivatedByAdmin();
+        if (active) {
+          await useOnlineStoreStore.getState().syncWithSubscription(true);
+        }
+      } catch {}
+    });
     runLegacyMigrationCheckOnce().finally(() => {
       useOnlineStoreSubscriptionStore.getState().loadSubscription();
+    });
+
+    const appStateSub = AppState.addEventListener('change', (status) => {
+      if (status === 'active') {
+        useOnlineStoreStore.getState().load();
+        useOnlineStoreSubscriptionStore.getState().loadSubscription();
+      }
     });
 
     // Employee & User Account Live Limits & Permissions listener
@@ -99,6 +115,7 @@ export default function AppLayout() {
     }
 
     return () => {
+      appStateSub.remove();
       unsubCurrentUser?.();
       unsubEmployee?.();
       unsubManager?.();

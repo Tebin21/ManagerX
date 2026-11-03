@@ -60,8 +60,11 @@ function OnlineStoreCardImpl() {
   useFocusEffect(
     useCallback(() => {
       let mounted = true;
-      isOnlineStoreActivatedByAdmin().then((active) => {
+      isOnlineStoreActivatedByAdmin().then(async (active) => {
         if (mounted) setIsAdminActivated(active);
+        if (active) {
+          await useOnlineStoreStore.getState().syncWithSubscription(true);
+        }
       });
       load();
       refreshPendingCount();
@@ -77,9 +80,10 @@ function OnlineStoreCardImpl() {
     return null;
   }
 
-  // Gated: Unless explicitly activated by the Admin, neither manager nor employee sees
-  // the live store controls. Instead, show the single prominent CTA button to create/contact.
-  if (!isAdminActivated) {
+  // Gated: Show live store controls if admin activated, store is enabled, or subscription is active.
+  // Otherwise, show the prominent CTA button to create/contact.
+  const isStoreLive = Boolean(isAdminActivated || enabled || subscriptionActive);
+  if (!isStoreLive) {
     return <CreateWebsiteCtaButton />;
   }
 

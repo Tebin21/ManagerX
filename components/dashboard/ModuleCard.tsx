@@ -4,6 +4,7 @@ import {
   View,
   StyleSheet,
   Animated,
+  Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/AppText';
@@ -528,9 +529,10 @@ function ModuleCardImpl({
                   { color: isDark ? '#F8FAFC' : '#0F172A' },
                   (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                 ]}
-                numberOfLines={1}
+                numberOfLines={2}
                 adjustsFontSizeToFit={true}
-                minimumFontScale={0.75}
+                minimumFontScale={0.7}
+                maxFontSizeMultiplier={1.15}
               >
                 {label}
               </Text>
@@ -663,12 +665,13 @@ function getStyles(
       elevation: 4,
     },
     titleSquare: {
-      fontSize: isTabletLandscape ? 21 : isTablet ? (isLastRowPair ? 20.5 : 19) : 14,
+      fontSize: isTabletLandscape ? 21 : isTablet ? (isLastRowPair ? 20.5 : 19) : (Platform.OS === 'android' ? 12.8 : 13.5),
+      lineHeight: isTabletLandscape ? 26 : isTablet ? (isLastRowPair ? 25 : 23) : 17,
       fontWeight: '700',
       textAlign: 'center',
       marginBottom: 3,
       width: '100%',
-      paddingHorizontal: 2,
+      paddingHorizontal: 1,
     },
     subtitleSquare: {
       fontSize: isTabletLandscape ? 14.5 : isTablet ? (isLastRowPair ? 13.5 : 13) : 9.5,
