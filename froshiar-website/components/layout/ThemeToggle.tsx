@@ -8,7 +8,7 @@ import { useStoreLanguage } from "@/components/storefront/StoreLanguageContext";
 const noopSubscribe = () => () => {};
 
 export function ThemeToggle({ storeSlug }: { storeSlug?: string } = {}) {
-  const { resolvedTheme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const storeContext = useStoreLanguage();
   const activeSlug = storeSlug || (storeContext?.slug && storeContext.slug !== 'default' ? storeContext.slug : undefined);
 
@@ -33,11 +33,28 @@ export function ThemeToggle({ storeSlug }: { storeSlug?: string } = {}) {
     );
   }
 
-  const isDark = resolvedTheme === "dark";
+  // Determine current active theme with DOM fallback to prevent any desync
+  const isDark = typeof document !== 'undefined'
+    ? document.documentElement.classList.contains('dark')
+    : (resolvedTheme || theme) === 'dark';
 
   const handleToggle = () => {
-    const nextTheme = isDark ? "light" : "dark";
+    const currentlyDark = typeof document !== 'undefined'
+      ? document.documentElement.classList.contains('dark')
+      : (resolvedTheme || theme) === 'dark';
+    const nextTheme = currentlyDark ? 'light' : 'dark';
+
+    // Synchronously update DOM class to ensure zero-lag instant visual toggle
+    if (typeof document !== 'undefined') {
+      if (nextTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+
     setTheme(nextTheme);
+
     if (activeSlug) {
       try {
         localStorage.setItem(`froshiar_store_theme_${activeSlug}`, nextTheme);

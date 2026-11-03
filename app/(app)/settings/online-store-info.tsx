@@ -63,7 +63,7 @@ export default function OnlineStoreInfoScreen() {
   const { textAlign } = useRTL();
   const router = useRouter();
 
-  const { storeInfoFields, load, saveStoreInfo } = useOnlineStoreStore();
+  const { storeInfoFields, load, saveStoreInfo, enabled: isStoreEnabled } = useOnlineStoreStore();
   const {
     isActive: hasActiveSubscription, expired: subscriptionExpired, isLegacyActiveStore,
     loadSubscription,
@@ -114,8 +114,8 @@ export default function OnlineStoreInfoScreen() {
     }
   }
 
-  // Gated: Show Coming Soon for users without an active Online Store subscription
-  if (!hasActiveSubscription) {
+  // Gated: Show Coming Soon for users without an active Online Store subscription or enabled store
+  if (!hasActiveSubscription && !isStoreEnabled) {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.onlineStoreInfoScreen.title')} showBack />

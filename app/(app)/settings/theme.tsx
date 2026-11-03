@@ -7,6 +7,7 @@ import {
   useWindowDimensions,
   Platform,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -32,6 +33,8 @@ export default function ThemeScreen() {
   const { colors, isDark }  = useAppTheme();
   const { isRTL }           = useRTL();
   const { width: screenW }  = useWindowDimensions();
+  const isDarkMode          = useSettingsStore((s) => s.isDarkMode);
+  const setDarkMode         = useSettingsStore((s) => s.setDarkMode);
   const accentColor         = useSettingsStore((s) => s.accentColor);
   const setAccentColor      = useSettingsStore((s) => s.setAccentColor);
   const notifyAccentColorChanged = useOnlineStoreStore((s) => s.notifyAccentColorChanged);
@@ -47,9 +50,85 @@ export default function ThemeScreen() {
   }, [accentColor]);
 
   const listHeader = (
-    <Text style={[st.sectionHeader, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
-      {t('settings.themeScreen.presets').toUpperCase()}
-    </Text>
+    <View style={{ marginBottom: 18 }}>
+      {/* 1. Theme Mode (Dark Mode vs Light Mode) */}
+      <Text style={[st.sectionHeader, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
+        {(t('settings.appearance') || (isRTL ? 'دۆخی ڕووکار' : 'Theme Mode')).toUpperCase()}
+      </Text>
+
+      <View style={[st.modeRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        {/* Dark Mode Card */}
+        <TouchableOpacity
+          activeOpacity={0.82}
+          onPress={() => {
+            try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+            setDarkMode(true);
+          }}
+          style={[
+            st.modeCard,
+            {
+              backgroundColor: isDarkMode ? (isDark ? '#1E293B' : '#0F172A') : (isDark ? 'rgba(30, 41, 59, 0.45)' : '#FFFFFF'),
+              borderColor: isDarkMode ? colors.primary : (isDark ? '#334155' : colors.gray200),
+            },
+          ]}
+        >
+          <View style={[st.modeIconWrap, { backgroundColor: isDarkMode ? (isDark ? '#0F172A' : '#1E293B') : (isDark ? '#0F172A' : colors.gray100) }]}>
+            <Ionicons name="moon" size={18} color={isDarkMode ? colors.primary : colors.gray400} />
+          </View>
+          <View style={{ flex: 1, marginHorizontal: 8 }}>
+            <Text style={[st.modeTitle, { color: isDarkMode ? (isDark ? colors.white : '#FFFFFF') : colors.gray700, textAlign: isRTL ? 'right' : 'left' }]}>
+              {t('settings.darkMode') || (isRTL ? 'دۆخی تاریک' : 'Dark Mode')}
+            </Text>
+            <Text style={[st.modeSub, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
+              {isRTL ? 'تاریک و پارێزەری چاو' : 'Dark Mode'}
+            </Text>
+          </View>
+          {isDarkMode && (
+            <View style={[st.modeBadge, { backgroundColor: colors.primary }]}>
+              <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+            </View>
+          )}
+        </TouchableOpacity>
+
+        {/* Light Mode Card */}
+        <TouchableOpacity
+          activeOpacity={0.82}
+          onPress={() => {
+            try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+            setDarkMode(false);
+          }}
+          style={[
+            st.modeCard,
+            {
+              backgroundColor: !isDarkMode ? (isDark ? 'rgba(212, 175, 55, 0.12)' : '#FFFFFF') : (isDark ? 'rgba(30, 41, 59, 0.45)' : '#F8FAFC'),
+              borderColor: !isDarkMode ? colors.primary : (isDark ? '#334155' : colors.gray200),
+            },
+          ]}
+        >
+          <View style={[st.modeIconWrap, { backgroundColor: !isDarkMode ? 'rgba(212, 175, 55, 0.15)' : (isDark ? '#0F172A' : colors.gray100) }]}>
+            <Ionicons name="sunny" size={18} color={!isDarkMode ? colors.primary : colors.gray400} />
+          </View>
+          <View style={{ flex: 1, marginHorizontal: 8 }}>
+            <Text style={[st.modeTitle, { color: !isDarkMode ? colors.black : colors.gray700, textAlign: isRTL ? 'right' : 'left' }]}>
+              {t('settings.lightMode') || (isRTL ? 'دۆخی ڕووناک' : 'Light Mode')}
+            </Text>
+            <Text style={[st.modeSub, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
+              {isRTL ? 'ڕۆشن و پاک' : 'Light Mode'}
+            </Text>
+          </View>
+          {!isDarkMode && (
+            <View style={[st.modeBadge, { backgroundColor: colors.primary }]}>
+              <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* 2. Theme Presets / Colors Header */}
+      <Text style={[st.sectionHeader, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left', marginTop: 14 }]}>
+        {t('settings.themeScreen.presets').toUpperCase()}
+      </Text>
+    </View>
   );
 
   const IS_IOS = Platform.OS === 'ios';
@@ -197,6 +276,46 @@ const st = StyleSheet.create({
     letterSpacing:     0.8,
     marginBottom:      12,
     paddingHorizontal: 2,
+  },
+
+  modeRow: {
+    gap: 10,
+  },
+  modeCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    borderWidth: 1.8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  modeIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  modeSub: {
+    fontSize: 10,
+    marginTop: 2,
+  },
+  modeBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   row: { flexDirection: 'row' },

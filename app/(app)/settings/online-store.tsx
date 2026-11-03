@@ -78,8 +78,8 @@ export default function OnlineStoreScreen() {
     }
   };
 
-  // Gated: Show Coming Soon for users without an active Online Store subscription
-  if (!hasActiveSubscription) {
+  // Gated: Show Coming Soon for users without an active Online Store subscription or enabled store
+  if (!hasActiveSubscription && !enabled) {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.onlineStoreScreen.title')} showBack />

@@ -94,6 +94,7 @@ function StorefrontContent({ store, slug }: Props) {
           onToggleSearch={() => setIsSearchOpen((prev) => !prev)}
           searchQuery={query}
           onSearchChange={setQuery}
+          slug={slug}
         />
 
         {/* 2. Product Catalog */}

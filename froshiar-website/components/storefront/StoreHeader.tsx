@@ -15,6 +15,7 @@ interface Props {
   onToggleSearch?: () => void;
   searchQuery?: string;
   onSearchChange?: (val: string) => void;
+  slug?: string;
 }
 
 export function StoreHeader({
@@ -24,6 +25,7 @@ export function StoreHeader({
   onToggleSearch,
   searchQuery = '',
   onSearchChange,
+  slug,
 }: Props) {
   const { totalCount, openCart } = useCart();
   const { t, isRTL } = useStoreLanguage();
@@ -107,7 +109,7 @@ export function StoreHeader({
             </button>
 
             {/* Dark / Light Theme Toggle (Moon / Sun) */}
-            <ThemeToggle />
+            <ThemeToggle storeSlug={slug} />
 
             {/* Store Language Switcher (3 Flags: Kurdistan, Iraq, Britain) */}
             <StoreLanguageSwitcher />
