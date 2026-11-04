@@ -758,6 +758,28 @@ export const useAuthStore = create<AuthState>()(
               return { error: null };
             }
 
+            // Web Browser popup fallback (runs on http://localhost:8081 / browser)
+            try {
+              const { signInWithGoogleWeb } = await import('@/lib/firebase');
+              if (typeof signInWithGoogleWeb === 'function') {
+                const { user } = await signInWithGoogleWeb();
+                await adoptSignedInUser(user, set);
+                set({ isLoading: false });
+                return { error: null };
+              }
+            } catch (webErr: any) {
+              set({ isLoading: false });
+              if (
+                webErr?.code === 'auth/popup-closed-by-user' ||
+                webErr?.code === 'auth/cancelled-popup-request' ||
+                webErr?.message?.includes('closed-by-user')
+              ) {
+                return { error: i18n.t('authErrors.googleSignInCancelled') };
+              }
+              console.warn('[GoogleSignInWeb] Popup error:', webErr);
+              return { error: webErr?.message || mapFirebaseAuthError(webErr) };
+            }
+
             set({ isLoading: false });
             return { error: i18n.t('authErrors.googleUnavailableWeb') };
           }

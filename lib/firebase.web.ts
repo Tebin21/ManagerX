@@ -186,6 +186,46 @@ export async function signInWithIdToken(idToken: string): Promise<{ user: WebUse
   }
 }
 
+export async function signInWithGoogleWeb(): Promise<{ user: WebUser }> {
+  const { initializeApp, getApps } = await import('firebase/app');
+  const { getAuth, signInWithPopup, GoogleAuthProvider: WebGoogleAuthProvider } = await import('firebase/auth');
+
+  const app = getApps().length === 0 ? initializeApp({
+    apiKey: FIREBASE_API_KEY,
+    authDomain: 'managerx-bac3a.firebaseapp.com',
+    projectId: 'managerx-bac3a',
+    storageBucket: 'managerx-bac3a.firebasestorage.app',
+    messagingSenderId: '1097351210121',
+    appId: '1:1097351210121:web:760994c20ecc605e641258',
+  }) : getApps()[0];
+
+  const auth = getAuth(app);
+  const provider = new WebGoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+
+  const result = await signInWithPopup(auth, provider);
+  const fbUser = result.user;
+  const token = await fbUser.getIdToken();
+
+  const user: WebUser = {
+    uid: fbUser.uid,
+    email: fbUser.email,
+    displayName: fbUser.displayName,
+    photoURL: fbUser.photoURL,
+    phoneNumber: fbUser.phoneNumber,
+    emailVerified: fbUser.emailVerified,
+    providerData: (fbUser.providerData || []).map(p => ({ providerId: p.providerId })),
+    _idToken: token,
+    _refreshToken: (fbUser as any).refreshToken,
+    getIdToken: async () => token,
+    reload: async () => {},
+  };
+
+  currentWebUser = user;
+  notifyAuthListeners();
+  return { user };
+}
+
 export async function sendPasswordResetEmail(_auth: any, email: string): Promise<void> {
   try {
     const res = await fetch(`${BASE_AUTH_URL}:sendOobCode?key=${FIREBASE_API_KEY}`, {

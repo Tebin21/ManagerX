@@ -42,6 +42,10 @@ export async function signInWithIdToken(idToken: string): Promise<{ user: any }>
   return signInWithCredential(getFirebaseAuth(), credential);
 }
 
+export async function signInWithGoogleWeb(): Promise<{ user: any }> {
+  throw new Error('signInWithGoogleWeb is only available on Web.');
+}
+
 export function getFirebaseAuth(): Auth {
   if (getApps().length === 0) {
     throw new Error(
