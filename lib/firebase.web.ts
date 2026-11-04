@@ -197,6 +197,7 @@ export async function signInWithGoogleWeb(): Promise<{ user: WebUser }> {
     GoogleAuthProvider: WebGoogleAuthProvider,
     inMemoryPersistence,
     browserLocalPersistence,
+    browserPopupRedirectResolver,
   } = await import('firebase/auth');
 
   if (!_dedicatedWebAuth) {
@@ -217,7 +218,8 @@ export async function signInWithGoogleWeb(): Promise<{ user: WebUser }> {
 
     try {
       _dedicatedWebAuth = initializeAuth(app, {
-        persistence: [inMemoryPersistence, browserLocalPersistence],
+        persistence: [browserLocalPersistence, inMemoryPersistence],
+        popupRedirectResolver: browserPopupRedirectResolver,
       });
     } catch {
       _dedicatedWebAuth = getAuth(app);
@@ -229,11 +231,11 @@ export async function signInWithGoogleWeb(): Promise<{ user: WebUser }> {
 
   let result: any = null;
   try {
-    result = await signInWithPopup(_dedicatedWebAuth, provider);
+    result = await signInWithPopup(_dedicatedWebAuth, provider, browserPopupRedirectResolver);
   } catch (err: any) {
     if (err?.message?.includes('Database is closing/hidden') || err?.message?.includes('closing')) {
       await new Promise((r) => setTimeout(r, 600));
-      result = await signInWithPopup(_dedicatedWebAuth, provider);
+      result = await signInWithPopup(_dedicatedWebAuth, provider, browserPopupRedirectResolver);
     } else {
       throw err;
     }
