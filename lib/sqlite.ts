@@ -1117,21 +1117,44 @@ export async function getAllManagedCategories(): Promise<Array<{ name: string; p
        WHERE category IS NOT NULL AND TRIM(category) != ''`
     );
 
-    // Guarantee EXACTLY one canonical category is marked as default (is_default = 1).
-    let defaultRow = await database.getFirstAsync<{ id: number; name: string }>(
-      'SELECT id, name FROM categories WHERE is_default = 1 LIMIT 1'
+    // Guarantee that 'گشتی' (or an intentionally renamed default) is the canonical default category (is_default = 1).
+    const canonicalGenRow = await database.getFirstAsync<{ id: number; name: string; is_default: number }>(
+      "SELECT id, name, is_default FROM categories WHERE name = 'گشتی' OR name = 'General' OR name = 'بنەڕەت' ORDER BY (CASE WHEN name = 'گشتی' THEN 1 WHEN name = 'General' THEN 2 ELSE 3 END) ASC LIMIT 1"
     );
 
-    if (!defaultRow) {
-      // Check if 'گشتی', 'General' or 'بنەڕەت' exists:
-      const genRow = await database.getFirstAsync<{ id: number; name: string }>(
-        "SELECT id, name FROM categories WHERE name = 'گشتی' OR name = 'General' OR name = 'بنەڕەت' ORDER BY id ASC LIMIT 1"
+    let defaultRow: { id: number; name: string } | null = null;
+
+    if (canonicalGenRow) {
+      defaultRow = canonicalGenRow;
+      if (canonicalGenRow.is_default !== 1) {
+        await database.runAsync('UPDATE categories SET is_default = 0 WHERE is_default = 1');
+        await database.runAsync('UPDATE categories SET is_default = 1 WHERE id = ?', [canonicalGenRow.id]);
+      }
+    } else {
+      // Canonical name not found. Check if an intentionally renamed default exists in settings table
+      const savedDefaultCatSetting = await database.getFirstAsync<{ value: string }>(
+        "SELECT value FROM settings WHERE key = 'default_category_name' LIMIT 1"
       );
-      if (genRow) {
-        await database.runAsync('UPDATE categories SET is_default = 1 WHERE id = ?', [genRow.id]);
-        defaultRow = genRow;
-      } else {
-        // 'گشتی' does not exist in categories. Insert it as the default category!
+      const savedDefaultName = savedDefaultCatSetting?.value?.trim();
+
+      if (savedDefaultName) {
+        const renamedRow = await database.getFirstAsync<{ id: number; name: string }>(
+          'SELECT id, name FROM categories WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) LIMIT 1',
+          [savedDefaultName]
+        );
+        if (renamedRow) {
+          defaultRow = renamedRow;
+          await database.runAsync('UPDATE categories SET is_default = 0 WHERE is_default = 1');
+          await database.runAsync('UPDATE categories SET is_default = 1 WHERE id = ?', [renamedRow.id]);
+        }
+      }
+
+      if (!defaultRow) {
+        // Neither 'گشتی'/'General' nor a recognized renamed default exists.
+        // Ensure any mistakenly default-marked custom category (e.g. from MIN(id) bug) is demoted so it can be deleted!
+        await database.runAsync('UPDATE categories SET is_default = 0 WHERE is_default = 1');
+
+        // Insert 'گشتی' as the permanent default category!
         await database.runAsync(
           "INSERT OR IGNORE INTO categories (name, uuid, is_default, created_at, updated_at) VALUES ('گشتی', lower(hex(randomblob(16))), 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
         );
@@ -1143,7 +1166,7 @@ export async function getAllManagedCategories(): Promise<Array<{ name: string; p
     }
 
     if (defaultRow) {
-      // Clean up duplicate unused General rows if a renamed default exists
+      // Clean up duplicate unused General rows if a Kurdish 'گشتی' default exists
       if (defaultRow.name !== 'General') {
         const genWithProducts = await database.getFirstAsync<{ cnt: number }>(
           "SELECT COUNT(*) AS cnt FROM products WHERE category = 'General' AND is_active = 1"
@@ -1154,6 +1177,7 @@ export async function getAllManagedCategories(): Promise<Array<{ name: string; p
       }
       // Ensure only this single row has is_default = 1
       await database.runAsync('UPDATE categories SET is_default = 0 WHERE id != ?', [defaultRow.id]);
+      await database.runAsync('UPDATE categories SET is_default = 1 WHERE id = ?', [defaultRow.id]);
     }
   } catch (syncErr) {
     console.warn('[Categories] Auto-sync error in getAllManagedCategories:', syncErr);

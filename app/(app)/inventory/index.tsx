@@ -395,6 +395,25 @@ export default function InventoryScreen() {
             })
           : t('inventory.deleteCategoryConfirm', { name: cat.name });
 
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const confirmed = window.confirm(`${t('inventory.manageCategoriesTitle')}\n\n${message}`);
+        if (confirmed) {
+          (async () => {
+            try {
+              await deleteCategory(cat.name);
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : '';
+              if (msg === 'CATEGORY_IS_DEFAULT') {
+                window.alert(t('inventory.categoryIsDefault'));
+              } else {
+                window.alert(t('common.tryAgain'));
+              }
+            }
+          })();
+        }
+        return;
+      }
+
       Alert.alert(
         t('inventory.manageCategoriesTitle'),
         message,

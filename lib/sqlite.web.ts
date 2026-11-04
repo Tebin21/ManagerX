@@ -140,51 +140,262 @@ export async function generateInvoiceNumber(): Promise<string> {
 }
 
 // ─── Categories ────────────────────────────────────────────────────────────
-export async function getProductCategories(): Promise<string[]> {
-  const products = getLocal<any[]>(KEYS.products, []);
-  const cats = new Set<string>();
-  products.forEach((p) => {
-    if (p.category) cats.add(p.category);
+interface WebCategoryRecord {
+  id: number;
+  name: string;
+  is_default: number;
+  uuid?: string;
+}
+
+function getNormalizedWebCategories(): WebCategoryRecord[] {
+  const raw = getLocal<any[]>(KEYS.categories, []);
+  let list: WebCategoryRecord[] = [];
+
+  if (Array.isArray(raw)) {
+    raw.forEach((item, index) => {
+      if (typeof item === 'string') {
+        const trimmed = item.trim();
+        if (trimmed) {
+          list.push({
+            id: index + 1,
+            name: trimmed,
+            is_default: trimmed === 'گشتی' || trimmed === 'General' || trimmed === 'بنەڕەت' ? 1 : 0,
+          });
+        }
+      } else if (item && typeof item === 'object') {
+        const name = String(item.name || '').trim();
+        if (name) {
+          list.push({
+            id: Number(item.id) || index + 1,
+            name,
+            is_default: Number(item.is_default) === 1 || Number(item.isDefault) === 1 ? 1 : 0,
+            uuid: item.uuid,
+          });
+        }
+      }
+    });
+  }
+
+  // Deduplicate by lowercase name
+  const seen = new Map<string, WebCategoryRecord>();
+  list.forEach((cat) => {
+    const key = cat.name.toLowerCase();
+    if (!seen.has(key)) {
+      seen.set(key, cat);
+    } else {
+      if (cat.is_default === 1) {
+        seen.get(key)!.is_default = 1;
+      }
+    }
   });
-  const managed = getLocal<string[]>(KEYS.categories, []);
-  managed.forEach((c) => cats.add(c));
-  return Array.from(cats);
+
+  list = Array.from(seen.values());
+
+  // Guarantee that EXACTLY ONE canonical default category exists!
+  const defaultCount = list.filter((c) => c.is_default === 1).length;
+
+  if (defaultCount === 0) {
+    const gen = list.find((c) => {
+      const n = c.name.toLowerCase();
+      return n === 'گشتی' || n === 'general' || n === 'بنەڕەت';
+    });
+    if (gen) {
+      gen.is_default = 1;
+    } else {
+      list.unshift({
+        id: 1,
+        name: 'گشتی',
+        is_default: 1,
+      });
+    }
+  } else if (defaultCount > 1) {
+    let preferred = list.find((c) => c.is_default === 1 && (c.name === 'گشتی' || c.name === 'General'));
+    if (!preferred) preferred = list.find((c) => c.is_default === 1);
+    list.forEach((c) => {
+      c.is_default = c === preferred ? 1 : 0;
+    });
+  }
+
+  setLocal(KEYS.categories, list);
+  return list;
+}
+
+export async function getDefaultCategoryName(): Promise<string> {
+  const cats = getNormalizedWebCategories();
+  const def = cats.find((c) => c.is_default === 1);
+  return def ? def.name : 'گشتی';
+}
+
+export async function getProductCategories(): Promise<string[]> {
+  const cats = getNormalizedWebCategories();
+  const products = getLocal<any[]>(KEYS.products, []);
+  const set = new Set<string>();
+
+  // Always put default category first
+  const def = cats.find((c) => c.is_default === 1);
+  if (def) set.add(def.name);
+
+  // Other categories from category list
+  cats.forEach((c) => set.add(c.name));
+
+  // Any categories attached to products
+  products.forEach((p) => {
+    if (p.category && String(p.category).trim()) {
+      set.add(String(p.category).trim());
+    }
+  });
+
+  return Array.from(set);
 }
 
 export async function getAllManagedCategories(): Promise<Array<{ name: string; productCount: number; isDefault: boolean }>> {
-  const cats = await getProductCategories();
+  const cats = getNormalizedWebCategories();
   const products = getLocal<any[]>(KEYS.products, []);
-  return cats.map((name) => ({
-    name,
-    productCount: products.filter((p) => p.category === name).length,
-    isDefault: false,
+
+  // Also sync any categories that might exist on products
+  const existingNames = new Set(cats.map((c) => c.name.toLowerCase()));
+  let addedFromProducts = false;
+  products.forEach((p) => {
+    const catName = p.category ? String(p.category).trim() : '';
+    if (catName && !existingNames.has(catName.toLowerCase())) {
+      cats.push({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        name: catName,
+        is_default: 0,
+      });
+      existingNames.add(catName.toLowerCase());
+      addedFromProducts = true;
+    }
+  });
+
+  if (addedFromProducts) {
+    setLocal(KEYS.categories, cats);
+  }
+
+  const result = cats.map((cat) => ({
+    name: cat.name,
+    productCount: products.filter(
+      (p) => p.is_active !== 0 && String(p.category || '').trim().toLowerCase() === cat.name.toLowerCase()
+    ).length,
+    isDefault: cat.is_default === 1,
   }));
+
+  // Sort: Default ALWAYS first, then alphabetical
+  result.sort((a, b) => {
+    if (a.isDefault && !b.isDefault) return -1;
+    if (!a.isDefault && b.isDefault) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  return result;
 }
 
 export async function addManagedCategory(name: string): Promise<void> {
-  const cats = getLocal<string[]>(KEYS.categories, []);
-  if (!cats.includes(name)) {
-    cats.push(name);
-    setLocal(KEYS.categories, cats);
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error('CATEGORY_NAME_REQUIRED');
+
+  const cats = getNormalizedWebCategories();
+  const existing = cats.find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
+  if (existing) {
+    throw new Error('CATEGORY_ALREADY_EXISTS');
   }
+
+  // Newly added category is NEVER default
+  cats.push({
+    id: Date.now(),
+    name: trimmed,
+    is_default: 0,
+  });
+  setLocal(KEYS.categories, cats);
 }
 
 export async function renameManagedCategory(oldName: string, newName: string): Promise<void> {
-  const cats = getLocal<string[]>(KEYS.categories, []);
-  const idx = cats.indexOf(oldName);
-  if (idx >= 0) cats[idx] = newName;
+  const trimmedOld = oldName.trim();
+  const trimmedNew = newName.trim();
+  if (!trimmedNew) throw new Error('CATEGORY_NAME_REQUIRED');
+  if (trimmedNew.toLowerCase() === trimmedOld.toLowerCase()) return;
+
+  const cats = getNormalizedWebCategories();
+  const duplicate = cats.find(
+    (c) => c.name.toLowerCase() === trimmedNew.toLowerCase() && c.name.toLowerCase() !== trimmedOld.toLowerCase()
+  );
+  if (duplicate) {
+    throw new Error('CATEGORY_ALREADY_EXISTS');
+  }
+
+  const target = cats.find((c) => c.name.toLowerCase() === trimmedOld.toLowerCase());
+  if (target) {
+    target.name = trimmedNew;
+    // target.is_default is preserved! If the default category was renamed, it stays default!
+  } else {
+    cats.push({
+      id: Date.now(),
+      name: trimmedNew,
+      is_default: 0,
+    });
+  }
   setLocal(KEYS.categories, cats);
 
+  // Update products
   const products = getLocal<any[]>(KEYS.products, []);
+  let updatedProducts = false;
   products.forEach((p) => {
-    if (p.category === oldName) p.category = newName;
+    if (String(p.category || '').trim().toLowerCase() === trimmedOld.toLowerCase()) {
+      p.category = trimmedNew;
+      updatedProducts = true;
+    }
   });
-  setLocal(KEYS.products, products);
+  if (updatedProducts) {
+    setLocal(KEYS.products, products);
+  }
+
+  // Update purchases
+  const purchases = getLocal<any[]>(KEYS.purchases, []);
+  let updatedPurchases = false;
+  purchases.forEach((pur) => {
+    if (Array.isArray(pur.items)) {
+      pur.items.forEach((item: any) => {
+        if (String(item.category || '').trim().toLowerCase() === trimmedOld.toLowerCase()) {
+          item.category = trimmedNew;
+          updatedPurchases = true;
+        }
+      });
+    }
+  });
+  if (updatedPurchases) {
+    setLocal(KEYS.purchases, purchases);
+  }
 }
 
 export async function deleteManagedCategory(name: string): Promise<void> {
-  const cats = getLocal<string[]>(KEYS.categories, []).filter((c) => c !== name);
-  setLocal(KEYS.categories, cats);
+  const trimmed = name.trim();
+  const cats = getNormalizedWebCategories();
+
+  const target = cats.find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
+  if (target && target.is_default === 1) {
+    throw new Error('CATEGORY_IS_DEFAULT');
+  }
+
+  // Find default category to reassign products to
+  const def = cats.find((c) => c.is_default === 1);
+  const fallbackCat = def ? def.name : 'گشتی';
+
+  // Filter out the deleted category
+  const remaining = cats.filter((c) => c.name.toLowerCase() !== trimmed.toLowerCase());
+  setLocal(KEYS.categories, remaining);
+
+  // Reassign products to the fallback default category
+  const products = getLocal<any[]>(KEYS.products, []);
+  let updatedProducts = false;
+  products.forEach((p) => {
+    if (String(p.category || '').trim().toLowerCase() === trimmed.toLowerCase()) {
+      p.category = fallbackCat;
+      updatedProducts = true;
+    }
+  });
+  if (updatedProducts) {
+    setLocal(KEYS.products, products);
+  }
 }
 
 // ─── Products & Inventory ──────────────────────────────────────────────────

@@ -73,8 +73,8 @@ interface InventoryState {
 export const useInventoryStore = create<InventoryState>((set, get) => ({
   products: [],
   stats: null,
-  categories: [],
-  managedCategories: [],
+  categories: ['گشتی'],
+  managedCategories: [{ name: 'گشتی', productCount: 0, isDefault: true }],
   isLoading: false,
   filter: 'all',
   sortOrder: 'newest',
