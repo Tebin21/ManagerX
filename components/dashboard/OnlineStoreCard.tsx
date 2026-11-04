@@ -80,9 +80,9 @@ function OnlineStoreCardImpl() {
     return null;
   }
 
-  // Gated: Show live store controls if admin activated, store is enabled, or subscription is active.
+  // Gated: Show live store controls if admin activated, store is enabled, and has valid domain.
   // Otherwise, show the prominent CTA button to create/contact.
-  const isStoreLive = Boolean(isAdminActivated || enabled || subscriptionActive);
+  const isStoreLive = Boolean(enabled && storeUrl && (isAdminActivated || subscriptionActive));
   if (!isStoreLive) {
     return <CreateWebsiteCtaButton />;
   }

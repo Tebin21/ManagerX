@@ -2400,8 +2400,29 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         maxQuotations: unlimitedQuotations ? 'unlimited' : Number(formLimits.maxQuotations) || 5,
       };
 
-      const finalStoreName = (storeName.trim() || formName.trim() || selectedEmployee.displayName || cleanEmail.split('@')[0] || 'store').trim();
-      const finalSubdomain = (storeSubdomain.trim() || slugifyStoreName(finalStoreName) || docId || 'store').trim();
+      if (storeEnabled) {
+        const cleanSub = storeSubdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+        if (!cleanSub) {
+          setFormError(isKu ? 'تکایە ناوی بەستەر (Subdomain) بنووسە بۆ وێب ستۆر.' : 'Please enter a subdomain for the online store.');
+          setSubmitting(false);
+          return;
+        }
+        const duplicateStore = allOnlineStores.find(
+          (s) => (s.subdomain || '').trim().toLowerCase() === cleanSub && (s.email || '').trim().toLowerCase() !== cleanEmail
+        );
+        if (duplicateStore) {
+          setFormError(
+            isKu
+              ? `⚠️ ئەم بەستەرە («${cleanSub}») پێشتر بۆ وێبسایتێک دروستکراوە لەلایەن «${duplicateStore.customerName || duplicateStore.storeName || duplicateStore.email}»! تکایە ناوێکی تر بنووسە.`
+              : `⚠️ Subdomain "${cleanSub}" is already taken by "${duplicateStore.customerName || duplicateStore.storeName || duplicateStore.email}". Please choose a different subdomain.`
+          );
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      const finalStoreName = (storeName.trim() || formName.trim() || selectedEmployee.displayName || cleanEmail.split('@')[0] || 'Store').trim();
+      const finalSubdomain = storeSubdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
 
       const updatedStore: OnlineStoreConfig | null = storeEnabled
         ? {
@@ -2471,14 +2492,9 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
             { merge: true }
           );
         } else {
-          await setDoc(
-            doc(db, 'store_activations', docId),
-            {
-              enabled: false,
-              status: 'suspended',
-            },
-            { merge: true }
-          );
+          try {
+            await deleteDoc(doc(db, 'store_activations', docId));
+          } catch {}
         }
       } catch (subErr) {
         console.warn('Subscription sync warning in edit:', subErr);
@@ -2757,8 +2773,29 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         maxQuotations: unlimitedQuotations ? 'unlimited' : Number(formLimits.maxQuotations) || 5,
       };
 
-      const finalStoreName = (storeName.trim() || formName.trim() || cleanEmail.split('@')[0] || 'store').trim();
-      const finalSubdomain = (storeSubdomain.trim() || slugifyStoreName(finalStoreName) || docId || 'store').trim();
+      if (storeEnabled) {
+        const cleanSub = storeSubdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+        if (!cleanSub) {
+          setFormError(isKu ? 'تکایە ناوی بەستەر (Subdomain) بنووسە بۆ فڕۆشگای ئۆنلاین.' : 'Please enter a subdomain for the online store.');
+          setSubmitting(false);
+          return;
+        }
+        const duplicateStore = allOnlineStores.find(
+          (s) => (s.subdomain || '').trim().toLowerCase() === cleanSub && (s.email || '').trim().toLowerCase() !== cleanEmail
+        );
+        if (duplicateStore) {
+          setFormError(
+            isKu
+              ? `⚠️ ئەم بەستەرە («${cleanSub}») پێشتر بۆ وێبسایتێک دروستکراوە لەلایەن «${duplicateStore.customerName || duplicateStore.storeName || duplicateStore.email}»! تکایە ناوێکی تر بنووسە.`
+              : `⚠️ Subdomain "${cleanSub}" is already taken by "${duplicateStore.customerName || duplicateStore.storeName || duplicateStore.email}". Please choose a different subdomain.`
+          );
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      const finalStoreName = (storeName.trim() || formName.trim() || cleanEmail.split('@')[0] || 'Store').trim();
+      const finalSubdomain = storeSubdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
 
       const updatedStore: OnlineStoreConfig | null = storeEnabled
         ? {
@@ -2870,7 +2907,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
           { merge: true }
         );
 
-        // 3. If online storefront is enabled, also write to store_activations
+        // 3. If online storefront is enabled, also write to store_activations; otherwise delete stale doc
         if (storeEnabled) {
           await setDoc(
             doc(db, 'store_activations', docId),
@@ -2884,6 +2921,10 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
             },
             { merge: true }
           );
+        } else {
+          try {
+            await deleteDoc(doc(db, 'store_activations', docId));
+          } catch {}
         }
 
         // 4. Update app_telemetry_users tier & details
@@ -6249,20 +6290,106 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                 </div>
               </div>
 
-              {/* Online Store Note */}
+              {/* Online Store Configuration (Explicit Control) */}
               <div
-                className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
-                  isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-slate-50 border-slate-200'
+                className={`p-4 rounded-2xl border space-y-3.5 transition-all ${
+                  storeEnabled
+                    ? isDarkMode
+                      ? 'bg-emerald-950/20 border-emerald-500/40'
+                      : 'bg-emerald-50/60 border-emerald-300'
+                    : isDarkMode
+                    ? 'bg-[#0E1524] border-slate-800'
+                    : 'bg-slate-50 border-slate-200'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span className="text-xs text-slate-300 font-bold">
-                    {isKu
-                      ? '💡 چالاککردنی وێب ستۆر (فڕۆشگای ئۆنلاین) لە بەشی تایبەتی «وێب ستۆرەکان» ئەنجام دەدرێت بە داتا و نرخی جیاواز.'
-                      : '💡 Online store activation is handled separately in the dedicated "Online Stores" tab.'}
-                  </span>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                        storeEnabled
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : isDarkMode
+                          ? 'bg-slate-800 text-slate-400'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <Globe className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                        {isKu ? 'فڕۆشگای ئۆنلاین (Online Store)' : 'Online Storefront'}
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                        {storeEnabled
+                          ? (isKu ? 'ماڵپەڕی فرۆشگا بۆ ئەم هەژمارە کارا دەکرێت' : 'Web store will be activated')
+                          : (isKu ? 'ناچالاکە — تەنها ئەپی فرۆشگا کاردەکات' : 'Disabled — app POS only')}
+                      </span>
+                    </div>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={storeEnabled}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setStoreEnabled(checked);
+                        if (checked && !storeName) {
+                          setStoreName(formName.trim() || '');
+                        }
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
                 </div>
+
+                {storeEnabled ? (
+                  <div className="pt-3 border-t border-emerald-500/20 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                          {isKu ? 'ناوی فرۆشگا:' : 'Store Name:'}
+                        </label>
+                        <input
+                          type="text"
+                          value={storeName}
+                          onChange={(e) => setStoreName(e.target.value)}
+                          placeholder={isKu ? 'نموونە: مارکێتی چۆمان' : 'e.g. My Market'}
+                          className={`w-full px-3 py-2 rounded-xl border text-xs font-bold ${
+                            isDarkMode ? 'bg-[#0E1524] border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                          {isKu ? 'دۆمەین / ناوی بەستەر (Subdomain):' : 'Subdomain / Link:'}
+                        </label>
+                        <input
+                          type="text"
+                          value={storeSubdomain}
+                          onChange={(e) => setStoreSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                          placeholder={isKu ? 'نموونە: choman-market' : 'e.g. choman-market'}
+                          className={`w-full px-3 py-2 rounded-xl border text-xs font-mono font-bold ${
+                            isDarkMode ? 'bg-[#0E1524] border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {storeSubdomain && (
+                      <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2 text-xs font-mono font-bold text-emerald-400">
+                        <span>🔗 https://froshiar.store/{storeSubdomain.toLowerCase().trim()}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-slate-400 leading-relaxed">
+                    {isKu
+                      ? '🔒 ئەم هەژمارە بە تەواوی سەربەخۆیە و هیچ وێب ستۆر و بەستەرێکی بۆ دروست ناکرێت تا خۆت بە دەستی لێرە یان لە بەشی وێب ستۆرەکان چالاکی نەکەیت.'
+                      : '🔒 Standalone store account. No web store or link will be generated until you explicitly enable it here or in the Online Stores tab.'}
+                  </div>
+                )}
               </div>
 
               {/* Submit / Cancel Buttons */}
@@ -6872,20 +6999,106 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                 </div>
               </div>
 
-              {/* Online Store Note */}
+              {/* Online Store Configuration (Explicit Control) */}
               <div
-                className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
-                  isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-slate-50 border-slate-200'
+                className={`p-4 rounded-2xl border space-y-3.5 transition-all ${
+                  storeEnabled
+                    ? isDarkMode
+                      ? 'bg-emerald-950/20 border-emerald-500/40'
+                      : 'bg-emerald-50/60 border-emerald-300'
+                    : isDarkMode
+                    ? 'bg-[#0E1524] border-slate-800'
+                    : 'bg-slate-50 border-slate-200'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span className="text-xs text-slate-300 font-bold">
-                    {isKu
-                      ? '💡 چالاککردنی وێب ستۆر (فڕۆشگای ئۆنلاین) لە بەشی تایبەتی «وێب ستۆرەکان» ئەنجام دەدرێت بە داتا و نرخی جیاواز.'
-                      : '💡 Online store activation is handled separately in the dedicated "Online Stores" tab.'}
-                  </span>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                        storeEnabled
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : isDarkMode
+                          ? 'bg-slate-800 text-slate-400'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <Globe className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                        {isKu ? 'فڕۆشگای ئۆنلاین (Online Store)' : 'Online Storefront'}
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                        {storeEnabled
+                          ? (isKu ? 'ماڵپەڕی فرۆشگا بۆ ئەم هەژمارە کارا دەکرێت' : 'Web store will be activated')
+                          : (isKu ? 'ناچالاکە — تەنها ئەپی فرۆشگا کاردەکات' : 'Disabled — app POS only')}
+                      </span>
+                    </div>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={storeEnabled}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setStoreEnabled(checked);
+                        if (checked && !storeName) {
+                          setStoreName(formName.trim() || '');
+                        }
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
                 </div>
+
+                {storeEnabled ? (
+                  <div className="pt-3 border-t border-emerald-500/20 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                          {isKu ? 'ناوی فرۆشگا:' : 'Store Name:'}
+                        </label>
+                        <input
+                          type="text"
+                          value={storeName}
+                          onChange={(e) => setStoreName(e.target.value)}
+                          placeholder={isKu ? 'نموونە: مارکێتی چۆمان' : 'e.g. My Market'}
+                          className={`w-full px-3 py-2 rounded-xl border text-xs font-bold ${
+                            isDarkMode ? 'bg-[#0E1524] border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                          {isKu ? 'دۆمەین / ناوی بەستەر (Subdomain):' : 'Subdomain / Link:'}
+                        </label>
+                        <input
+                          type="text"
+                          value={storeSubdomain}
+                          onChange={(e) => setStoreSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                          placeholder={isKu ? 'نموونە: choman-market' : 'e.g. choman-market'}
+                          className={`w-full px-3 py-2 rounded-xl border text-xs font-mono font-bold ${
+                            isDarkMode ? 'bg-[#0E1524] border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {storeSubdomain && (
+                      <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2 text-xs font-mono font-bold text-emerald-400">
+                        <span>🔗 https://froshiar.store/{storeSubdomain.toLowerCase().trim()}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-slate-400 leading-relaxed">
+                    {isKu
+                      ? '🔒 ئەم هەژمارە بە تەواوی سەربەخۆیە و هیچ وێب ستۆر و بەستەرێکی بۆ دروست ناکرێت تا خۆت بە دەستی لێرە یان لە بەشی وێب ستۆرەکان چالاکی نەکەیت.'
+                      : '🔒 Standalone store account. No web store or link will be generated until you explicitly enable it here or in the Online Stores tab.'}
+                  </div>
+                )}
               </div>
 
               {/* Submit Buttons */}

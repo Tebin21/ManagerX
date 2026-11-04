@@ -90,6 +90,7 @@ interface OnlineStoreState {
   isBulkPublishing: boolean;
 
   load: () => Promise<void>;
+  resetStoreState: () => Promise<void>;
   /** Returns {status:'locked'} without making any local write or network call when
    *  there's no active Online Store Subscription — the caller (UI) shows a message
    *  instead of silently no-op'ing. */
@@ -154,32 +155,60 @@ export const useOnlineStoreStore = create<OnlineStoreState>()(
       bulkPublishEnabled: false,
       isBulkPublishing: false,
 
+      resetStoreState: async () => {
+        try {
+          const { setStoreEnabled, setStoreSlug, clearStoreApiKey } = await import('@/lib/onlineStore/storage');
+          await setStoreEnabled(false, true);
+          await setStoreSlug('', true);
+          await clearStoreApiKey();
+        } catch {}
+        set({
+          enabled: false,
+          slug: null,
+          storeUrl: null,
+          lastSyncAt: null,
+          pendingCount: 0,
+          isRegistering: false,
+          isLoading: false,
+          isSyncingNow: false,
+          lastSyncError: null,
+        });
+      },
+
       syncWithSubscription: async (hasActiveSubArg?: boolean) => {
         let hasActiveSub = hasActiveSubArg;
-        if (typeof hasActiveSub !== 'boolean') {
-          try {
-            const { isOnlineStoreActivatedByAdmin } = await import('@/lib/onlineStore/storeActivationService');
-            const adminActive = await isOnlineStoreActivatedByAdmin();
-            hasActiveSub = adminActive || (await hasActiveOnlineStoreSubscription());
-          } catch {
-            hasActiveSub = await hasActiveOnlineStoreSubscription();
-          }
+        let adminConfig: any = null;
+        try {
+          const { getOnlineStoreConfigFromAdmin, isOnlineStoreActivatedByAdmin } = await import('@/lib/onlineStore/storeActivationService');
+          const [cfg, active] = await Promise.all([
+            getOnlineStoreConfigFromAdmin().catch(() => null),
+            isOnlineStoreActivatedByAdmin().catch(() => false),
+          ]);
+          adminConfig = cfg;
+          hasActiveSub = Boolean(active && cfg?.subdomain);
+        } catch {
+          hasActiveSub = false;
         }
-        const isCurrentlyEnabled = await getStoreEnabled();
 
-        // Auto-enable when subscription or admin activation is detected
-        if (hasActiveSub && (!isCurrentlyEnabled || !get().enabled)) {
-          await setStoreEnabled(true);
-          const slug = await getStoreSlug();
-          const apiKey = await getStoreApiKey();
-          if (slug && apiKey) {
-            try { await setStoreStatus(slug, apiKey, true); } catch { /* best effort */ }
-          }
-          set({ enabled: true });
-          processQueue();
+        if (hasActiveSub && adminConfig?.subdomain) {
+          const cleanSub = adminConfig.subdomain.trim().toLowerCase();
+          await setStoreEnabled(true, true);
+          await setStoreSlug(cleanSub, true);
+          set({
+            enabled: true,
+            slug: cleanSub,
+            storeUrl: buildStoreUrl(cleanSub),
+          });
+          processQueue().catch(() => {});
+        } else {
+          // Explicitly deactivated or not assigned by admin
+          await setStoreEnabled(false, true);
+          set({
+            enabled: false,
+            slug: null,
+            storeUrl: null,
+          });
         }
-        // CRITICAL: NEVER automatically call setStoreStatus(..., false) in background!
-        // A store must ONLY be deactivated when the user explicitly taps "Disable" in settings.
       },
 
       load: async () => {
@@ -188,38 +217,47 @@ export const useOnlineStoreStore = create<OnlineStoreState>()(
         let isAdminActive = false;
 
         try {
-          // 1. Check if admin explicitly assigned a subdomain or active status for this account
-          try {
-            const { getOnlineStoreConfigFromAdmin, isOnlineStoreActivatedByAdmin } = await import('@/lib/onlineStore/storeActivationService');
-            [adminConfig, isAdminActive] = await Promise.all([
-              getOnlineStoreConfigFromAdmin().catch(() => null),
-              isOnlineStoreActivatedByAdmin().catch(() => false),
-            ]);
+          const { getOnlineStoreConfigFromAdmin, isOnlineStoreActivatedByAdmin } = await import('@/lib/onlineStore/storeActivationService');
+          [adminConfig, isAdminActive] = await Promise.all([
+            getOnlineStoreConfigFromAdmin().catch(() => null),
+            isOnlineStoreActivatedByAdmin().catch(() => false),
+          ]);
 
-            const adminSubdomain = typeof adminConfig?.subdomain === 'string' ? adminConfig.subdomain.trim().toLowerCase() : null;
-            if (adminSubdomain) {
-              slug = adminSubdomain;
-              await setStoreSlug(adminSubdomain);
-            }
-          } catch (err) {
-            if (__DEV__) console.warn('[onlineStore] admin lookup warning:', err);
-          }
-
-          // 2. Fall back to local SQLite slug or business name slug
-          if (!slug) {
-            slug = await getStoreSlug();
-          }
-          if (!slug) {
-            await waitForBusinessHydration();
-            const businessName = useBusinessStore.getState().name?.trim();
-            if (businessName) {
-              slug = slugify(businessName);
-              await setStoreSlug(slug);
-            }
+          const adminSubdomain = typeof adminConfig?.subdomain === 'string' ? adminConfig.subdomain.trim().toLowerCase() : null;
+          if (adminSubdomain && (adminConfig?.isActive || isAdminActive)) {
+            slug = adminSubdomain;
+            await setStoreSlug(adminSubdomain, true);
           }
         } catch (err) {
-          if (__DEV__) console.warn('[onlineStore] slug resolution failed:', err);
+          if (__DEV__) console.warn('[onlineStore] admin lookup warning:', err);
         }
+
+        // If the admin DID NOT explicitly configure and activate an online store for this account:
+        // NEVER auto-generate a domain, NEVER auto-enable, and wipe any previous lingering state.
+        const isExplicitlyAdminActivated = Boolean(isAdminActive && slug);
+        if (!isExplicitlyAdminActivated) {
+          const hasLocalPaidSub = await hasActiveOnlineStoreSubscription();
+          const storedEnabled = await getStoreEnabled();
+
+          if (!hasLocalPaidSub || !storedEnabled) {
+            try {
+              const { setStoreEnabled, setStoreSlug, clearStoreApiKey } = await import('@/lib/onlineStore/storage');
+              await setStoreEnabled(false, true);
+              await setStoreSlug('', true);
+              await clearStoreApiKey();
+            } catch {}
+            set({
+              enabled: false,
+              slug: null,
+              storeUrl: null,
+              isRegistering: false,
+              isLoading: false,
+            });
+            return;
+          }
+          slug = await getStoreSlug();
+        }
+
         set({ slug, storeUrl: buildStoreUrl(slug) });
 
         try {
@@ -233,18 +271,9 @@ export const useOnlineStoreStore = create<OnlineStoreState>()(
             getBulkPublishEnabled(),
           ]);
 
-          // Reconcile: If SQLite says enabled, OR persisted state was already enabled,
-          // OR admin config is active, OR admin activation is true:
-          // Then the store MUST be enabled and NEVER deactivated on app launch/exit!
-          const shouldBeEnabled = Boolean(
-            storedEnabled ||
-            get().enabled ||
-            adminConfig?.isActive ||
-            isAdminActive
-          );
+          const shouldBeEnabled = Boolean(isExplicitlyAdminActivated || storedEnabled);
 
           if (shouldBeEnabled && !storedEnabled) {
-            // Persist to local storage so subsequent offline loads immediately see enabled = true
             await setStoreEnabled(true, true);
           }
 
@@ -258,16 +287,11 @@ export const useOnlineStoreStore = create<OnlineStoreState>()(
             bulkPublishEnabled,
           });
 
-          // Ensure backend storefront status is active when enabled
-          if (shouldBeEnabled) {
-            if (slug && apiKey) {
-              try {
-                await setStoreStatus(slug, apiKey, true);
-              } catch {
-                /* best effort - retried on next queue */
-              }
-            } else {
-              processQueue().catch(() => {});
+          if (shouldBeEnabled && slug && apiKey) {
+            try {
+              await setStoreStatus(slug, apiKey, true);
+            } catch {
+              /* best effort */
             }
           }
         } catch (err) {

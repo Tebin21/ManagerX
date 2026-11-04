@@ -171,29 +171,7 @@ export async function loadSubscriptionFromDb(): Promise<SubscriptionInfo> {
 
   let info: SubscriptionInfo;
   if (!subscriptionCode) {
-    // If no manual code, but store was already enabled by admin/user on this device, keep it active
-    let isLocallyActive = false;
-    try {
-      const { getStoreEnabled } = await import('@/lib/onlineStore/storage');
-      const { useOnlineStoreStore } = await import('@/store/onlineStoreStore');
-      const isEnabled = await getStoreEnabled();
-      const inStoreEnabled = useOnlineStoreStore.getState().enabled;
-      isLocallyActive = Boolean(isEnabled || inStoreEnabled);
-    } catch {}
-
-    if (isLocallyActive) {
-      info = {
-        plan: 'lifetime',
-        deviceId,
-        subscriptionCode: 'ADMIN-ACTIVATED-PRO',
-        activatedAt: new Date().toISOString(),
-        expiresAt: null,
-        isActive: true,
-        expired: false,
-      };
-    } else {
-      info = defaultSubscriptionInfo(deviceId);
-    }
+    info = defaultSubscriptionInfo(deviceId);
   } else {
     const activatedAt = await loadSetting(KEY_ACTIVATED_AT);
     const verified = verifySubscriptionCode(subscriptionCode, deviceId);

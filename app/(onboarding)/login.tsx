@@ -147,8 +147,12 @@ export default function LoginScreen() {
             !emp.managerEmail ||
             emp.managerEmail.toLowerCase() === emp.email.toLowerCase();
 
-          // Clean reset of all management state before binding
+          // Clean reset of all management and online store state before binding
           useManagementStore.getState().resetAllManagementState();
+          try {
+            const { useOnlineStoreStore } = await import('@/store/onlineStoreStore');
+            await useOnlineStoreStore.getState().resetStoreState();
+          } catch {}
 
           if (isStoreManager) {
             // Log in as Store Manager / Desktop Owner
