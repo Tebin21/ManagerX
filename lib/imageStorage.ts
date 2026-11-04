@@ -66,8 +66,8 @@ export function getProductDisplayImage(product: {
   imageRemoteUrl?: string | null;
 } | null | undefined): string | null {
   if (!product) return null;
-  const candidate = (product.imageUri && product.imageUri.trim()) ||
-                    (product.imageRemoteUrl && product.imageRemoteUrl.trim()) ||
+  const candidate = (product?.imageUri && product.imageUri.trim()) ||
+                    (product?.imageRemoteUrl && product.imageRemoteUrl.trim()) ||
                     null;
   return resolveImageUri(candidate);
 }

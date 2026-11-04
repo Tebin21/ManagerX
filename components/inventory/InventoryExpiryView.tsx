@@ -2319,7 +2319,7 @@ export function InventoryExpiryView({
             filteredDiscardedList.map((item) => {
               const productInStore = products.find((p) => p.id === item.productId);
               const displayImg = getProductDisplayImage({
-                imageUri: item.imageUri || productInStore?.imageUri,
+                imageUri: item?.imageUri || productInStore?.imageUri,
                 imageRemoteUrl: productInStore?.imageRemoteUrl,
               });
 

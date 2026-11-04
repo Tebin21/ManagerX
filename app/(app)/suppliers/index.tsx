@@ -72,7 +72,7 @@ function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPr
           },
         ]}
       >
-        {supplier.imageUri ? (
+        {supplier?.imageUri ? (
           <Image
             source={{ uri: resolveImageUri(supplier.imageUri) || supplier.imageUri }}
             style={{ width: '100%', height: '100%' }}

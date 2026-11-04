@@ -48,7 +48,7 @@ export function ProductImagePicker({
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
   const savedCount = useSavedProductStore(
-    (s) => s.savedPresets.filter((p) => Boolean(p.imageUri && p.imageUri.trim())).length
+    (s) => (s.savedPresets || []).filter((p) => Boolean(p?.imageUri && p.imageUri.trim())).length
   );
 
   const [showModal, setShowModal] = useState(false);
@@ -140,10 +140,10 @@ export function ProductImagePicker({
   }, [onSelect, t]);
 
   const handleSelectFromSaved = useCallback((item: SavedProductPreset) => {
-    if (item.imageUri) {
+    if (item?.imageUri) {
       onSelect(item.imageUri);
     }
-    if (onSelectSavedItem) {
+    if (onSelectSavedItem && item) {
       onSelectSavedItem(item);
     }
   }, [onSelect, onSelectSavedItem]);

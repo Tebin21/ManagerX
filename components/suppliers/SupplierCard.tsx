@@ -62,7 +62,7 @@ function SupplierCardImpl({ supplier, onPress, layout = 'list' }: SupplierCardPr
         {/* Large Center Avatar */}
         <View style={styles.gridAvatarWrap}>
           <View style={[styles.gridAvatar, { backgroundColor: colors.softBlue, overflow: 'hidden' }]}>
-            {supplier.imageUri ? (
+            {supplier?.imageUri ? (
               <Image
                 source={{ uri: resolveImageUri(supplier.imageUri) || supplier.imageUri }}
                 style={{ width: '100%', height: '100%' }}
@@ -156,7 +156,7 @@ function SupplierCardImpl({ supplier, onPress, layout = 'list' }: SupplierCardPr
           },
         ]}
       >
-        {supplier.imageUri ? (
+        {supplier?.imageUri ? (
           <Image
             source={{ uri: resolveImageUri(supplier.imageUri) || supplier.imageUri }}
             style={{ width: '100%', height: '100%' }}

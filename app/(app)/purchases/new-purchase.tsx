@@ -137,19 +137,19 @@ export default function NewPurchaseScreen() {
 
     // 1. Basic details & photo
     setProductName(preset.name);
-    if (preset.description) {
+    if (preset?.description) {
       setItemDescription(preset.description);
     }
-    if (preset.category) {
+    if (preset?.category) {
       setCategory(preset.category);
     }
-    if (preset.imageUri) {
+    if (preset?.imageUri) {
       setImageUri(preset.imageUri);
     }
-    if (preset.websiteDescription) {
+    if (preset?.websiteDescription) {
       setWebsiteDescription(preset.websiteDescription);
     }
-    if (preset.warranty) {
+    if (preset?.warranty) {
       setWarranty(preset.warranty);
     }
 
@@ -201,7 +201,7 @@ export default function NewPurchaseScreen() {
           findSupplierByNameOrPhone(preset.supplierName, preset.supplierPhone).then((supp) => {
             if (supp) {
               setSelectedSupplierId(supp.id);
-              if (supp.imageUri) setSupplierImageUri(supp.imageUri);
+              if (supp?.imageUri) setSupplierImageUri(supp.imageUri);
             }
           }).catch(() => {});
         }).catch(() => {});
@@ -241,7 +241,7 @@ export default function NewPurchaseScreen() {
   const matchingPresets = React.useMemo(() => {
     const q = productName.trim().toLowerCase();
     if (q.length < 1) return [];
-    return savedPresets.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 6);
+    return (savedPresets || []).filter((p) => Boolean(p && p.name && p.name.toLowerCase().includes(q))).slice(0, 6);
   }, [savedPresets, productName]);
 
   // ─── ID type ────────────────────────────────────────────────────────────────
@@ -272,8 +272,8 @@ export default function NewPurchaseScreen() {
     if (matchByName) return matchByName;
 
     // 3. By saved presets ONLY IF that preset points to an actual inventory product
-    const matchPreset = savedPresets.find(
-      (p) => p.name.trim().toLowerCase() === cleanName
+    const matchPreset = (savedPresets || []).find(
+      (p) => Boolean(p && p.name && p.name.trim().toLowerCase() === cleanName)
     );
     if (matchPreset) {
       const invP = inventoryProducts.find(
@@ -339,7 +339,7 @@ export default function NewPurchaseScreen() {
           findSupplierByNameOrPhone(existingSuppName, existingSuppPhone).then((supp) => {
             if (supp) {
               setSelectedSupplierId(supp.id);
-              if (supp.imageUri) setSupplierImageUri(supp.imageUri);
+              if (supp?.imageUri) setSupplierImageUri(supp.imageUri);
             }
           }).catch(() => {});
         }).catch(() => {});
@@ -1270,7 +1270,7 @@ export default function NewPurchaseScreen() {
                 onPress={() => handleSelectSavedItem(preset)}
                 activeOpacity={0.8}
               >
-                {preset.imageUri ? (
+                {preset?.imageUri ? (
                   <Image
                     source={{ uri: resolveImageUri(preset.imageUri) || preset.imageUri }}
                     style={styles.presetChipImage}

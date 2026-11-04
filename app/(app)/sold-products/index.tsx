@@ -62,7 +62,7 @@ function SoldProductCardImpl({ item, colors, isDark, t }: CardProps) {
       {/* Left: image */}
       <View style={[styles.cardImage, { backgroundColor: colors.gray100 }]}>
         {(() => {
-          const displayImg = resolveImageUri(item.imageUri);
+          const displayImg = resolveImageUri(item?.imageUri);
           return displayImg ? (
             <Image source={{ uri: displayImg }} style={styles.cardImg} resizeMode="cover" fadeDuration={0} />
           ) : (

@@ -63,7 +63,7 @@ export const useSavedProductStore = create<SavedProductState>()(
         const rawItemId = preset.itemId?.trim() || null;
         if (!rawName && !rawItemId) return;
 
-        const existing = get().savedPresets;
+        const existing = (get().savedPresets || []).filter(Boolean);
         const now = new Date().toISOString();
 
         const finalName = rawName || `بەرهەمی بێ ناو (${rawItemId})`;
@@ -71,7 +71,8 @@ export const useSavedProductStore = create<SavedProductState>()(
 
         // Check if an entry with this name OR item_id already exists
         const existingIdx = existing.findIndex((p) => {
-          if (rawName && p.name.trim().toLowerCase() === normalizedName) return true;
+          if (!p) return false;
+          if (rawName && p.name?.trim().toLowerCase() === normalizedName) return true;
           if (rawItemId && p.itemId && p.itemId.trim().toLowerCase() === rawItemId.toLowerCase()) return true;
           return false;
         });
@@ -79,6 +80,7 @@ export const useSavedProductStore = create<SavedProductState>()(
         if (existingIdx !== -1) {
           const updated = [...existing];
           const curr = updated[existingIdx];
+          if (!curr) return;
           updated[existingIdx] = {
             ...curr,
             name: rawName || curr.name,
@@ -100,9 +102,13 @@ export const useSavedProductStore = create<SavedProductState>()(
             websiteDescription: preset.websiteDescription !== undefined ? preset.websiteDescription : curr.websiteDescription,
             updatedAt: now,
           };
-          // Move the updated one to top
+          // Move the updated one to top safely
           const [item] = updated.splice(existingIdx, 1);
-          set({ savedPresets: [item, ...updated] });
+          if (item) {
+            set({ savedPresets: [item, ...updated.filter(Boolean)] });
+          } else {
+            set({ savedPresets: updated.filter(Boolean) });
+          }
         } else {
           const newPreset: SavedProductPreset = {
             id: `preset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -125,34 +131,38 @@ export const useSavedProductStore = create<SavedProductState>()(
             websiteDescription: preset.websiteDescription ?? null,
             updatedAt: now,
           };
-          set({ savedPresets: [newPreset, ...existing] });
+          set({ savedPresets: [newPreset, ...existing.filter(Boolean)] });
         }
       },
 
       deletePreset: (id: string) => {
         set((state) => ({
-          savedPresets: state.savedPresets.filter((p) => p.id !== id),
+          savedPresets: (state.savedPresets || []).filter((p) => p && p.id !== id),
         }));
       },
 
       syncFromInventory: (products: InventoryProduct[]) => {
         if (!Array.isArray(products) || products.length === 0) return;
 
-        const current = get().savedPresets;
-        const nameMap = new Map<string, number>();
-        const codeMap = new Map<string, number>();
+        const current = (get().savedPresets || []).filter(Boolean);
+        const presetMap = new Map<string, SavedProductPreset>();
+        const codeMap = new Map<string, SavedProductPreset>();
 
-        // Index existing presets
-        current.forEach((p, idx) => {
-          nameMap.set(p.name.trim().toLowerCase(), idx);
-          if (p.itemId) codeMap.set(p.itemId.trim().toLowerCase(), idx);
+        // 1. Index existing presets by normalized name and code
+        current.forEach((p) => {
+          if (!p || !p.name) return;
+          presetMap.set(p.name.trim().toLowerCase(), p);
+          if (p.itemId && p.itemId.trim()) {
+            codeMap.set(p.itemId.trim().toLowerCase(), p);
+          }
         });
 
         let hasNew = false;
-        const additions: SavedProductPreset[] = [];
-        const updatedList = [...current];
+        const allPresets = [...current];
 
+        // 2. Loop through inventory products
         products.forEach((prod) => {
+          if (!prod) return;
           const name = prod.name?.trim();
           if (!name) return;
 
@@ -160,23 +170,20 @@ export const useSavedProductStore = create<SavedProductState>()(
           const key = name.toLowerCase();
           const codeKey = prod.itemId?.trim().toLowerCase();
 
-          const existingIdx = nameMap.has(key) ? nameMap.get(key)! : (codeKey && codeMap.has(codeKey) ? codeMap.get(codeKey)! : -1);
+          const existing = presetMap.get(key) || (codeKey ? codeMap.get(codeKey) : undefined);
 
-          if (existingIdx !== -1) {
+          if (existing) {
             // Enrich existing preset with prices or supplier if missing
-            const curr = updatedList[existingIdx];
             let changed = false;
-            const updated = { ...curr };
 
-            if (!curr.imageUri && uri) { updated.imageUri = uri; changed = true; }
-            if (!curr.itemId && prod.itemId) { updated.itemId = prod.itemId.trim(); changed = true; }
-            if (!curr.category && prod.category) { updated.category = prod.category.trim(); changed = true; }
-            if (curr.buyPriceIQD === undefined && prod.purchasePrice > 0) { updated.buyPriceIQD = prod.purchasePrice; changed = true; }
-            if (curr.sellPriceIQD === undefined && prod.sellingPrice > 0) { updated.sellPriceIQD = prod.sellingPrice; changed = true; }
-            if (curr.supplierName === undefined && prod.supplierName) { updated.supplierName = prod.supplierName; changed = true; }
+            if (!existing.imageUri && uri) { existing.imageUri = uri; changed = true; }
+            if (!existing.itemId && prod.itemId) { existing.itemId = prod.itemId.trim(); changed = true; }
+            if (!existing.category && prod.category) { existing.category = prod.category.trim(); changed = true; }
+            if (existing.buyPriceIQD === undefined && prod.purchasePrice > 0) { existing.buyPriceIQD = prod.purchasePrice; changed = true; }
+            if (existing.sellPriceIQD === undefined && prod.sellingPrice > 0) { existing.sellPriceIQD = prod.sellingPrice; changed = true; }
+            if (existing.supplierName === undefined && prod.supplierName) { existing.supplierName = prod.supplierName; changed = true; }
 
             if (changed) {
-              updatedList[existingIdx] = updated;
               hasNew = true;
             }
           } else {
@@ -185,7 +192,7 @@ export const useSavedProductStore = create<SavedProductState>()(
 
             const desc = prod.itemDescription?.trim() || prod.description?.trim() || null;
             const newPreset: SavedProductPreset = {
-              id: `inv_${prod.id}_${Date.now()}`,
+              id: `inv_${prod.id}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
               name,
               description: desc,
               imageUri: uri.trim(),
@@ -200,17 +207,17 @@ export const useSavedProductStore = create<SavedProductState>()(
               supplierAddress: prod.supplierAddress ?? null,
               updatedAt: new Date().toISOString(),
             };
-            nameMap.set(key, additions.length);
-            if (codeKey) codeMap.set(codeKey, additions.length);
-            additions.push(newPreset);
+            presetMap.set(key, newPreset);
+            if (codeKey) codeMap.set(codeKey, newPreset);
+            allPresets.unshift(newPreset);
             hasNew = true;
           }
         });
 
         if (hasNew) {
           // Keep only presets with real images
-          const combined = [...additions, ...updatedList].filter(
-            (p) => typeof p.imageUri === 'string' && p.imageUri.trim().length > 0
+          const combined = allPresets.filter(
+            (p) => Boolean(p && typeof p.imageUri === 'string' && p.imageUri.trim().length > 0)
           );
           set({ savedPresets: combined });
         }
@@ -219,28 +226,29 @@ export const useSavedProductStore = create<SavedProductState>()(
       findByName: (name: string) => {
         const trimmed = name.trim().toLowerCase();
         if (!trimmed) return undefined;
-        return get().savedPresets.find(
-          (p) => p.name.trim().toLowerCase() === trimmed
+        return (get().savedPresets || []).find(
+          (p) => Boolean(p && p.name && p.name.trim().toLowerCase() === trimmed)
         );
       },
 
       findByCode: (code: string) => {
         const trimmed = code.trim().toLowerCase();
         if (!trimmed) return undefined;
-        return get().savedPresets.find(
-          (p) => p.itemId && p.itemId.trim().toLowerCase() === trimmed
+        return (get().savedPresets || []).find(
+          (p) => Boolean(p && p.itemId && p.itemId.trim().toLowerCase() === trimmed)
         );
       },
 
       searchPresets: (query: string) => {
         const q = query.trim().toLowerCase();
-        const all = get().savedPresets.filter(
-          (p) => typeof p.imageUri === 'string' && p.imageUri.trim().length > 0
+        const all = (get().savedPresets || []).filter(
+          (p) => Boolean(p && typeof p.imageUri === 'string' && p.imageUri.trim().length > 0)
         );
         if (!q) return all;
 
         return all.filter((p) => {
-          const matchName = p.name.toLowerCase().includes(q);
+          if (!p) return false;
+          const matchName = p.name ? p.name.toLowerCase().includes(q) : false;
           const matchDesc = p.description?.toLowerCase().includes(q) ?? false;
           const matchCode = p.itemId?.toLowerCase().includes(q) ?? false;
           return matchName || matchDesc || matchCode;
@@ -253,9 +261,9 @@ export const useSavedProductStore = create<SavedProductState>()(
       merge: (persistedState: unknown, currentState: SavedProductState): SavedProductState => {
         const p = persistedState as Partial<SavedProductState> | null;
         const rawPresets = Array.isArray(p?.savedPresets) ? p.savedPresets : [];
-        // Only keep presets that actually have an image
+        // Only keep presets that actually have an image and are valid
         const validPresets = rawPresets.filter(
-          (x) => typeof x?.imageUri === 'string' && x.imageUri.trim().length > 0
+          (x): x is SavedProductPreset => Boolean(x && typeof x.imageUri === 'string' && x.imageUri.trim().length > 0)
         );
         return {
           ...currentState,

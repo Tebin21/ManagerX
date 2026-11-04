@@ -139,7 +139,7 @@ export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneC
                 onPress={() => handleSelectSupplier(item)}
                 activeOpacity={0.75}
               >
-                {item.imageUri ? (
+                {item?.imageUri ? (
                   <Image
                     source={{ uri: resolveImageUri(item.imageUri) || item.imageUri }}
                     style={styles.suggestionThumb}

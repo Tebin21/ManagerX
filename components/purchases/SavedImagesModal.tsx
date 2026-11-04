@@ -61,8 +61,8 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
 
   // Only include items that actually have a valid uploaded image
   const validSavedImages = useMemo(() => {
-    return savedPresets.filter(
-      (p) => typeof p.imageUri === 'string' && p.imageUri.trim().length > 0
+    return (savedPresets || []).filter(
+      (p) => Boolean(p && typeof p.imageUri === 'string' && p.imageUri.trim().length > 0)
     );
   }, [savedPresets]);
 
@@ -508,7 +508,7 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                     onPress={() => setPreviewPreset(item)}
                     style={styles.imageWrap}
                   >
-                    {item.imageUri ? (
+                    {item?.imageUri ? (
                       <Image
                         source={{ uri: resolveImageUri(item.imageUri) || item.imageUri }}
                         style={styles.image}
@@ -835,7 +835,7 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
             >
               {/* Image */}
               <View style={styles.previewImageWrap}>
-                {previewPreset.imageUri ? (
+                {previewPreset?.imageUri ? (
                   <Image
                     source={{ uri: resolveImageUri(previewPreset.imageUri) || previewPreset.imageUri }}
                     style={styles.previewImage}

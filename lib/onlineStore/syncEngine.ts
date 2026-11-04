@@ -47,7 +47,7 @@ const LOCAL_URI_PATTERN = /^(file|content):/;
 async function ensureRemoteImage(item: PendingSyncItem, slug: string, apiKey: string): Promise<boolean> {
   if (item.operation !== 'upsert' || !item.product) return true;
   const p = item.product;
-  const isLocalUri = !!p.imageUri && LOCAL_URI_PATTERN.test(p.imageUri);
+  const isLocalUri = !!p?.imageUri && LOCAL_URI_PATTERN.test(p.imageUri);
   if (!isLocalUri) return true;
 
   // If already uploaded under the active slug, nothing to do
@@ -76,7 +76,7 @@ function toSyncChange(item: PendingSyncItem): SyncChange | null {
   const p = item.product;
   // Never pass a local file://-style URI through to the backend — only a URL
   // we've already uploaded (or one that was already remote, e.g. http/https).
-  const isLocalUri = !!p.imageUri && LOCAL_URI_PATTERN.test(p.imageUri);
+  const isLocalUri = !!p?.imageUri && LOCAL_URI_PATTERN.test(p.imageUri);
   return {
     productId: item.productId,
     operation: 'upsert',
@@ -253,7 +253,7 @@ export async function processQueue(
         (item) =>
           item.operation === 'upsert' &&
           item.product &&
-          !!item.product.imageUri &&
+          !!item.product?.imageUri &&
           LOCAL_URI_PATTERN.test(item.product.imageUri) &&
           (!item.product.imageRemoteUrl || !item.product.imageRemoteUrl.includes(`/uploads/${slug}/`))
       );

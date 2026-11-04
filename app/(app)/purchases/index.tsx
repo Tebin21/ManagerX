@@ -52,7 +52,7 @@ export default function PurchasesScreen() {
   const [showSavedImagesModal, setShowSavedImagesModal] = useState(false);
   const savedPresets = useSavedProductStore((s) => s.savedPresets);
   const savedPhotosCount = useMemo(
-    () => savedPresets.filter((p) => Boolean(p.imageUri && p.imageUri.trim())).length,
+    () => (savedPresets || []).filter((p) => Boolean(p?.imageUri && p.imageUri.trim())).length,
     [savedPresets]
   );
 

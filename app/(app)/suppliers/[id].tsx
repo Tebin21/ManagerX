@@ -303,7 +303,7 @@ export default function SupplierDetailScreen() {
       setEditPhone(supplier.phone ?? '');
       setEditAddress(supplier.address ?? '');
       setEditNotes(supplier.notes ?? '');
-      setEditImageUri(supplier.imageUri ?? null);
+      setEditImageUri(supplier?.imageUri ?? null);
     }
   }, [supplier?.id, supplier?.imageUri]);
 
@@ -756,7 +756,7 @@ export default function SupplierDetailScreen() {
             </View>
           ) : (
             <>
-              {supplier.imageUri ? (
+              {supplier?.imageUri ? (
                 <View style={styles.viewAvatarWrap}>
                   <Image
                     source={{ uri: resolveImageUri(supplier.imageUri) || supplier.imageUri }}

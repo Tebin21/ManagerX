@@ -38,7 +38,7 @@ export function InventoryHistoryItem({ item, onRestore }: Props) {
       <View style={[styles.topRow, { flexDirection, padding: isRTL ? RTL_SPACING.gap : 12, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
         <View style={[styles.thumb, { backgroundColor: colors.gray100 }]}>
           {(() => {
-            const displayImg = resolveImageUri(item.imageUri);
+            const displayImg = resolveImageUri(item?.imageUri);
             return displayImg ? (
               <Image source={{ uri: displayImg }} style={styles.thumbImage} resizeMode="cover" fadeDuration={0} />
             ) : (
