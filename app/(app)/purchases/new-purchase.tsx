@@ -76,7 +76,8 @@ export default function NewPurchaseScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { textAlign, flexDirection, isRTL } = useRTL();
-  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
+  const { isTablet, isTabletLandscape, contentContainerStyle, inputHeight, uiScaleFactor } = useResponsive();
+  const [focusedPriceField, setFocusedPriceField] = useState<'buyIQD' | 'buyUSD' | 'sellIQD' | 'sellUSD' | null>(null);
   const useThreeColumns = isTablet && isTabletLandscape;
   const { createPurchase } = usePurchaseStore();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate) || 1310;
@@ -706,6 +707,13 @@ export default function NewPurchaseScreen() {
     () => roundToNearest250(sampleSellUSD * exchangeRate).toLocaleString('en-US'),
     [exchangeRate]
   );
+
+  const placeholderPrefix = isKuLanguage ? 'نموونە: ' : isArLanguage ? 'مثال: ' : 'e.g. ';
+  const placeholderBuyIQD = `${placeholderPrefix}${sampleBuyIQDStr}`;
+  const placeholderBuyUSD = `${placeholderPrefix}${sampleBuyUSD}$`;
+  const placeholderSellIQD = `${placeholderPrefix}${sampleSellIQDStr}`;
+  const placeholderSellUSD = `${placeholderPrefix}${sampleSellUSD}$`;
+  const pricePlaceholderColor = isDark ? 'rgba(255, 255, 255, 0.45)' : '#94A3B8';
 
   // ─── Currency sync ──────────────────────────────────────────────────────────
   function onBuyIQDChange(val: string) {
@@ -2774,10 +2782,34 @@ export default function NewPurchaseScreen() {
       {/* Buy Price Row */}
       <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.buyPrice')}</Text>
       <View style={[styles.priceRow, { flexDirection }]}>
-        <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
-          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>IQD</Text>
+        <View
+          style={[
+            styles.priceField,
+            {
+              borderColor: focusedPriceField === 'buyIQD' ? colors.primary : colors.gray200,
+              backgroundColor: colors.gray50,
+              minHeight: inputHeight || 48,
+              borderRadius: Math.round((isTablet ? 16 : 12) * (uiScaleFactor || 1)),
+              flexDirection,
+            },
+          ]}
+        >
+          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue, lineHeight: inputHeight || 48 }]}>
+            IQD
+          </Text>
           <TextInput
-            style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
+            style={[
+              styles.priceInput,
+              {
+                color: colors.black,
+                height: inputHeight || 48,
+                fontSize: Math.round((isTablet ? 16 : 14) * (uiScaleFactor || 1)),
+                textAlign: isRTL ? (!buyIQD ? 'right' : 'left') : 'left',
+                writingDirection: buyIQD ? 'ltr' : (isRTL ? 'rtl' : 'ltr'),
+                fontFamily: (!buyIQD && isKuLanguage) ? SETTINGS_KURDISH_FONT : undefined,
+              },
+              Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any),
+            ]}
             value={buyIQD}
             onChangeText={onBuyIQDChange}
             onEndEditing={() => {
@@ -2786,23 +2818,55 @@ export default function NewPurchaseScreen() {
               setBuyUSD(r > 0 ? String(round(r / exchangeRate, 2)) : '');
             }}
             keyboardType="decimal-pad"
-            placeholder={sampleBuyIQDStr}
-            placeholderTextColor={colors.gray400}
+            placeholder={placeholderBuyIQD}
+            placeholderTextColor={pricePlaceholderColor}
             returnKeyType="next"
-            onFocus={scrollIntoView}
+            onFocus={(e) => {
+              setFocusedPriceField('buyIQD');
+              scrollIntoView(e);
+            }}
+            onBlur={() => setFocusedPriceField(null)}
           />
         </View>
-        <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
-          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>USD</Text>
+        <View
+          style={[
+            styles.priceField,
+            {
+              borderColor: focusedPriceField === 'buyUSD' ? colors.primary : colors.gray200,
+              backgroundColor: colors.gray50,
+              minHeight: inputHeight || 48,
+              borderRadius: Math.round((isTablet ? 16 : 12) * (uiScaleFactor || 1)),
+              flexDirection,
+            },
+          ]}
+        >
+          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue, lineHeight: inputHeight || 48 }]}>
+            USD
+          </Text>
           <TextInput
-            style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
+            style={[
+              styles.priceInput,
+              {
+                color: colors.black,
+                height: inputHeight || 48,
+                fontSize: Math.round((isTablet ? 16 : 14) * (uiScaleFactor || 1)),
+                textAlign: isRTL ? (!buyUSD ? 'right' : 'left') : 'left',
+                writingDirection: buyUSD ? 'ltr' : (isRTL ? 'rtl' : 'ltr'),
+                fontFamily: (!buyUSD && isKuLanguage) ? SETTINGS_KURDISH_FONT : undefined,
+              },
+              Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any),
+            ]}
             value={buyUSD}
             onChangeText={onBuyUSDChange}
             keyboardType="decimal-pad"
-            placeholder={String(sampleBuyUSD)}
-            placeholderTextColor={colors.gray400}
+            placeholder={placeholderBuyUSD}
+            placeholderTextColor={pricePlaceholderColor}
             returnKeyType="next"
-            onFocus={scrollIntoView}
+            onFocus={(e) => {
+              setFocusedPriceField('buyUSD');
+              scrollIntoView(e);
+            }}
+            onBlur={() => setFocusedPriceField(null)}
           />
         </View>
       </View>
@@ -2817,10 +2881,34 @@ export default function NewPurchaseScreen() {
       {/* Sell Price Row */}
       <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.sellPrice')}</Text>
       <View style={[styles.priceRow, { flexDirection }]}>
-        <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
-          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>IQD</Text>
+        <View
+          style={[
+            styles.priceField,
+            {
+              borderColor: focusedPriceField === 'sellIQD' ? colors.primary : colors.gray200,
+              backgroundColor: colors.gray50,
+              minHeight: inputHeight || 48,
+              borderRadius: Math.round((isTablet ? 16 : 12) * (uiScaleFactor || 1)),
+              flexDirection,
+            },
+          ]}
+        >
+          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue, lineHeight: inputHeight || 48 }]}>
+            IQD
+          </Text>
           <TextInput
-            style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
+            style={[
+              styles.priceInput,
+              {
+                color: colors.black,
+                height: inputHeight || 48,
+                fontSize: Math.round((isTablet ? 16 : 14) * (uiScaleFactor || 1)),
+                textAlign: isRTL ? (!sellIQD ? 'right' : 'left') : 'left',
+                writingDirection: sellIQD ? 'ltr' : (isRTL ? 'rtl' : 'ltr'),
+                fontFamily: (!sellIQD && isKuLanguage) ? SETTINGS_KURDISH_FONT : undefined,
+              },
+              Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any),
+            ]}
             value={sellIQD}
             onChangeText={onSellIQDChange}
             onEndEditing={() => {
@@ -2829,23 +2917,55 @@ export default function NewPurchaseScreen() {
               setSellUSD(r > 0 ? String(round(r / exchangeRate, 2)) : '');
             }}
             keyboardType="decimal-pad"
-            placeholder={sampleSellIQDStr}
-            placeholderTextColor={colors.gray400}
+            placeholder={placeholderSellIQD}
+            placeholderTextColor={pricePlaceholderColor}
             returnKeyType="next"
-            onFocus={scrollIntoView}
+            onFocus={(e) => {
+              setFocusedPriceField('sellIQD');
+              scrollIntoView(e);
+            }}
+            onBlur={() => setFocusedPriceField(null)}
           />
         </View>
-        <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
-          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>USD</Text>
+        <View
+          style={[
+            styles.priceField,
+            {
+              borderColor: focusedPriceField === 'sellUSD' ? colors.primary : colors.gray200,
+              backgroundColor: colors.gray50,
+              minHeight: inputHeight || 48,
+              borderRadius: Math.round((isTablet ? 16 : 12) * (uiScaleFactor || 1)),
+              flexDirection,
+            },
+          ]}
+        >
+          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue, lineHeight: inputHeight || 48 }]}>
+            USD
+          </Text>
           <TextInput
-            style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
+            style={[
+              styles.priceInput,
+              {
+                color: colors.black,
+                height: inputHeight || 48,
+                fontSize: Math.round((isTablet ? 16 : 14) * (uiScaleFactor || 1)),
+                textAlign: isRTL ? (!sellUSD ? 'right' : 'left') : 'left',
+                writingDirection: sellUSD ? 'ltr' : (isRTL ? 'rtl' : 'ltr'),
+                fontFamily: (!sellUSD && isKuLanguage) ? SETTINGS_KURDISH_FONT : undefined,
+              },
+              Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any),
+            ]}
             value={sellUSD}
             onChangeText={onSellUSDChange}
             keyboardType="decimal-pad"
-            placeholder={String(sampleSellUSD)}
-            placeholderTextColor={colors.gray400}
+            placeholder={placeholderSellUSD}
+            placeholderTextColor={pricePlaceholderColor}
             returnKeyType="next"
-            onFocus={scrollIntoView}
+            onFocus={(e) => {
+              setFocusedPriceField('sellUSD');
+              scrollIntoView(e);
+            }}
+            onBlur={() => setFocusedPriceField(null)}
           />
         </View>
       </View>
@@ -3277,17 +3397,27 @@ const styles = StyleSheet.create({
     borderWidth:   1.5,
     borderRadius:  Theme.input.borderRadius,
     overflow:      'hidden',
+    shadowOffset:  { width: 0, height: 0 },
+    shadowRadius:  6,
+    elevation:     0,
   },
   currencyBadge: {
     fontSize:          11,
     fontWeight:        '700',
-    paddingHorizontal: 8,
-    paddingVertical:   4,
+    paddingHorizontal: 10,
     alignSelf:         'stretch',
     textAlignVertical: 'center',
-    lineHeight:        44,
+    justifyContent:    'center',
+    alignItems:        'center',
+    textAlign:         'center',
   },
-  priceInput: { flex: 1, height: 48, paddingHorizontal: 10, fontSize: 15 },
+  priceInput: {
+    flex: 1,
+    height: 48,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any) : {}),
+  },
   rateNote:   { fontSize: 11, marginBottom: 16, marginTop: 2 },
 
   totalBox: {
@@ -3540,6 +3670,7 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     paddingHorizontal: 2,
     includeFontPadding: false,
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any) : {}),
   },
   customIdPlaceholderOverlay: {
     position: 'absolute',

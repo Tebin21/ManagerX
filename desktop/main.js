@@ -56,6 +56,9 @@ let cachedVectorCss = null;
 function generateVectorIconsCss(distDir) {
   if (cachedVectorCss) return cachedVectorCss;
   let css = '<style id="desktop-vector-icons-css">\n';
+  css += 'input, textarea, select, [contenteditable="true"], [tabindex] { outline: none !important; outline-style: none !important; outline-width: 0 !important; box-shadow: none !important; -webkit-tap-highlight-color: transparent !important; }\n';
+  css += '*:focus { outline: none !important; outline-style: none !important; }\n';
+  css += '*:focus-visible { outline: none !important; outline-style: none !important; }\n';
   try {
     const fontsDir = path.join(distDir, 'fonts');
     const assetsDir = path.join(distDir, 'assets');

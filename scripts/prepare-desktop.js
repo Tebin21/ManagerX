@@ -87,6 +87,9 @@ const VECTOR_FONTS = [
 ];
 
 let css = '<style id="desktop-vector-icons-css">\n';
+css += 'input, textarea, select, [contenteditable="true"], [tabindex] { outline: none !important; outline-style: none !important; outline-width: 0 !important; box-shadow: none !important; -webkit-tap-highlight-color: transparent !important; }\n';
+css += '*:focus { outline: none !important; outline-style: none !important; }\n';
+css += '*:focus-visible { outline: none !important; outline-style: none !important; }\n';
 for (const vf of VECTOR_FONTS) {
   for (const alias of vf.aliases) {
     css += `@font-face {\n  font-family: '${alias}';\n  src: url('/fonts/${vf.name}.ttf') format('truetype');\n  font-display: block;\n}\n`;

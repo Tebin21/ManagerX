@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, StyleSheet, TextInputProps, TextStyle } from 'react-native';
+import { View, TextInput, StyleSheet, TextInputProps, TextStyle, Platform } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { MotiView } from 'moti';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -145,6 +145,7 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
                   color: colors.black,
                   textAlign,
                 },
+                Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any),
                 forceLatin && { textAlign: 'left', writingDirection: 'ltr' },
                 style,
               ] as never)}
@@ -198,6 +199,7 @@ const styles = StyleSheet.create({
     height:      Theme.input.height,
     paddingStart: 16,
     fontSize:    15,
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any) : {}),
   },
   inputBox: {
     flex:     1,

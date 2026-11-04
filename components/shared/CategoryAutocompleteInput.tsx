@@ -6,6 +6,7 @@ import {
   FlatList,
   StyleSheet,
   TextStyle,
+  Platform,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
@@ -170,6 +171,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: Theme.input.height,
     fontSize: 15,
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any) : {}),
   },
   clearBtn: { paddingStart: 6 },
   chevron: { paddingStart: 4 },
