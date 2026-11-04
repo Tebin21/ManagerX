@@ -812,12 +812,123 @@ export async function getCashDrawerStats(): Promise<{
   };
 }
 
-export async function getDashboardOverviewStats(): Promise<any | null> {
-  return null;
+export async function getDashboardOverviewStats(from?: string, to?: string): Promise<{
+  totalRevenue: number;
+  totalSales: number;
+  totalInvoices: number;
+  totalPurchasesCost: number;
+  totalPurchasesCount: number;
+  expectedProfit: number;
+  totalDiscount: number;
+  totalExpenses: number;
+  totalCustomers: number;
+  totalSuppliers: number;
+  totalItems: number;
+  lowStockCount: number;
+  customerDebtTotal: number;
+  supplierDebtTotal: number;
+  totalBatchesCount: number;
+  activeBatchesCount: number;
+  depletedBatchesCount: number;
+  multiBatchProductsCount: number;
+  expiringBatchesCount: number;
+}> {
+  const sales = getLocal<any[]>(KEYS.sales, []);
+  const purchases = getLocal<any[]>(KEYS.purchases, []);
+  const products = getLocal<any[]>(KEYS.products, []);
+  const customers = getLocal<any[]>(KEYS.customers, []);
+  const suppliers = getLocal<any[]>(KEYS.suppliers, []);
+  const customerDebts = getLocal<any[]>(KEYS.debts, []);
+  const supplierDebts = getLocal<any[]>(KEYS.purchaseDebts, []);
+
+  let filteredSales = sales;
+  if (from && to) {
+    const fromTime = new Date(from).getTime();
+    const toTime = new Date(to).getTime();
+    filteredSales = sales.filter((s) => {
+      const t = new Date(s.created_at || s.createdAt || 0).getTime();
+      return t >= fromTime && t <= toTime;
+    });
+  }
+
+  const totalSales = filteredSales.reduce((acc, s) => acc + (s.grandTotal || 0), 0);
+  const totalRevenue = totalSales;
+  const totalDiscount = filteredSales.reduce((acc, s) => acc + (s.discountTotal || 0), 0);
+  const totalInvoices = filteredSales.length;
+
+  let totalPurchasesCost = 0;
+  for (const p of purchases) {
+    totalPurchasesCost += p.totalIQD || 0;
+  }
+
+  const custDebtTotal = customerDebts.reduce((acc, d) => acc + (d.remaining_amount || d.remainingAmount || 0), 0);
+  const supDebtTotal = supplierDebts.reduce((acc, d) => acc + (d.remaining_amount || d.remainingAmount || 0), 0);
+  const lowStockCount = products.filter((p) => (p.quantity || 0) <= 5).length;
+
+  return {
+    totalRevenue,
+    totalSales,
+    totalInvoices,
+    totalPurchasesCost,
+    totalPurchasesCount: purchases.length,
+    expectedProfit: Math.max(0, totalRevenue - totalPurchasesCost),
+    totalDiscount,
+    totalExpenses: 0,
+    totalCustomers: customers.length,
+    totalSuppliers: suppliers.length,
+    totalItems: products.length,
+    lowStockCount,
+    customerDebtTotal: custDebtTotal,
+    supplierDebtTotal: supDebtTotal,
+    totalBatchesCount: 0,
+    activeBatchesCount: 0,
+    depletedBatchesCount: 0,
+    multiBatchProductsCount: 0,
+    expiringBatchesCount: 0,
+  };
 }
 
-export async function getDashboardRecentActivities(): Promise<any[]> {
-  return [];
+export async function getDashboardRecentActivities(
+  limit: number = 40,
+  _from?: string,
+  _to?: string,
+  language: 'ku' | 'en' = 'ku',
+  _filterUserEmail?: string
+): Promise<any[]> {
+  const sales = getLocal<any[]>(KEYS.sales, []);
+  const purchases = getLocal<any[]>(KEYS.purchases, []);
+  const activities: any[] = [];
+
+  for (const s of sales) {
+    activities.push({
+      id: `sale-${s.id}`,
+      type: 'sale',
+      timestamp: s.created_at || s.createdAt || new Date().toISOString(),
+      title: language === 'ku' ? `فرۆشتن: ${s.invoice_number || s.invoiceNumber || s.id}` : `Sale: ${s.invoice_number || s.invoiceNumber || s.id}`,
+      subtitle: s.customerName || (language === 'ku' ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer'),
+      amount: s.grandTotal || 0,
+      currency: 'IQD',
+      userEmail: s.created_by || s.createdBy || null,
+      userName: s.created_by_name || s.createdByName || null,
+    });
+  }
+
+  for (const p of purchases) {
+    activities.push({
+      id: `purchase-${p.id}`,
+      type: 'purchase',
+      timestamp: p.date || p.createdAt || new Date().toISOString(),
+      title: language === 'ku' ? `کڕین: ${p.productName || p.purchaseNumber}` : `Purchase: ${p.productName || p.purchaseNumber}`,
+      subtitle: p.supplierName || (language === 'ku' ? 'دابینکەری ڕاستەوخۆ' : 'Direct Supplier'),
+      amount: p.totalIQD || 0,
+      currency: 'IQD',
+      userEmail: p.createdBy || null,
+      userName: p.createdBy || null,
+    });
+  }
+
+  activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  return activities.slice(0, limit);
 }
 
 export async function getEmployeeActivities(): Promise<any[]> {

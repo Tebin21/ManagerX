@@ -36,6 +36,28 @@ import { DashboardActivityFeed } from '@/components/dashboard/DashboardActivityF
 import { useResponsive } from '@/hooks/useResponsive';
 import { useManagementStore } from '@/store/managementStore';
 
+const DEFAULT_DASHBOARD_STATS: DashboardOverviewStats = {
+  totalRevenue: 0,
+  totalSales: 0,
+  totalInvoices: 0,
+  totalPurchasesCost: 0,
+  totalPurchasesCount: 0,
+  expectedProfit: 0,
+  totalDiscount: 0,
+  totalExpenses: 0,
+  totalCustomers: 0,
+  totalSuppliers: 0,
+  totalItems: 0,
+  lowStockCount: 0,
+  customerDebtTotal: 0,
+  supplierDebtTotal: 0,
+  totalBatchesCount: 0,
+  activeBatchesCount: 0,
+  depletedBatchesCount: 0,
+  multiBatchProductsCount: 0,
+  expiringBatchesCount: 0,
+};
+
 export default function DashboardViewScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
@@ -117,8 +139,8 @@ export default function DashboardViewScreen() {
         getDashboardRecentActivities(40, fromStr, toStr, isKurdish ? 'ku' : 'en', filterEmail),
       ]);
 
-      setStats(overviewData);
-      setActivities(recentActs);
+      setStats(overviewData || DEFAULT_DASHBOARD_STATS);
+      setActivities(Array.isArray(recentActs) ? recentActs : []);
     } catch (err) {
       console.error('[DashboardViewScreen] error loading data:', err);
     } finally {
