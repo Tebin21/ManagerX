@@ -644,6 +644,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
   const [formPhone, setFormPhone] = useState('');
   const [formPrice, setFormPrice] = useState('');
   const [formDuration, setFormDuration] = useState<number | 'unlimited'>(30); // days
+  const [customAccountRole, setCustomAccountRole] = useState<'manager' | 'employee'>('manager');
   const [formStartedAt, setFormStartedAt] = useState<string>(''); // YYYY-MM-DD
   const [formExpiresAt, setFormExpiresAt] = useState<string>(''); // YYYY-MM-DD
   const [showCalendar, setShowCalendar] = useState<boolean>(false);
@@ -2611,28 +2612,26 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
   // ── Button 2: Open Create Custom Account with Password Modal ──
   const handleOpenCreateCustom = () => {
     setAddModalMode('create_custom');
+    setCustomAccountRole('manager');
     setFormName('');
     setFormEmail('');
     setFormPassword(generateRandomPassword());
     setFormManagerEmail('');
     setFormPhone('');
-    setFormPrice('');
-    setFormDuration(30);
+    setFormPrice('PRO / هەمیشەیی');
+    setFormDuration('unlimited');
 
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
     setFormStartedAt(todayStr);
-
-    const future = new Date(today);
-    future.setDate(future.getDate() + 30);
-    setFormExpiresAt(future.toISOString().split('T')[0]);
+    setFormExpiresAt('');
 
     setFormLimits(DEFAULT_LIMITS);
-    setUnlimitedItems(false);
-    setUnlimitedQuantity(false);
-    setUnlimitedSales(false);
-    setUnlimitedInvoices(false);
-    setUnlimitedQuotations(false);
+    setUnlimitedItems(true);
+    setUnlimitedQuantity(true);
+    setUnlimitedSales(true);
+    setUnlimitedInvoices(true);
+    setUnlimitedQuotations(true);
 
     setStoreEnabled(false);
     setStoreName('');
@@ -2653,10 +2652,15 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     e.preventDefault();
 
     if (addModalMode === 'create_custom') {
-      if (!formName.trim() || !formEmail.trim() || !formPassword.trim() || !formManagerEmail.trim()) {
+      const isMgr = customAccountRole === 'manager';
+      if (!formName.trim() || !formEmail.trim() || !formPassword.trim() || (!isMgr && !formManagerEmail.trim())) {
         setFormError(
           isKu
-            ? 'تکایە هەموو خانە سەرەکییەکان (ناو، ئیمەیڵ، تێپەڕەوشە، ئیمەیڵی بەڕێوەبەر) پڕبکەرەوە'
+            ? isMgr
+              ? 'تکایە خانە سەرەکییەکان (ناو، ئیمەیڵ، تێپەڕەوشە) پڕبکەرەوە'
+              : 'تکایە هەموو خانە سەرەکییەکان (ناو، ئیمەیڵ، تێپەڕەوشە، ئیمەیڵی بەڕێوەبەر) پڕبکەرەوە'
+            : isMgr
+            ? 'Please fill required fields (Name, Email, Password)'
             : 'Please fill all required fields (Name, Email, Password, Manager Email)'
         );
         return;
@@ -2714,7 +2718,13 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         ? new Date(Date.now() + formDuration * 24 * 60 * 60 * 1000).toISOString()
         : undefined;
 
-      const mgrEmail = addModalMode === 'upgrade_registered' ? cleanEmail : (formManagerEmail.trim().toLowerCase() || cleanEmail);
+      const isStoreManager =
+        addModalMode === 'upgrade_registered' ||
+        customAccountRole === 'manager' ||
+        !formManagerEmail.trim() ||
+        formManagerEmail.trim().toLowerCase() === cleanEmail;
+
+      const mgrEmail = isStoreManager ? cleanEmail : (formManagerEmail.trim().toLowerCase() || cleanEmail);
 
       const receiptId = `REC-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
       const planDurationLabel = formDuration === 'unlimited' || !expDate
@@ -2744,17 +2754,17 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         password: addModalMode === 'create_custom' ? formPassword.trim() : '',
         managerEmail: mgrEmail,
         phone: formPhone.trim() || null,
-        priceAmount: formPrice.trim() || null,
+        priceAmount: formPrice.trim() || (isStoreManager ? 'PRO / هەمیشەیی' : null),
         durationDays: typeof formDuration === 'number' ? formDuration : null,
         startedAt: startDate,
         expiresAt: expDate || null,
         status: 'active',
         limits: updatedLimits,
         onlineStore: updatedStore || null,
-        permissions: addModalMode === 'upgrade_registered' ? ALL_ACTIVE_PERMISSIONS : DEFAULT_PERMISSIONS,
+        permissions: isStoreManager ? ALL_ACTIVE_PERMISSIONS : DEFAULT_PERMISSIONS,
         createdAt: new Date().toISOString(),
         accountType: addModalMode === 'upgrade_registered' ? 'registered' : 'custom',
-        role: 'user',
+        role: isStoreManager ? 'manager' : 'employee',
         upgradeReceipt: upgradeReceiptData,
       };
 
@@ -2772,14 +2782,14 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
             customerName: formName.trim() || cleanEmail.split('@')[0],
             phone: formPhone.trim() || null,
             status: 'active',
-            tier: addModalMode === 'upgrade_registered' ? 'pro' : 'standard',
+            tier: isStoreManager ? 'pro' : 'standard',
             planId: formDuration === 'unlimited' || !expDate ? 'lifetime' : `${formDuration}d`,
             startDate: startDate,
             expiresAt: expDate || null,
             storefront_enabled: storeEnabled,
             onlineStoreActive: storeEnabled,
             onlineStore: updatedStore || null,
-            priceAmount: formPrice.trim() || null,
+            priceAmount: formPrice.trim() || (isStoreManager ? 'PRO / هەمیشەیی' : null),
             limits: updatedLimits,
             upgradeReceipt: upgradeReceiptData,
             upgradedAt: new Date().toISOString(),
@@ -5503,16 +5513,71 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                     <span>{isKu ? 'زانیارییە سەرەکییەکان و هەژماری چوونەژوورەوە:' : 'Basic Credentials & Login:'}</span>
                   </div>
 
+                  {/* Account Role Selector: Store Manager (PRO) vs Employee */}
+                  <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 border border-slate-300 dark:border-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomAccountRole('manager');
+                        setFormDuration('unlimited');
+                        setUnlimitedItems(true);
+                        setUnlimitedQuantity(true);
+                        setUnlimitedSales(true);
+                        setUnlimitedInvoices(true);
+                        setUnlimitedQuotations(true);
+                        setFormPrice('PRO / هەمیشەیی');
+                      }}
+                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                        customAccountRole === 'manager'
+                          ? 'bg-amber-500 text-slate-950 shadow-sm font-black'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <span>{isKu ? '👑 خاوەن فرۆشگا / کۆمپیوتەر (PRO هەمیشەیی)' : '👑 Store Owner / Desktop (PRO Lifetime)'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomAccountRole('employee');
+                        setFormDuration(30);
+                        setUnlimitedItems(false);
+                        setUnlimitedQuantity(false);
+                        setUnlimitedSales(false);
+                        setUnlimitedInvoices(false);
+                        setUnlimitedQuotations(false);
+                        setFormPrice('');
+                      }}
+                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                        customAccountRole === 'employee'
+                          ? 'bg-purple-600 text-white shadow-sm font-black'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <span>{isKu ? '👤 کارمەندی فرۆشگا (لەژێر چاودێری بەڕێوەبەردا)' : '👤 Staff Employee (Supervised)'}</span>
+                    </button>
+                  </div>
+
+                  {customAccountRole === 'manager' && (
+                    <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold flex items-center gap-2.5">
+                      <Sparkles className="w-4 h-4 shrink-0 text-amber-500" />
+                      <span>
+                        {isKu
+                          ? '⭐ ئەم هەژمارە وەک خاوەن فرۆشگا (PRO بێ سنوور) لەسەر کۆمپیوتەر و مۆبایل کاردەکات بە بەستنەوەی گووگڵ درایڤ و کۆنترۆڵی کارمەندان.'
+                          : '⭐ This account activates as Store Owner (PRO Lifetime) on Desktop and Mobile with Google Drive and Staff Control.'}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
                     {/* Name */}
                     <div>
                       <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                        {isKu ? 'ناوی کارمەند / لق *' : 'Display Name / Store *'}
+                        {customAccountRole === 'manager' ? (isKu ? 'ناوی فرۆشگا / خاوەن کار *' : 'Store / Owner Name *') : (isKu ? 'ناوی کارمەند / لق *' : 'Display Name / Store *')}
                       </label>
                       <input
                         type="text"
                         required
-                        placeholder={isKu ? 'نموونە: ئارام ئەحمەد' : 'e.g. John Doe'}
+                        placeholder={isKu ? 'نموونە: مارکێتی سەردەم' : 'e.g. John Doe'}
                         value={formName}
                         onChange={(e) => setFormName(e.target.value)}
                         className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-medium ${
@@ -5544,12 +5609,12 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                     {/* Email */}
                     <div>
                       <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                        {isKu ? 'ئیمەیڵی کارمەند (بۆ چوونەژوورەوە) *' : 'Employee Login Email *'}
+                        {customAccountRole === 'manager' ? (isKu ? 'ئیمەیڵ / ناوی بەکارهێنەری فرۆشگا *' : 'Store Owner Email *') : (isKu ? 'ئیمەیڵی کارمەند (بۆ چوونەژوورەوە) *' : 'Employee Login Email *')}
                       </label>
                       <input
                         type="email"
                         required
-                        placeholder="cashier@market.com"
+                        placeholder="owner@market.com"
                         value={formEmail}
                         onChange={(e) => setFormEmail(e.target.value)}
                         className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono ${
@@ -5589,24 +5654,26 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                       />
                     </div>
 
-                    {/* Supervising Manager Email */}
-                    <div className="md:col-span-2">
-                      <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                        {isKu ? 'ئیمەیڵی فەرمی بەڕێوەبەر (بۆ بەستنەوەی گووگڵ درایڤ و کۆنترۆڵ) *' : 'Supervising Manager Email *'}
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        placeholder="manager@gmail.com"
-                        value={formManagerEmail}
-                        onChange={(e) => setFormManagerEmail(e.target.value)}
-                        className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono ${
-                          isDarkMode
-                            ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-purple-500'
-                            : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-100 shadow-2xs'
-                        }`}
-                      />
-                    </div>
+                    {/* Supervising Manager Email (only for staff employees) */}
+                    {customAccountRole === 'employee' && (
+                      <div className="md:col-span-2">
+                        <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                          {isKu ? 'ئیمەیڵی فەرمی بەڕێوەبەر (بۆ بەستنەوەی گووگڵ درایڤ و کۆنترۆڵ) *' : 'Supervising Manager Email *'}
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          placeholder="manager@gmail.com"
+                          value={formManagerEmail}
+                          onChange={(e) => setFormManagerEmail(e.target.value)}
+                          className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono ${
+                            isDarkMode
+                              ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-purple-500'
+                              : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-100 shadow-2xs'
+                          }`}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
