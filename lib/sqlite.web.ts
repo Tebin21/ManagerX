@@ -1,21 +1,83 @@
-// Web stub — SQLite is not used in the web version (offline-only feature)
+// Web & Desktop stub / storage — SQLite native driver is replaced with local browser storage
+import { DIRECT_SUPPLIER_NAME, isDirectSupplierName } from '@/lib/supplierUtils';
 
+export { DIRECT_SUPPLIER_NAME, isDirectSupplierName };
+
+export const DIRECT_CUSTOMER_NAME = 'کڕیاری ڕاستەوخۆ';
+
+export function isDirectCustomerName(name?: string | null): boolean {
+  if (!name) return false;
+  const n = name.trim().toLowerCase();
+  return (
+    n === DIRECT_CUSTOMER_NAME.toLowerCase() ||
+    n === 'direct customer' ||
+    n === 'walk-in customer' ||
+    n === 'کڕیاری راستەوخۆ' ||
+    n === 'کڕیاری دەستبەجێ' ||
+    n === 'الزبون المباشر' ||
+    n === 'عميل مباشر' ||
+    n === 'زبون مباشر'
+  );
+}
+
+// ─── LocalStorage Helpers ──────────────────────────────────────────────────
+function getLocal<T>(key: string, fallback: T): T {
+  try {
+    if (typeof localStorage === 'undefined') return fallback;
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function setLocal<T>(key: string, val: T): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, JSON.stringify(val));
+    }
+  } catch {}
+}
+
+const KEYS = {
+  business: '@froshiar_business_db',
+  products: '@froshiar_db_products',
+  purchases: '@froshiar_db_purchases',
+  sales: '@froshiar_db_sales',
+  customers: '@froshiar_db_customers',
+  suppliers: '@froshiar_db_suppliers',
+  debts: '@froshiar_db_debts',
+  purchaseDebts: '@froshiar_db_purchase_debts',
+  debtReceipts: '@froshiar_db_debt_receipts',
+  categories: '@froshiar_db_categories',
+  history: '@froshiar_db_history',
+  exchangeRates: '@froshiar_db_exchange_rates',
+  discarded: '@froshiar_db_discarded',
+};
+
+// ─── Core DB & Settings ────────────────────────────────────────────────────
 export async function getDatabase() {
   return null as any;
 }
 
 export async function initializeDatabase(): Promise<void> {}
 
-export async function saveBusiness(_data: {
+export async function wipeAllBusinessData(): Promise<void> {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      Object.values(KEYS).forEach((k) => localStorage.removeItem(k));
+    }
+  } catch {}
+}
+
+export async function saveBusiness(data: {
   name: string;
   type: string;
   phone: string;
   address: string;
   logoPath?: string;
 }): Promise<void> {
-  try {
-    localStorage.setItem('@froshiar_business_db', JSON.stringify(_data));
-  } catch {}
+  setLocal(KEYS.business, data);
 }
 
 export async function loadBusiness(): Promise<{
@@ -26,9 +88,9 @@ export async function loadBusiness(): Promise<{
   logoPath: string | null;
 } | null> {
   try {
-    // Falls back to the pre-rebrand key so an existing web session's data
-    // isn't stranded — see saveSetting/loadSetting below for the same pattern.
-    const raw = localStorage.getItem('@froshiar_business_db') ?? localStorage.getItem('@managerx_business_db');
+    const raw =
+      (typeof localStorage !== 'undefined' && localStorage.getItem(KEYS.business)) ||
+      (typeof localStorage !== 'undefined' && localStorage.getItem('@managerx_business_db'));
     if (!raw) return null;
     const d = JSON.parse(raw);
     return { ...d, logoPath: d.logoPath ?? null };
@@ -39,37 +101,22 @@ export async function loadBusiness(): Promise<{
 
 export async function saveSetting(key: string, value: string): Promise<void> {
   try {
-    localStorage.setItem(`@froshiar_setting_${key}`, value);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(`@froshiar_setting_${key}`, value);
+    }
   } catch {}
 }
 
 export async function loadSetting(key: string): Promise<string | null> {
   try {
+    if (typeof localStorage === 'undefined') return null;
     return localStorage.getItem(`@froshiar_setting_${key}`) ?? localStorage.getItem(`@managerx_setting_${key}`);
   } catch {
     return null;
   }
 }
 
-// ─── Stubs for functions imported by screens/stores ──────────────────────────
-// These prevent "X is not a function" crashes on web where SQLite is unavailable.
-
-export async function getProductCategories(): Promise<string[]> {
-  return [];
-}
-
-export async function getProductsByItemId(_itemId: string): Promise<number[]> {
-  return [];
-}
-
-export async function getProductBatches(_productId: number, _productName: string, _itemId?: string | null): Promise<any[]> {
-  return [];
-}
-
-export async function getAllPurchases(): Promise<any[]> {
-  return [];
-}
-
+// ─── Formatters & Generators ───────────────────────────────────────────────
 export function formatInvoiceNumber(n: number): string {
   return `F-${String(n).padStart(5, '0')}`;
 }
@@ -83,58 +130,255 @@ export function formatQuotationNumber(n: number): string {
 }
 
 export async function generatePurchaseNumber(): Promise<string> {
-  return 'WEB-' + Date.now();
+  const purchases = getLocal<any[]>(KEYS.purchases, []);
+  return formatPurchaseNumber(purchases.length + 1);
 }
 
-export async function insertPurchase(_data: any): Promise<number> {
-  return 0;
+export async function generateInvoiceNumber(): Promise<string> {
+  const sales = getLocal<any[]>(KEYS.sales, []);
+  return formatInvoiceNumber(sales.length + 1);
 }
 
-export async function insertProduct(_data: any): Promise<number> {
-  return 0;
+// ─── Categories ────────────────────────────────────────────────────────────
+export async function getProductCategories(): Promise<string[]> {
+  const products = getLocal<any[]>(KEYS.products, []);
+  const cats = new Set<string>();
+  products.forEach((p) => {
+    if (p.category) cats.add(p.category);
+  });
+  const managed = getLocal<string[]>(KEYS.categories, []);
+  managed.forEach((c) => cats.add(c));
+  return Array.from(cats);
 }
 
-export async function upsertSupplier(_input: any): Promise<number> {
-  return 0;
+export async function getAllManagedCategories(): Promise<Array<{ name: string; productCount: number; isDefault: boolean }>> {
+  const cats = await getProductCategories();
+  const products = getLocal<any[]>(KEYS.products, []);
+  return cats.map((name) => ({
+    name,
+    productCount: products.filter((p) => p.category === name).length,
+    isDefault: false,
+  }));
 }
 
-export async function findSupplierByNameOrPhone(_name?: string | null, _phone?: string | null): Promise<any | null> {
-  return null;
+export async function addManagedCategory(name: string): Promise<void> {
+  const cats = getLocal<string[]>(KEYS.categories, []);
+  if (!cats.includes(name)) {
+    cats.push(name);
+    setLocal(KEYS.categories, cats);
+  }
 }
 
-export async function insertPurchaseItem(_purchaseId: number, _data: any): Promise<void> {}
+export async function renameManagedCategory(oldName: string, newName: string): Promise<void> {
+  const cats = getLocal<string[]>(KEYS.categories, []);
+  const idx = cats.indexOf(oldName);
+  if (idx >= 0) cats[idx] = newName;
+  setLocal(KEYS.categories, cats);
 
-export async function createPurchaseDebt(_purchaseId: number, _data: any): Promise<void> {}
+  const products = getLocal<any[]>(KEYS.products, []);
+  products.forEach((p) => {
+    if (p.category === oldName) p.category = newName;
+  });
+  setLocal(KEYS.products, products);
+}
 
-export async function searchSuppliersList(_query: string): Promise<any[]> {
+export async function deleteManagedCategory(name: string): Promise<void> {
+  const cats = getLocal<string[]>(KEYS.categories, []).filter((c) => c !== name);
+  setLocal(KEYS.categories, cats);
+}
+
+// ─── Products & Inventory ──────────────────────────────────────────────────
+export async function getAllInventoryProducts(): Promise<any[]> {
+  return getLocal<any[]>(KEYS.products, []);
+}
+
+export async function getInventoryProductById(id: number): Promise<any | null> {
+  const products = getLocal<any[]>(KEYS.products, []);
+  return products.find((p) => p.id === id) ?? null;
+}
+
+export async function getProductsByItemId(itemId: string): Promise<number[]> {
+  const products = getLocal<any[]>(KEYS.products, []);
+  return products.filter((p) => p.itemId === itemId).map((p) => p.id);
+}
+
+export async function getProductByItemId(itemId: string): Promise<any | null> {
+  const products = getLocal<any[]>(KEYS.products, []);
+  return products.find((p) => p.itemId === itemId) ?? null;
+}
+
+export async function getProductByItemIdAndName(itemId: string, name: string): Promise<any | null> {
+  const products = getLocal<any[]>(KEYS.products, []);
+  return products.find((p) => p.itemId === itemId && p.name.trim().toLowerCase() === name.trim().toLowerCase()) ?? null;
+}
+
+export async function getRepeatableProductByName(name: string): Promise<any | null> {
+  const products = getLocal<any[]>(KEYS.products, []);
+  return (
+    products.find(
+      (p) => p.idMode === 'repeatable' && p.name.trim().toLowerCase() === name.trim().toLowerCase()
+    ) ?? null
+  );
+}
+
+export async function getProductBatches(_productId: number, _productName: string, _itemId?: string | null): Promise<any[]> {
   return [];
 }
 
-export async function addManagedCategory(_name: string): Promise<void> {}
-
-export async function saveExchangeRateHistory(_rate: number): Promise<void> {}
-
-export async function discardProduct(
-  _productId: number,
-  _quantity: number,
-  _reason?: string,
-  _notes?: string
-): Promise<{ discardId: number; totalLossIqd: number; totalLossUsd: number }> {
-  return { discardId: 0, totalLossIqd: 0, totalLossUsd: 0 };
+export async function insertProduct(data: any): Promise<number> {
+  const products = getLocal<any[]>(KEYS.products, []);
+  const id = Date.now() + Math.floor(Math.random() * 1000);
+  const now = new Date().toISOString();
+  const newProd = {
+    ...data,
+    id,
+    isActive: true,
+    createdAt: data.createdAt || now,
+    updatedAt: now,
+  };
+  products.unshift(newProd);
+  setLocal(KEYS.products, products);
+  return id;
 }
 
-export async function restoreDiscardedProduct(_discardId: number): Promise<{
+export async function updateProduct(id: number, data: any): Promise<void> {
+  const products = getLocal<any[]>(KEYS.products, []);
+  const idx = products.findIndex((p) => p.id === id);
+  if (idx >= 0) {
+    products[idx] = { ...products[idx], ...data, updatedAt: new Date().toISOString() };
+    setLocal(KEYS.products, products);
+  }
+}
+
+export async function restockExistingProduct(productId: number, data: any): Promise<void> {
+  const products = getLocal<any[]>(KEYS.products, []);
+  const idx = products.findIndex((p) => p.id === productId);
+  if (idx >= 0) {
+    products[idx].quantity = (products[idx].quantity || 0) + (data.quantity || 0);
+    if (data.sellingPrice) products[idx].sellingPrice = data.sellingPrice;
+    if (data.purchasePrice) products[idx].purchasePrice = data.purchasePrice;
+    products[idx].updatedAt = new Date().toISOString();
+    setLocal(KEYS.products, products);
+  }
+}
+
+export async function deleteProduct(id: number): Promise<void> {
+  const products = getLocal<any[]>(KEYS.products, []);
+  const prod = products.find((p) => p.id === id);
+  if (prod) {
+    const history = getLocal<any[]>(KEYS.history, []);
+    history.unshift({ ...prod, deletedAt: new Date().toISOString() });
+    setLocal(KEYS.history, history);
+  }
+  setLocal(KEYS.products, products.filter((p) => p.id !== id));
+}
+
+export async function getInventoryStats(): Promise<{
+  totalProducts: number;
+  totalQuantity: number;
+  totalValueIQD: number;
+  lowStockCount: number;
+  paidCount: number;
+  debtCount: number;
+}> {
+  const products = getLocal<any[]>(KEYS.products, []);
+  let totalQty = 0;
+  let totalVal = 0;
+  let lowCount = 0;
+  for (const p of products) {
+    totalQty += p.quantity || 0;
+    totalVal += (p.sellingPrice || 0) * (p.quantity || 0);
+    if ((p.quantity || 0) <= 5) lowCount++;
+  }
+  return {
+    totalProducts: products.length,
+    totalQuantity: totalQty,
+    totalValueIQD: totalVal,
+    lowStockCount: lowCount,
+    paidCount: products.filter((p) => p.paymentStatus === 'paid').length,
+    debtCount: products.filter((p) => p.paymentStatus === 'debt').length,
+  };
+}
+
+export async function setProductStoreVisibility(productId: number, visible: boolean): Promise<void> {
+  await updateProduct(productId, { storeVisible: visible });
+}
+
+export async function bulkSetStoreVisibility(visible: boolean): Promise<void> {
+  const products = getLocal<any[]>(KEYS.products, []);
+  products.forEach((p) => {
+    p.storeVisible = visible;
+  });
+  setLocal(KEYS.products, products);
+}
+
+export async function setProductImageRemoteUrl(productId: number, url: string | null): Promise<void> {
+  await updateProduct(productId, { imageRemoteUrl: url });
+}
+
+export async function getAllInventoryHistory(): Promise<any[]> {
+  return getLocal<any[]>(KEYS.history, []);
+}
+
+export async function restoreProductFromHistory(id: number): Promise<void> {
+  const history = getLocal<any[]>(KEYS.history, []);
+  const item = history.find((h) => h.id === id);
+  if (item) {
+    setLocal(KEYS.history, history.filter((h) => h.id !== id));
+    const products = getLocal<any[]>(KEYS.products, []);
+    products.unshift(item);
+    setLocal(KEYS.products, products);
+  }
+}
+
+export async function permanentDeleteFromHistory(id: number): Promise<void> {
+  const history = getLocal<any[]>(KEYS.history, []);
+  setLocal(KEYS.history, history.filter((h) => h.id !== id));
+}
+
+export async function getProductPurchaseHistory(_productId: number): Promise<any[]> {
+  return [];
+}
+
+export async function getSoldProducts(): Promise<any[]> {
+  return [];
+}
+
+// ─── Discarded Products ────────────────────────────────────────────────────
+export async function discardProduct(
+  productId: number,
+  quantity: number,
+  reason?: string,
+  notes?: string
+): Promise<{ discardId: number; totalLossIqd: number; totalLossUsd: number }> {
+  const discardId = Date.now();
+  const discards = getLocal<any[]>(KEYS.discarded, []);
+  discards.push({ id: discardId, productId, quantity, reason, notes, date: new Date().toISOString() });
+  setLocal(KEYS.discarded, discards);
+  return { discardId, totalLossIqd: 0, totalLossUsd: 0 };
+}
+
+export async function restoreDiscardedProduct(discardId: number): Promise<{
   success: boolean;
   restoredQuantity: number;
   productId: number | null;
 }> {
+  const discards = getLocal<any[]>(KEYS.discarded, []);
+  const item = discards.find((d) => d.id === discardId);
+  if (item) {
+    setLocal(KEYS.discarded, discards.filter((d) => d.id !== discardId));
+    return { success: true, restoredQuantity: item.quantity, productId: item.productId };
+  }
   return { success: false, restoredQuantity: 0, productId: null };
 }
 
-export async function permanentDeleteDiscardedProduct(_discardId: number): Promise<void> {}
+export async function permanentDeleteDiscardedProduct(discardId: number): Promise<void> {
+  const discards = getLocal<any[]>(KEYS.discarded, []);
+  setLocal(KEYS.discarded, discards.filter((d) => d.id !== discardId));
+}
 
 export async function getDiscardedProducts(_onlyActive: boolean = true): Promise<any[]> {
-  return [];
+  return getLocal<any[]>(KEYS.discarded, []);
 }
 
 export async function getDiscardedLossStats(_from?: string, _to?: string): Promise<{
@@ -145,3 +389,477 @@ export async function getDiscardedLossStats(_from?: string, _to?: string): Promi
 }> {
   return { totalLossIqd: 0, totalLossUsd: 0, totalItemsCount: 0, totalUnitsCount: 0 };
 }
+
+// ─── Suppliers ─────────────────────────────────────────────────────────────
+export async function getAllSuppliersWithStats(): Promise<any[]> {
+  const suppliers = getLocal<any[]>(KEYS.suppliers, []);
+  const purchases = getLocal<any[]>(KEYS.purchases, []);
+  return suppliers.map((s) => {
+    const sPurchases = purchases.filter((p) => p.supplierName === s.name);
+    const totalSpent = sPurchases.reduce((acc, p) => acc + (p.totalIQD || 0), 0);
+    return {
+      ...s,
+      purchaseCount: sPurchases.length,
+      totalSpent,
+      lastPurchaseDate: sPurchases[0]?.date || null,
+    };
+  });
+}
+
+export async function searchSuppliersList(query: string): Promise<any[]> {
+  const suppliers = await getAllSuppliersWithStats();
+  const q = query.toLowerCase().trim();
+  if (!q) return suppliers;
+  return suppliers.filter(
+    (s) =>
+      s.name.toLowerCase().includes(q) ||
+      (s.phone && s.phone.includes(q)) ||
+      (s.address && s.address.toLowerCase().includes(q))
+  );
+}
+
+export async function findSupplierByNameOrPhone(name?: string | null, phone?: string | null): Promise<any | null> {
+  const suppliers = getLocal<any[]>(KEYS.suppliers, []);
+  return (
+    suppliers.find(
+      (s) =>
+        (name && s.name.trim().toLowerCase() === name.trim().toLowerCase()) ||
+        (phone && s.phone && s.phone.trim() === phone.trim())
+    ) ?? null
+  );
+}
+
+export async function upsertSupplier(input: any): Promise<number> {
+  const suppliers = getLocal<any[]>(KEYS.suppliers, []);
+  const existing = suppliers.find((s) => s.name.trim().toLowerCase() === (input.name || '').trim().toLowerCase());
+  if (existing) {
+    Object.assign(existing, input, { updatedAt: new Date().toISOString() });
+    setLocal(KEYS.suppliers, suppliers);
+    return existing.id;
+  }
+  const id = Date.now() + Math.floor(Math.random() * 1000);
+  suppliers.push({ ...input, id, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+  setLocal(KEYS.suppliers, suppliers);
+  return id;
+}
+
+export async function updateSupplier(id: number, data: any): Promise<void> {
+  const suppliers = getLocal<any[]>(KEYS.suppliers, []);
+  const idx = suppliers.findIndex((s) => s.id === id);
+  if (idx >= 0) {
+    suppliers[idx] = { ...suppliers[idx], ...data, updatedAt: new Date().toISOString() };
+    setLocal(KEYS.suppliers, suppliers);
+  }
+}
+
+export async function deleteSupplier(id: number): Promise<void> {
+  const suppliers = getLocal<any[]>(KEYS.suppliers, []);
+  setLocal(KEYS.suppliers, suppliers.filter((s) => s.id !== id));
+}
+
+export async function getSupplierFinancialTimeline(_supplierId: number): Promise<any[]> {
+  return [];
+}
+
+export async function getPurchasesBySupplierName(supplierName: string): Promise<any[]> {
+  const purchases = getLocal<any[]>(KEYS.purchases, []);
+  return purchases.filter((p) => p.supplierName === supplierName);
+}
+
+// ─── Purchases ─────────────────────────────────────────────────────────────
+export async function getAllPurchases(): Promise<any[]> {
+  return getLocal<any[]>(KEYS.purchases, []);
+}
+
+export async function getPurchaseById(id: number): Promise<any | null> {
+  const purchases = getLocal<any[]>(KEYS.purchases, []);
+  return purchases.find((p) => p.id === id) ?? null;
+}
+
+export async function insertPurchase(data: any): Promise<number> {
+  const purchases = getLocal<any[]>(KEYS.purchases, []);
+  const id = Date.now() + Math.floor(Math.random() * 1000);
+  const purchase = {
+    ...data,
+    id,
+    createdAt: data.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  purchases.unshift(purchase);
+  setLocal(KEYS.purchases, purchases);
+  return id;
+}
+
+export async function insertPurchaseItem(_purchaseId: number, _data: any): Promise<void> {}
+
+export async function createPurchaseDebt(purchaseId: number, data: any): Promise<void> {
+  const debts = getLocal<any[]>(KEYS.purchaseDebts, []);
+  debts.push({ ...data, purchaseId, id: Date.now() });
+  setLocal(KEYS.purchaseDebts, debts);
+}
+
+export async function updatePurchase(id: number, input: any): Promise<void> {
+  const purchases = getLocal<any[]>(KEYS.purchases, []);
+  const idx = purchases.findIndex((p) => p.id === id);
+  if (idx >= 0) {
+    purchases[idx] = { ...purchases[idx], ...input, updatedAt: new Date().toISOString() };
+    setLocal(KEYS.purchases, purchases);
+  }
+}
+
+export async function archivePurchase(id: number, _actor?: any): Promise<void> {
+  const purchases = getLocal<any[]>(KEYS.purchases, []);
+  setLocal(KEYS.purchases, purchases.filter((p) => p.id !== id));
+}
+
+export async function getPurchaseItemsByPurchaseId(_purchaseId: number): Promise<any[]> {
+  return [];
+}
+
+export async function getPurchaseDebtByPurchaseId(purchaseId: number): Promise<any | null> {
+  const debts = getLocal<any[]>(KEYS.purchaseDebts, []);
+  return debts.find((d) => d.purchaseId === purchaseId) ?? null;
+}
+
+export async function getPurchaseDebtById(id: number): Promise<any | null> {
+  const debts = getLocal<any[]>(KEYS.purchaseDebts, []);
+  return debts.find((d) => d.id === id) ?? null;
+}
+
+export async function getAllPurchaseDebts(): Promise<any[]> {
+  return getLocal<any[]>(KEYS.purchaseDebts, []);
+}
+
+export async function getSoldQuantityForPurchase(_purchaseId: number): Promise<number> {
+  return 0;
+}
+
+export async function incrementPurchaseViewCount(_purchaseId: number): Promise<void> {}
+export async function incrementPurchasePrintCount(_purchaseId: number): Promise<void> {}
+
+// ─── Customers ─────────────────────────────────────────────────────────────
+export async function ensureDirectCustomer(): Promise<number> {
+  const direct = await getOrCreateDirectCustomer();
+  return direct.id;
+}
+
+export async function getOrCreateDirectCustomer(): Promise<{ id: number; name: string }> {
+  let cust = (await getAllCustomersWithStats()).find((c) => isDirectCustomerName(c.name));
+  if (!cust) {
+    const id = await upsertCustomer({ name: DIRECT_CUSTOMER_NAME });
+    return { id, name: DIRECT_CUSTOMER_NAME };
+  }
+  return { id: cust.id, name: cust.name };
+}
+
+export async function getOrCreateCustomerAccount(input: { name: string; phone?: string | null; address?: string | null }): Promise<number> {
+  return upsertCustomer(input);
+}
+
+export async function getAllCustomersWithStats(): Promise<any[]> {
+  const customers = getLocal<any[]>(KEYS.customers, []);
+  const sales = getLocal<any[]>(KEYS.sales, []);
+  return customers.map((c) => {
+    const cSales = sales.filter((s) => s.customerId === c.id || s.customerName === c.name);
+    const totalSpent = cSales.reduce((acc, s) => acc + (s.grandTotal || 0), 0);
+    return {
+      ...c,
+      totalPurchases: cSales.length,
+      totalSpent,
+      lastPurchaseDate: cSales[0]?.created_at || null,
+    };
+  });
+}
+
+export async function searchCustomersList(query: string): Promise<any[]> {
+  const customers = await getAllCustomersWithStats();
+  const q = query.toLowerCase().trim();
+  if (!q) return customers;
+  return customers.filter(
+    (c) =>
+      c.name.toLowerCase().includes(q) ||
+      (c.phone && c.phone.includes(q)) ||
+      (c.address && c.address.toLowerCase().includes(q))
+  );
+}
+
+export async function getCustomerByIdWithStats(id: number): Promise<any | null> {
+  const customers = await getAllCustomersWithStats();
+  return customers.find((c) => c.id === id) ?? null;
+}
+
+export async function getCustomerFinancialTimeline(_customerId: number): Promise<any[]> {
+  return [];
+}
+
+export async function upsertCustomer(input: any): Promise<number> {
+  const customers = getLocal<any[]>(KEYS.customers, []);
+  const existing = customers.find((c) => c.name.trim().toLowerCase() === (input.name || '').trim().toLowerCase());
+  if (existing) {
+    Object.assign(existing, input, { updatedAt: new Date().toISOString() });
+    setLocal(KEYS.customers, customers);
+    return existing.id;
+  }
+  const id = Date.now() + Math.floor(Math.random() * 1000);
+  customers.push({ ...input, id, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+  setLocal(KEYS.customers, customers);
+  return id;
+}
+
+export async function updateCustomer(id: number, data: any): Promise<void> {
+  const customers = getLocal<any[]>(KEYS.customers, []);
+  const idx = customers.findIndex((c) => c.id === id);
+  if (idx >= 0) {
+    customers[idx] = { ...customers[idx], ...data, updatedAt: new Date().toISOString() };
+    setLocal(KEYS.customers, customers);
+  }
+}
+
+export async function deleteCustomer(id: number): Promise<void> {
+  const customers = getLocal<any[]>(KEYS.customers, []);
+  setLocal(KEYS.customers, customers.filter((c) => c.id !== id));
+}
+
+// ─── Sales ─────────────────────────────────────────────────────────────────
+export async function getAllSales(): Promise<any[]> {
+  return getLocal<any[]>(KEYS.sales, []);
+}
+
+export async function getSaleById(id: number): Promise<any | null> {
+  const sales = getLocal<any[]>(KEYS.sales, []);
+  return sales.find((s) => s.id === id) ?? null;
+}
+
+export async function insertSale(data: any): Promise<number> {
+  const sales = getLocal<any[]>(KEYS.sales, []);
+  const id = Date.now() + Math.floor(Math.random() * 1000);
+  const newSale = {
+    ...data,
+    id,
+    created_at: data.created_at || new Date().toISOString(),
+    createdAt: data.createdAt || new Date().toISOString(),
+  };
+  sales.unshift(newSale);
+  setLocal(KEYS.sales, sales);
+  return id;
+}
+
+export async function updateSaleComplete(saleId: number, input: any): Promise<void> {
+  const sales = getLocal<any[]>(KEYS.sales, []);
+  const idx = sales.findIndex((s) => s.id === saleId);
+  if (idx >= 0) {
+    sales[idx] = { ...sales[idx], ...input, updatedAt: new Date().toISOString() };
+    setLocal(KEYS.sales, sales);
+  }
+}
+
+export async function updateSaleInfo(saleId: number, data: any): Promise<void> {
+  await updateSaleComplete(saleId, data);
+}
+
+export async function deleteSale(id: number): Promise<void> {
+  const sales = getLocal<any[]>(KEYS.sales, []);
+  setLocal(KEYS.sales, sales.filter((s) => s.id !== id));
+}
+
+export async function attachItemsToSales(sales: any[]): Promise<any[]> {
+  return sales;
+}
+
+export async function getSaleItemsSearchIndex(): Promise<Record<number, string>> {
+  return {};
+}
+
+export async function getSalesByCustomerId(customerId: number): Promise<any[]> {
+  const sales = getLocal<any[]>(KEYS.sales, []);
+  return sales.filter((s) => s.customerId === customerId);
+}
+
+export async function getSalesByProductId(_productId: number): Promise<any[]> {
+  return [];
+}
+
+export async function incrementSaleViewCount(_saleId: number): Promise<void> {}
+export async function incrementSalePrintCount(_saleId: number): Promise<void> {}
+
+// ─── Debts ─────────────────────────────────────────────────────────────────
+export async function getSalesDebtBySaleId(saleId: number): Promise<any | null> {
+  const debts = getLocal<any[]>(KEYS.debts, []);
+  return debts.find((d) => d.sale_id === saleId || d.saleId === saleId) ?? null;
+}
+
+export async function getSalesDebtById(id: number): Promise<any | null> {
+  const debts = getLocal<any[]>(KEYS.debts, []);
+  return debts.find((d) => d.id === id) ?? null;
+}
+
+export async function getAllSalesDebtsDetailed(): Promise<any[]> {
+  return getLocal<any[]>(KEYS.debts, []);
+}
+
+export async function getDebtsByCustomerId(customerId: number): Promise<any[]> {
+  const debts = getLocal<any[]>(KEYS.debts, []);
+  return debts.filter((d) => d.customer_id === customerId || d.customerId === customerId);
+}
+
+export async function getDebtOverviewSummary(): Promise<{
+  totalCustomerDebtIQD: number;
+  totalCustomerDebtUSD: number;
+  totalSupplierDebtIQD: number;
+  totalSupplierDebtUSD: number;
+}> {
+  const customerDebts = getLocal<any[]>(KEYS.debts, []);
+  const supplierDebts = getLocal<any[]>(KEYS.purchaseDebts, []);
+
+  let totalCustIQD = 0;
+  let totalCustUSD = 0;
+  for (const d of customerDebts) {
+    totalCustIQD += d.remaining_amount || d.remainingAmount || 0;
+  }
+
+  let totalSuppIQD = 0;
+  let totalSuppUSD = 0;
+  for (const d of supplierDebts) {
+    totalSuppIQD += d.remaining_amount || d.remainingAmount || 0;
+  }
+
+  return {
+    totalCustomerDebtIQD: totalCustIQD,
+    totalCustomerDebtUSD: totalCustUSD,
+    totalSupplierDebtIQD: totalSuppIQD,
+    totalSupplierDebtUSD: totalSuppUSD,
+  };
+}
+
+export async function getDebtPayments(_debtId: number): Promise<any[]> {
+  return [];
+}
+
+export async function getAllDebtPaymentReceipts(): Promise<any[]> {
+  return getLocal<any[]>(KEYS.debtReceipts, []);
+}
+
+export async function getDebtPaymentReceiptById(id: number): Promise<any | null> {
+  const receipts = getLocal<any[]>(KEYS.debtReceipts, []);
+  return receipts.find((r) => r.id === id) ?? null;
+}
+
+export async function addPaymentToDebt(
+  debtId: number,
+  amount: number,
+  _customerId: number,
+  _paymentMethod?: string
+): Promise<any> {
+  const debts = getLocal<any[]>(KEYS.debts, []);
+  const debt = debts.find((d) => d.id === debtId);
+  if (debt) {
+    debt.remaining_amount = Math.max(0, (debt.remaining_amount || 0) - amount);
+    setLocal(KEYS.debts, debts);
+  }
+  const receiptId = Date.now();
+  const receipt = {
+    id: receiptId,
+    receiptNumber: `RCP-${receiptId}`,
+    debtId,
+    amount,
+    createdAt: new Date().toISOString(),
+  };
+  const receipts = getLocal<any[]>(KEYS.debtReceipts, []);
+  receipts.unshift(receipt);
+  setLocal(KEYS.debtReceipts, receipts);
+  return receipt;
+}
+
+export async function addPaymentToPurchaseDebt(debtId: number, amount: number): Promise<number> {
+  const debts = getLocal<any[]>(KEYS.purchaseDebts, []);
+  const debt = debts.find((d) => d.id === debtId);
+  if (debt) {
+    debt.remaining_amount = Math.max(0, (debt.remaining_amount || 0) - amount);
+    setLocal(KEYS.purchaseDebts, debts);
+  }
+  return Date.now();
+}
+
+export async function incrementDebtReceiptPrintCount(_receiptId: number): Promise<void> {}
+export async function incrementDebtReceiptViewCount(_receiptId: number): Promise<void> {}
+
+// ─── Financial & Reporting ─────────────────────────────────────────────────
+export async function saveExchangeRateHistory(rate: number): Promise<void> {
+  const history = getLocal<any[]>(KEYS.exchangeRates, []);
+  history.unshift({ rate, date: new Date().toISOString() });
+  setLocal(KEYS.exchangeRates, history);
+}
+
+export async function getExchangeRateHistory(): Promise<any[]> {
+  return getLocal<any[]>(KEYS.exchangeRates, []);
+}
+
+export async function getCashDrawerStats(): Promise<{
+  totalCashInIQD: number;
+  totalCashInUSD: number;
+  totalCashOutIQD: number;
+  totalCashOutUSD: number;
+  netCashIQD: number;
+  netCashUSD: number;
+}> {
+  return {
+    totalCashInIQD: 0,
+    totalCashInUSD: 0,
+    totalCashOutIQD: 0,
+    totalCashOutUSD: 0,
+    netCashIQD: 0,
+    netCashUSD: 0,
+  };
+}
+
+export async function getDashboardOverviewStats(): Promise<any | null> {
+  return null;
+}
+
+export async function getDashboardRecentActivities(): Promise<any[]> {
+  return [];
+}
+
+export async function getEmployeeActivities(): Promise<any[]> {
+  return [];
+}
+
+// ─── Sync Queue ────────────────────────────────────────────────────────────
+export async function getPendingSyncCount(): Promise<number> {
+  return 0;
+}
+
+export async function getPendingSyncProducts(): Promise<any[]> {
+  return [];
+}
+
+export async function clearSyncQueue(): Promise<void> {}
+export async function enqueueFullCloudResync(): Promise<void> {}
+export async function enqueueProductsWithPendingImages(): Promise<void> {}
+
+// ─── Type Exports for Typescript Consistency ───────────────────────────────
+export type CashDrawerStats = {
+  totalCashInIQD: number;
+  totalCashInUSD: number;
+  totalCashOutIQD: number;
+  totalCashOutUSD: number;
+  netCashIQD: number;
+  netCashUSD: number;
+};
+
+export type DashboardActivityItem = any;
+export type DashboardOverviewStats = any;
+export type DebtReportData = any;
+export type ExchangeRateEntry = any;
+export type Expense = any;
+export type FinancialSummaryCards = any;
+export type InventoryReportSummary = any;
+export type PendingSyncItem = any;
+export type ProfitLossData = any;
+export type ProfitableProduct = any;
+export type PurchaseActor = { id?: number | string | null; name?: string | null };
+export type PurchaseReportData = any;
+export type RevenuePoint = any;
+export type SalesReportData = any;
+export type UpdatePurchaseInput = any;
+export type PurchaseItem = any;

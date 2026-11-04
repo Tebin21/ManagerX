@@ -32,11 +32,23 @@ const VECTOR_FONTS = [
   { name: 'MaterialCommunityIcons', aliases: ['MaterialCommunityIcons', 'material-community', 'Material Design Icons'] },
   { name: 'MaterialIcons', aliases: ['MaterialIcons', 'material', 'Material Icons'] },
   { name: 'Feather', aliases: ['Feather', 'feather'] },
-  { name: 'FontAwesome', aliases: ['FontAwesome', 'fontawesome', 'FontAwesome5_Regular', 'FontAwesome5_Solid'] },
+  { name: 'FontAwesome', aliases: ['FontAwesome', 'fontawesome'] },
+  { name: 'FontAwesome5_Regular', aliases: ['FontAwesome5_Regular', 'FontAwesome5Regular'] },
+  { name: 'FontAwesome5_Solid', aliases: ['FontAwesome5_Solid', 'FontAwesome5Solid'] },
+  { name: 'FontAwesome5_Brands', aliases: ['FontAwesome5_Brands', 'FontAwesome5Brands'] },
+  { name: 'FontAwesome6_Regular', aliases: ['FontAwesome6_Regular', 'FontAwesome6Regular'] },
+  { name: 'FontAwesome6_Solid', aliases: ['FontAwesome6_Solid', 'FontAwesome6Solid'] },
+  { name: 'FontAwesome6_Brands', aliases: ['FontAwesome6_Brands', 'FontAwesome6Brands'] },
   { name: 'AntDesign', aliases: ['AntDesign', 'anticon'] },
   { name: 'Entypo', aliases: ['Entypo', 'entypo'] },
+  { name: 'EvilIcons', aliases: ['EvilIcons', 'evilicons'] },
+  { name: 'Fontisto', aliases: ['Fontisto', 'fontisto'] },
+  { name: 'Foundation', aliases: ['Foundation', 'foundation', 'fontcustom'] },
   { name: 'Octicons', aliases: ['Octicons', 'octicons'] },
   { name: 'SimpleLineIcons', aliases: ['SimpleLineIcons', 'simple-line-icons'] },
+  { name: 'Zocial', aliases: ['Zocial', 'zocial'] },
+  { name: 'BahijJanna-Regular', aliases: ['Bahij Janna', 'BahijJanna-Regular', 'RudawRegular'] },
+  { name: 'BahijJanna-Bold', aliases: ['Bahij Janna Bold', 'BahijJanna-Bold'] },
 ];
 
 let cachedVectorCss = null;
@@ -45,31 +57,34 @@ function generateVectorIconsCss(distDir) {
   if (cachedVectorCss) return cachedVectorCss;
   let css = '<style id="desktop-vector-icons-css">\n';
   try {
+    const fontsDir = path.join(distDir, 'fonts');
     const assetsDir = path.join(distDir, 'assets');
-    const findTtf = (dir, results = {}) => {
-      if (!fs.existsSync(dir)) return results;
+    const results = {};
+
+    const findTtf = (dir) => {
+      if (!fs.existsSync(dir)) return;
       const files = fs.readdirSync(dir);
       for (const f of files) {
         const full = path.join(dir, f);
         if (fs.statSync(full).isDirectory()) {
-          findTtf(full, results);
+          findTtf(full);
         } else if (f.endsWith('.ttf')) {
           const base = f.split('.')[0];
           const rel = '/' + path.relative(distDir, full).replace(/\\/g, '/');
-          results[base] = rel;
+          if (!results[base]) {
+            results[base] = rel;
+          }
         }
       }
-      return results;
     };
 
-    const fontMap = findTtf(assetsDir);
+    findTtf(fontsDir);
+    findTtf(assetsDir);
 
     for (const vf of VECTOR_FONTS) {
-      const url = fontMap[vf.name];
-      if (url) {
-        for (const alias of vf.aliases) {
-          css += `@font-face {\n  font-family: '${alias}';\n  src: url('${url}') format('truetype');\n  font-display: block;\n}\n`;
-        }
+      const url = results[vf.name] || `/fonts/${vf.name}.ttf`;
+      for (const alias of vf.aliases) {
+        css += `@font-face {\n  font-family: '${alias}';\n  src: url('${url}') format('truetype');\n  font-display: block;\n}\n`;
       }
     }
   } catch (e) {
@@ -106,18 +121,36 @@ function startLocalServer(distDir) {
         const ext = path.extname(reqPath).toLowerCase();
         const isAsset = Boolean(ext && ext !== '.html');
 
-        // If file doesn't exist directly, check for .html extension or fallback to index.html for SPA
+        // If file doesn't exist directly, check for font fallback, .html extension or fallback to index.html for SPA
         if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
           if (isAsset) {
-            res.writeHead(404, { 'Content-Type': 'text/plain' });
-            res.end('Not found: ' + reqPath);
-            return;
-          }
-          const potentialHtml = filePath + '.html';
-          if (fs.existsSync(potentialHtml) && fs.statSync(potentialHtml).isFile()) {
-            filePath = potentialHtml;
+            // Check fallback for fonts in dist/fonts/
+            if (ext === '.ttf' || ext === '.woff' || ext === '.woff2') {
+              const fontFileName = path.basename(reqPath);
+              const cleanName = fontFileName.split('.')[0] + ext;
+              const directFontPath = path.join(distDir, 'fonts', fontFileName);
+              const cleanFontPath = path.join(distDir, 'fonts', cleanName);
+              if (fs.existsSync(directFontPath)) {
+                filePath = directFontPath;
+              } else if (fs.existsSync(cleanFontPath)) {
+                filePath = cleanFontPath;
+              } else {
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('Not found: ' + reqPath);
+                return;
+              }
+            } else {
+              res.writeHead(404, { 'Content-Type': 'text/plain' });
+              res.end('Not found: ' + reqPath);
+              return;
+            }
           } else {
-            filePath = path.join(distDir, 'index.html');
+            const potentialHtml = filePath + '.html';
+            if (fs.existsSync(potentialHtml) && fs.statSync(potentialHtml).isFile()) {
+              filePath = potentialHtml;
+            } else {
+              filePath = path.join(distDir, 'index.html');
+            }
           }
         }
 
