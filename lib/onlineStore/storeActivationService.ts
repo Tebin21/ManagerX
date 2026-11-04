@@ -13,44 +13,35 @@ export function invalidateStoreActivationCache(): void {
 
 export function parseStoreActiveFromData(data: any): boolean {
   if (!data) return false;
-  // If explicitly suspended or disabled
-  if (data?.onlineStore?.status === 'suspended' || data?.onlineStore?.enabled === false) {
-    return false;
-  }
-  if (data?.enabled === false || data?.status === 'suspended') {
-    return false;
-  }
-
-  // Check expiration if specified
-  const exp = data?.expiresAt || data?.onlineStore?.expiresAt;
-  if (exp) {
-    const expTime = new Date(exp).getTime();
-    if (!isNaN(expTime) && expTime < Date.now()) {
-      return false;
-    }
-  }
 
   // 1. Check nested onlineStore object (used in employee_accounts & user_subscriptions when admin activates)
-  if (
-    data?.onlineStore?.enabled === true ||
-    data?.onlineStore?.status === 'active' ||
-    Boolean(data?.onlineStore?.subdomain || data?.onlineStore?.slug)
-  ) {
-    return true;
+  if (data?.onlineStore) {
+    const store = data.onlineStore;
+    if (store.status === 'suspended' || store.enabled === false) return false;
+    const sub = (store.subdomain || store.slug || '').trim();
+    if (sub && store.enabled === true && store.status === 'active') {
+      const exp = store.expiresAt || data.expiresAt;
+      if (exp) {
+        const expTime = new Date(exp).getTime();
+        if (!isNaN(expTime) && expTime < Date.now()) return false;
+      }
+      return true;
+    }
+    return false;
   }
 
-  // 2. Check store_activations collection doc
-  if (
-    data?.enabled === true ||
-    data?.status === 'active' ||
-    Boolean(data?.subdomain || data?.slug)
-  ) {
-    return true;
-  }
-
-  // 3. Fallback: storefront_enabled or onlineStoreActive
-  if (data?.storefront_enabled === true || data?.onlineStoreActive === true) {
-    return true;
+  // 2. Check store_activations collection doc (requires explicit subdomain and enabled===true)
+  const directSub = (data.subdomain || data.slug || '').trim();
+  if (directSub) {
+    if (data.status === 'suspended' || data.enabled === false) return false;
+    if (data.enabled === true && data.status === 'active') {
+      const exp = data.expiresAt;
+      if (exp) {
+        const expTime = new Date(exp).getTime();
+        if (!isNaN(expTime) && expTime < Date.now()) return false;
+      }
+      return true;
+    }
   }
 
   return false;

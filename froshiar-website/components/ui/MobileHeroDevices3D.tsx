@@ -41,7 +41,7 @@ export function MobileHeroDevices3D() {
             transform: 'perspective(1000px) rotateY(-12deg) rotateX(3deg)',
             willChange: 'transform',
           }}
-          className="relative z-10 shrink-0 -mr-5 xs:-mr-7 drop-shadow-[0_16px_36px_rgba(0,0,0,0.85)]"
+          className="relative z-10 shrink-0 -mr-5 xs:-mr-7 shadow-[0_16px_36px_rgba(0,0,0,0.85)] rounded-[28px]"
         >
           <IpadFrontMockup className="w-[185px] xs:w-[210px] sm:w-[240px]" />
         </motion.div>
@@ -63,7 +63,7 @@ export function MobileHeroDevices3D() {
             transform: 'perspective(1000px) rotateY(-6deg) rotateX(2deg) translateZ(35px) translateY(14px)',
             willChange: 'transform',
           }}
-          className="relative z-20 shrink-0 drop-shadow-[0_20px_45px_rgba(0,0,0,0.95)]"
+          className="relative z-20 shrink-0 shadow-[0_20px_45px_rgba(0,0,0,0.95)] rounded-[24px]"
         >
           <IphoneFrontMockup className="w-[76px] xs:w-[84px] sm:w-[96px]" />
         </motion.div>

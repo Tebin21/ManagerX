@@ -75,9 +75,8 @@ export function SplashScreen() {
           initial={{ opacity: 1 }}
           exit={{
             opacity: 0,
-            scale: 1.08,
-            filter: 'blur(20px)',
-            transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] },
+            scale: 1.04,
+            transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] },
           }}
           className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none pointer-events-auto transition-colors duration-500 overflow-hidden ${
             isExiting ? 'bg-[#07090E]/65 backdrop-blur-3xl' : 'bg-[#07090E]'

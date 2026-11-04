@@ -229,8 +229,29 @@ export function ColorBends({
     resizeObserverRef.current = ro;
 
     let isLoopActive = true;
+    let isScrolling = false;
+    let scrollTimer: any = null;
+
+    const handleScroll = () => {
+      isScrolling = true;
+      if (scrollTimer) clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        isScrolling = false;
+      }, 100);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    let frameCount = 0;
     const loop = () => {
       if (!isLoopActive) return;
+      frameCount++;
+
+      // During active scrolling on any device, throttle WebGL to give 100% priority to compositor
+      if (isScrolling && frameCount % 3 !== 0) {
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
+
       const dt = clock.getDelta();
       const elapsed = clock.elapsedTime;
       material.uniforms.uTime.value = elapsed;
@@ -268,6 +289,8 @@ export function ColorBends({
 
     return () => {
       isLoopActive = false;
+      window.removeEventListener("scroll", handleScroll);
+      if (scrollTimer) clearTimeout(scrollTimer);
       document.removeEventListener("visibilitychange", handleVisibility);
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       if (resizeObserverRef.current) resizeObserverRef.current.disconnect();
@@ -339,6 +362,10 @@ export function ColorBends({
     const material = materialRef.current;
     const container = containerRef.current;
     if (!material || !container) return;
+
+    // Only track pointer coordinates on devices with fine pointer (mouse/trackpad), never on touch screens
+    const isFinePointer = typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    if (!isFinePointer) return;
 
     const handlePointerMove = (e: PointerEvent) => {
       const w = window.innerWidth || 1;

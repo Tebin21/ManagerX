@@ -18,7 +18,7 @@ export function Hero() {
       {/* On Desktop (>= lg): Full viewport dedicated headline screen with cue to scroll */}
       <section
         id="home"
-        className="relative h-[100dvh] min-h-[100dvh] max-h-[100dvh] flex flex-col justify-between items-center overflow-hidden pt-16 xs:pt-18 pb-2 xs:pb-3.5 lg:h-auto lg:min-h-[100dvh] lg:max-h-none lg:justify-center lg:py-24"
+        className="relative h-[100dvh] min-h-[100dvh] max-h-[100dvh] flex flex-col justify-between items-center overflow-x-clip pt-16 xs:pt-18 pb-2 xs:pb-3.5 lg:h-auto lg:min-h-[100dvh] lg:max-h-none lg:justify-center lg:py-24"
       >
         <div className="relative z-10 w-full flex-1 flex flex-col justify-between items-center max-w-5xl mx-auto px-4 sm:px-6 lg:justify-center lg:my-auto">
           {/* PART 1: Top Half — Text (Headline + Subtitle) */}

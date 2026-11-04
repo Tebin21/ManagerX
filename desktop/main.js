@@ -122,7 +122,7 @@ function startLocalServer(distDir) {
           return;
         }
 
-        if (cleanUrl === '/index.html') {
+        if (cleanUrl === '/index.html' || reqPath === '/index.html') {
           res.writeHead(302, { Location: '/' });
           res.end();
           return;

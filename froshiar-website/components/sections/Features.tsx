@@ -68,7 +68,7 @@ function CardText({
 }
 
 // ── Individual 3D Feature Item Row with Strict Spacing & Glowing Line Connectors ──
-function FeatureItemRow({
+const FeatureItemRow = React.memo(function FeatureItemRow({
   item,
   idx,
   t,
@@ -307,7 +307,7 @@ function FeatureItemRow({
       </div>
     </div>
   );
-}
+});
 
 export function Features() {
   const t = useTranslations('features');
@@ -339,7 +339,8 @@ export function Features() {
   );
 
   useEffect(() => {
-    if (shouldReduceMotion) {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+    if (shouldReduceMotion || isMobile) {
       setActiveCards(new Array(FEATURE_ITEMS.length).fill(true));
       return;
     }

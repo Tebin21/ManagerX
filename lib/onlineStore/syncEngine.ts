@@ -202,13 +202,18 @@ export async function processQueue(
     let slug = await getStoreSlug();
     let apiKey = await getStoreApiKey();
 
-    if (!slug || !apiKey) {
-      // "Enable Store" was pressed while offline (or the first registration call never
-      // reached the server) — retry registration now that we're being asked to sync.
+    if (!slug) {
+      // If no slug is set, never auto-generate a random store name/subdomain
+      if (__DEV__) console.log('[onlineStore] No subdomain assigned, skipping background registration');
+      return;
+    }
+
+    if (!apiKey) {
+      // Slug was configured (e.g. by admin or user), but API key needs registration/recovery
       const { useBusinessStore } = await import('@/store/businessStore');
-      const businessName = useBusinessStore.getState().name || 'My Store';
+      const businessName = useBusinessStore.getState().name || slug;
       try {
-        const result = await completeStoreRegistration(businessName, slug || undefined);
+        const result = await completeStoreRegistration(businessName, slug);
         slug = result.slug;
         apiKey = await getStoreApiKey();
       } catch (err) {
@@ -216,7 +221,7 @@ export async function processQueue(
         await setLastSyncError(
           `Registration failed: ${err instanceof Error ? err.message : String(err)}`
         );
-        return; // still unreachable — next NetInfo/AppState trigger will retry
+        return;
       }
     }
     if (!slug || !apiKey) return;

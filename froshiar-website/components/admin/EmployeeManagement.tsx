@@ -1250,9 +1250,9 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     setFormEmail(cleanEmail);
     setFormPhone(user.phone || '');
     setFormManagerEmail(cleanEmail); // Defaults to user's email for independent Google Drive sync
-    const sName = user.business_name || dName;
-    setStoreName(sName);
-    setStoreSubdomain(slugifyStoreName(sName || cleanEmail.split('@')[0]));
+    setStoreName('');
+    setStoreSubdomain('');
+    setStoreEnabled(false);
   };
 
   // Helper: Generate Random Password
@@ -2847,7 +2847,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         id: `emp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         email: cleanEmail,
         displayName: formName.trim() || cleanEmail.split('@')[0],
-        password: addModalMode === 'create_custom' ? formPassword.trim() : '',
+        password: formPassword.trim() || '',
         managerEmail: mgrEmail,
         phone: formPhone.trim() || null,
         priceAmount: formPrice.trim() || (isStoreManager ? 'PRO / هەمیشەیی' : null),
@@ -5440,7 +5440,9 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                   setUnlimitedSales(true);
                   setUnlimitedInvoices(true);
                   setUnlimitedQuotations(true);
-                  setStoreEnabled(true);
+                  setStoreEnabled(false);
+                  setStoreName('');
+                  setStoreSubdomain('');
                 }}
                 className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   addModalMode === 'upgrade_registered'

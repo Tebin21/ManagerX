@@ -103,6 +103,8 @@ css += '    window.history.replaceState(null, "", clean + window.location.search
 css += '  }\n';
 css += '</script>\n';
 
+const earlyRedirectScript = '<script>(function(){if(typeof window!=="undefined"&&(window.location.pathname.endsWith("/index.html")||window.location.pathname.endsWith("index.html"))){var c=window.location.pathname.replace(/\\/?index\\.html$/,"")||"/";window.history.replaceState(null,"",c+window.location.search+window.location.hash);}})();</script>';
+
 function injectHtml(targetPath) {
   if (!fs.existsSync(targetPath)) return;
   let html = fs.readFileSync(targetPath, 'utf-8');
@@ -110,6 +112,13 @@ function injectHtml(targetPath) {
     html = html.replace(/<style id="desktop-vector-icons-css">[\s\S]*?<\/style>/, css.trim());
   } else if (html.includes('</head>')) {
     html = html.replace('</head>', `${css}</head>`);
+  }
+  if (!html.includes('window.location.pathname.replace(/\\/?index\\.html$/')) {
+    if (html.includes('<head>')) {
+      html = html.replace('<head>', `<head>${earlyRedirectScript}`);
+    } else {
+      html = earlyRedirectScript + html;
+    }
   }
   fs.writeFileSync(targetPath, html);
 }

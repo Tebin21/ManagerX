@@ -58,9 +58,20 @@ body {
   color: var(--color-ink);
   font-family: var(--font-bahij), "Helvetica Neue", Helvetica, Arial, -apple-system, BlinkMacSystemFont, sans-serif;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  touch-action: manipulation;
   transition:
     background-color 0.3s ease,
     color 0.3s ease;
+}
+
+/* Eliminate 300ms mobile tap delay universally across buttons & interactive elements */
+button, a, input, select, textarea, [role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .font-kurdish,
@@ -104,7 +115,22 @@ input, button, select, textarea {
 }
 
 html {
-  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+@media (min-width: 768px) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* GPU hardware compositing helper for stutter-free scrolling */
+.smooth-gpu {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
 }
 
 @media (prefers-reduced-motion: reduce) {

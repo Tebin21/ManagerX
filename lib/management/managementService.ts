@@ -605,22 +605,28 @@ export async function authenticateEmployee(
     let data: (EmployeeAccount & { password?: string; targetPlatform?: string }) | null = null;
     let accountId = docId;
 
-    // 1. Direct fast Firestore REST call (zero dependency, instant, ignores cache lockouts)
-    try {
-      const restUrl = `https://firestore.googleapis.com/v1/projects/managerx-bac3a/databases/(default)/documents/employee_accounts/${docId}`;
-      const res = await Promise.race([
-        fetch(restUrl, { method: 'GET', headers: { Accept: 'application/json' } }),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
-      ]);
-      if (res && res.ok) {
-        const json = await res.json();
-        if (json && json.fields) {
-          data = parseFirestoreRestFields(json.fields);
-          accountId = json.name ? json.name.split('/').pop() : docId;
+    const candidateDocIds = Array.from(new Set([docId, cleanEmail, encodeURIComponent(cleanEmail)]));
+
+    // 1. Direct fast Firestore REST call across candidate document IDs
+    for (const cId of candidateDocIds) {
+      if (data) break;
+      try {
+        const restUrl = `https://firestore.googleapis.com/v1/projects/managerx-bac3a/databases/(default)/documents/employee_accounts/${cId}`;
+        const res = await Promise.race([
+          fetch(restUrl, { method: 'GET', headers: { Accept: 'application/json' } }),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+        ]);
+        if (res && res.ok) {
+          const json = await res.json();
+          if (json && json.fields) {
+            data = parseFirestoreRestFields(json.fields);
+            accountId = json.name ? json.name.split('/').pop() : cId;
+            break;
+          }
         }
+      } catch (restErr) {
+        console.warn('[ManagementService] REST account fetch error:', restErr);
       }
-    } catch (restErr) {
-      console.warn('[ManagementService] REST account fetch error:', restErr);
     }
 
     // 2. Fallback to Firestore SDK
@@ -628,18 +634,61 @@ export async function authenticateEmployee(
       try {
         const db = getFirebaseFirestore();
         if (db) {
-          const docRef = doc(db, COLLECTION_NAME, docId);
-          const snap = await Promise.race([
-            getDoc(docRef),
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500)),
-          ]);
-          if (snap && typeof snap.exists === 'function' && snap.exists()) {
-            data = snap.data() as any;
-            accountId = snap.id;
+          for (const cId of candidateDocIds) {
+            if (data) break;
+            const docRef = doc(db, COLLECTION_NAME, cId);
+            const snap = await Promise.race([
+              getDoc(docRef),
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+            ]);
+            if (snap && typeof snap.exists === 'function' && snap.exists()) {
+              data = snap.data() as any;
+              accountId = snap.id;
+              break;
+            }
           }
         }
       } catch (sdkErr) {
         console.warn('[ManagementService] SDK account fetch error:', sdkErr);
+      }
+    }
+
+    // 3. Fallback to user_subscriptions (if account was created/upgraded there)
+    if (!data) {
+      try {
+        const db = getFirebaseFirestore();
+        if (db) {
+          for (const cId of candidateDocIds) {
+            const snap = await getDoc(doc(db, 'user_subscriptions', cId)).catch(() => null);
+            if (snap && (typeof snap.exists === 'function' ? snap.exists() : (snap as any).exists)) {
+              const subData = snap.data() as any;
+              if (subData && (subData.email || cId)) {
+                data = {
+                  id: snap.id,
+                  email: subData.email || cleanEmail,
+                  displayName: subData.customerName || subData.displayName || cleanEmail.split('@')[0],
+                  password: subData.password || '',
+                  role: subData.role || 'user',
+                  status: subData.status || 'active',
+                  targetPlatform: subData.targetPlatform || 'all',
+                  limits: subData.limits || {
+                    maxItems: 'unlimited',
+                    maxQuantity: 'unlimited',
+                    maxSales: 'unlimited',
+                    maxInvoices: 'unlimited',
+                    maxQuotations: 'unlimited',
+                  },
+                  onlineStore: subData.onlineStore || null,
+                  permissions: ALL_ACTIVE_PERMISSIONS,
+                } as any;
+                accountId = snap.id;
+                break;
+              }
+            }
+          }
+        }
+      } catch (subErr) {
+        console.warn('[ManagementService] user_subscriptions fallback check error:', subErr);
       }
     }
 
