@@ -16,7 +16,9 @@
     "ios": "expo run:ios",
     "desktop:export": "npx expo export --platform web",
     "desktop:start": "cd desktop && npm start",
-    "desktop:build": "npm run desktop:export && rm -rf desktop/dist && cp -r dist desktop/dist && node scripts/prepare-desktop.js && cd desktop && npm run dist"
+    "desktop:build": "npm run desktop:export && rm -rf desktop/dist && cp -r dist desktop/dist && node scripts/prepare-desktop.js && cd desktop && npm run dist",
+    "desktop:build:mac": "npm run desktop:export && rm -rf desktop/dist && cp -r dist desktop/dist && node scripts/prepare-desktop.js && cd desktop && npm run dist:mac",
+    "desktop:build:mac:all": "npm run desktop:export && rm -rf desktop/dist && cp -r dist desktop/dist && node scripts/prepare-desktop.js && cd desktop && npm run dist:mac:all"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.2.3",
