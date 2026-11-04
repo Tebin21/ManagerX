@@ -12,6 +12,7 @@ import {
   Keyboard,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   ScrollView,
   ScrollViewProps,
   TextInputProps,

@@ -329,7 +329,7 @@ ipcMain.handle('desktop:getPrinters', async () => {
   return mainWindow.webContents.getPrintersAsync();
 });
 
-ipcMain.handle('desktop:printReceipt', async (event, { html, pageSize = '80mm', silent = true, printerName }) => {
+ipcMain.handle('desktop:printReceipt', async (event, { html, pageSize = '80mm', silent = false, printerName }) => {
   return new Promise((resolve) => {
     try {
       const printWindow = new BrowserWindow({
@@ -350,12 +350,16 @@ ipcMain.handle('desktop:printReceipt', async (event, { html, pageSize = '80mm', 
                 margin: 0;
                 size: ${pageSize === '80mm' ? '80mm auto' : pageSize === '58mm' ? '58mm auto' : pageSize};
               }
+              * {
+                box-sizing: border-box;
+                font-family: 'Bahij Janna', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              }
               body {
                 margin: 0;
                 padding: 4px;
-                font-family: 'Bahij Janna', -apple-system, sans-serif;
                 direction: rtl;
                 -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
               }
             </style>
           </head>
@@ -369,7 +373,7 @@ ipcMain.handle('desktop:printReceipt', async (event, { html, pageSize = '80mm', 
 
       printWindow.webContents.on('did-finish-load', () => {
         let printOptions = {
-          silent: Boolean(silent),
+          silent: Boolean(silent && printerName),
           printBackground: true,
           deviceName: printerName || '',
         };
@@ -389,12 +393,104 @@ ipcMain.handle('desktop:printReceipt', async (event, { html, pageSize = '80mm', 
         }
 
         printWindow.webContents.print(printOptions, (success, failureReason) => {
-          printWindow.close();
+          try {
+            if (!printWindow.isDestroyed()) printWindow.close();
+          } catch {}
           resolve({ success, failureReason });
         });
       });
     } catch (err) {
       resolve({ success: false, failureReason: err.message });
+    }
+  });
+});
+
+ipcMain.handle('desktop:exportPdf', async (event, { html, pageSize = 'A4', defaultFileName = 'Invoice.pdf' }) => {
+  return new Promise(async (resolve) => {
+    let printWindow = null;
+    try {
+      printWindow = new BrowserWindow({
+        show: false,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+        },
+      });
+
+      const fullHtml = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              @page {
+                margin: 8mm;
+                size: ${pageSize === '80mm' ? '80mm auto' : pageSize === '58mm' ? '58mm auto' : pageSize};
+              }
+              * {
+                box-sizing: border-box;
+                font-family: 'Bahij Janna', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              }
+              body {
+                margin: 0;
+                padding: 6px;
+                direction: rtl;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+            </style>
+          </head>
+          <body>
+            ${html}
+          </body>
+        </html>
+      `;
+
+      await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`);
+
+      const pdfOptions = {
+        printBackground: true,
+      };
+      if (pageSize === '80mm') {
+        pdfOptions.pageSize = { width: 80000, height: 297000 };
+      } else if (pageSize === '58mm') {
+        pdfOptions.pageSize = { width: 58000, height: 297000 };
+      } else if (pageSize === 'A5') {
+        pdfOptions.pageSize = 'A5';
+      } else {
+        pdfOptions.pageSize = 'A4';
+      }
+
+      const pdfBuffer = await printWindow.webContents.printToPDF(pdfOptions);
+      try {
+        if (!printWindow.isDestroyed()) printWindow.close();
+      } catch {}
+
+      const cleanFileName = defaultFileName
+        ? defaultFileName.replace(/[\\/:*?"<>|#\n\r\t]/g, '_').trim()
+        : 'Froshiar-Document.pdf';
+      const safeFileName = cleanFileName.toLowerCase().endsWith('.pdf') ? cleanFileName : `${cleanFileName}.pdf`;
+
+      const { canceled, filePath } = await dialog.showSaveDialog({
+        title: 'Save PDF',
+        defaultPath: path.join(app.getPath('documents'), safeFileName),
+        filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
+      });
+
+      if (canceled || !filePath) {
+        return resolve({ success: false, cancelled: true });
+      }
+
+      await fs.promises.writeFile(filePath, pdfBuffer);
+      try {
+        shell.showItemInFolder(filePath);
+      } catch {}
+      return resolve({ success: true, filePath });
+    } catch (err) {
+      try {
+        if (printWindow && !printWindow.isDestroyed()) printWindow.close();
+      } catch {}
+      return resolve({ success: false, failureReason: err.message });
     }
   });
 });

@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('desktopAPI', {
 
   // Thermal & Invoice Printing (Supports all 4 formats: 80mm, 58mm, A4, A5)
   printReceipt: (options) => ipcRenderer.invoke('desktop:printReceipt', options),
+  exportPdf: (options) => ipcRenderer.invoke('desktop:exportPdf', options),
   getPrinters: () => ipcRenderer.invoke('desktop:getPrinters'),
 
   // Storage & Google Drive

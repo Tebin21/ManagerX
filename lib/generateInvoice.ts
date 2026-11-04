@@ -238,6 +238,46 @@ async function getSharingModule(): Promise<typeof import('expo-sharing') | null>
   }
 }
 
+function printHtmlViaIframe(html: string): boolean {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+  try {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (!doc) return false;
+
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    iframe.contentWindow?.focus();
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.print();
+      } catch (e) {
+        console.error('[Print] iframe print error:', e);
+      } finally {
+        setTimeout(() => {
+          try {
+            document.body.removeChild(iframe);
+          } catch {}
+        }, 1500);
+      }
+    }, 250);
+    return true;
+  } catch (e) {
+    console.error('[Print] printHtmlViaIframe error:', e);
+    return false;
+  }
+}
+
 /**
  * Core PDF generation + share flow reused by every export function.
  *
@@ -252,8 +292,21 @@ async function generateAndShare(
   fileName?: string
 ): Promise<boolean> {
   if (Platform.OS === 'web') {
-    Alert.alert('Not supported', 'PDF export is not available on web.');
-    return false;
+    const desktopAPI = typeof window !== 'undefined' ? (window as any).desktopAPI : null;
+    if (desktopAPI && typeof desktopAPI.exportPdf === 'function') {
+      const cleanBase = fileName
+        ? fileName.replace(/[\\/:*?"<>|#\n\r\t]/g, '_').trim()
+        : 'Froshiar-Document';
+      const safeFileName = cleanBase.toLowerCase().endsWith('.pdf') ? cleanBase : `${cleanBase}.pdf`;
+      const res = await desktopAPI.exportPdf({
+        html,
+        pageSize: 'A4',
+        defaultFileName: safeFileName,
+      });
+      if (res?.success) return true;
+      if (res?.cancelled) return false;
+    }
+    return printHtmlViaIframe(html);
   }
 
   // ── Check sharing availability before wasting time on PDF generation ──
@@ -469,8 +522,34 @@ export async function directPrintInvoice(
   }
 
   if (Platform.OS === 'web') {
-    Alert.alert('Not supported', 'Direct printing is not available on web.');
-    return false;
+    if (!tryAcquireGenerationLock()) return false;
+    try {
+      const biz = await withResolvedLogo(business);
+      let html: string;
+      if (paperSize === 'A4') {
+        const rate = sale.exchangeRateUsed ?? useSettingsStore.getState().exchangeRate ?? PURCHASE_RATE;
+        html = buildInvoiceHTML(sale, biz, getDir(), rate, currencyMode);
+      } else {
+        const { buildThermalReceiptHTML } = await import('./thermalReceiptTemplate');
+        html = buildThermalReceiptHTML(sale, biz, paperSize as ThermalReceiptWidth, undefined, currencyMode);
+      }
+      const desktopAPI = typeof window !== 'undefined' ? (window as any).desktopAPI : null;
+      if (desktopAPI && typeof desktopAPI.printReceipt === 'function') {
+        const res = await desktopAPI.printReceipt({ html, pageSize: paperSize, silent: false });
+        if (res?.success) {
+          await recordInvoicePrint();
+          return true;
+        }
+      }
+      const success = printHtmlViaIframe(html);
+      if (success) await recordInvoicePrint();
+      return success;
+    } catch (err) {
+      console.error('[Print] directPrintInvoice web error:', err);
+      return false;
+    } finally {
+      releaseGenerationLock();
+    }
   }
   const Print = await getPrintModule();
   if (!Print || typeof Print.printAsync !== 'function') {
@@ -518,8 +597,26 @@ export async function directPrintThermalInvoice(
   }
 
   if (Platform.OS === 'web') {
-    Alert.alert('Not supported', 'Direct printing is not available on web.');
-    return false;
+    if (!tryAcquireGenerationLock()) return false;
+    try {
+      const html = buildThermalReceiptHTML(sale, business, width, undefined, currencyMode);
+      const desktopAPI = typeof window !== 'undefined' ? (window as any).desktopAPI : null;
+      if (desktopAPI && typeof desktopAPI.printReceipt === 'function') {
+        const res = await desktopAPI.printReceipt({ html, pageSize: width, silent: false });
+        if (res?.success) {
+          await recordInvoicePrint();
+          return true;
+        }
+      }
+      const success = printHtmlViaIframe(html);
+      if (success) await recordInvoicePrint();
+      return success;
+    } catch (err) {
+      console.error('[Print] directPrintThermalInvoice web error:', err);
+      return false;
+    } finally {
+      releaseGenerationLock();
+    }
   }
   const Print = await getPrintModule();
   if (!Print || typeof Print.printAsync !== 'function') {
@@ -590,8 +687,50 @@ export async function directPrintPurchaseInvoice(
   }
 
   if (Platform.OS === 'web') {
-    Alert.alert('Not supported', 'Direct printing is not available on web.');
-    return false;
+    if (!tryAcquireGenerationLock()) return false;
+    try {
+      let resolvedDebt = purchaseDebt;
+      if (!resolvedDebt && purchase.paymentStatus === 'debt') {
+        try {
+          const { getPurchaseDebtByPurchaseId } = await import('@/lib/sqlite');
+          resolvedDebt = await getPurchaseDebtByPurchaseId(purchase.id);
+        } catch (e) {
+          console.warn('[Print] Failed to load purchase debt for invoice:', e);
+        }
+      }
+      const biz = await withResolvedLogo(business);
+      let html: string;
+      if (paperSize === 'A4') {
+        html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir(), currencyMode, resolvedDebt);
+      } else {
+        const { buildThermalPurchaseReceiptHTML } = await import('./thermalReceiptTemplate');
+        const thermalItems = purchaseItems.map((item, idx) => ({
+          id: idx + 1,
+          productName: item.productName,
+          quantity: item.quantity,
+          buyPrice: item.buyPriceIQD ?? 0,
+          lineTotal: item.lineTotalIQD ?? ((item.buyPriceIQD ?? 0) * item.quantity),
+          itemId: Array.isArray(item.itemIds) && item.itemIds.length > 0 ? item.itemIds.join(', ') : undefined,
+        }));
+        html = buildThermalPurchaseReceiptHTML(purchase, thermalItems, biz, paperSize as ThermalReceiptWidth, undefined, currencyMode);
+      }
+      const desktopAPI = typeof window !== 'undefined' ? (window as any).desktopAPI : null;
+      if (desktopAPI && typeof desktopAPI.printReceipt === 'function') {
+        const res = await desktopAPI.printReceipt({ html, pageSize: paperSize, silent: false });
+        if (res?.success) {
+          await recordInvoicePrint();
+          return true;
+        }
+      }
+      const success = printHtmlViaIframe(html);
+      if (success) await recordInvoicePrint();
+      return success;
+    } catch (err) {
+      console.error('[Print] directPrintPurchaseInvoice web error:', err);
+      return false;
+    } finally {
+      releaseGenerationLock();
+    }
   }
   const Print = await getPrintModule();
   if (!Print || typeof Print.printAsync !== 'function') {
@@ -1172,8 +1311,34 @@ export async function directPrintQuotationInvoice(
   }
 
   if (Platform.OS === 'web') {
-    Alert.alert('Not supported', 'Direct printing is not available on web.');
-    return false;
+    if (!tryAcquireGenerationLock()) return false;
+    try {
+      const biz = await withResolvedLogo(business);
+      let html: string;
+      if (paperSize === 'A4') {
+        const { buildQuotationHTML } = await import('./quotationTemplate');
+        html = buildQuotationHTML(quotation, biz, getDir(), currencyMode);
+      } else {
+        const { buildThermalQuotationReceiptHTML } = await import('./thermalReceiptTemplate');
+        html = buildThermalQuotationReceiptHTML(quotation, biz, paperSize as ThermalReceiptWidth, undefined, currencyMode);
+      }
+      const desktopAPI = typeof window !== 'undefined' ? (window as any).desktopAPI : null;
+      if (desktopAPI && typeof desktopAPI.printReceipt === 'function') {
+        const res = await desktopAPI.printReceipt({ html, pageSize: paperSize, silent: false });
+        if (res?.success) {
+          await recordInvoicePrint();
+          return true;
+        }
+      }
+      const success = printHtmlViaIframe(html);
+      if (success) await recordInvoicePrint();
+      return success;
+    } catch (err) {
+      console.error('[Print] directPrintQuotationInvoice web error:', err);
+      return false;
+    } finally {
+      releaseGenerationLock();
+    }
   }
   const Print = await getPrintModule();
   if (!Print || typeof Print.printAsync !== 'function') {
@@ -1216,8 +1381,29 @@ export async function directPrintDebtPaymentReceipt(
   }
 
   if (Platform.OS === 'web') {
-    Alert.alert('Not supported', 'Direct printing is not available on web.');
-    return false;
+    if (!tryAcquireGenerationLock()) return false;
+    try {
+      const biz = await withResolvedLogo(business);
+      const rate = exchangeRate ?? useSettingsStore.getState().exchangeRate ?? PURCHASE_RATE;
+      const { buildDebtPaymentHTML } = await import('./debtPaymentReceiptTemplate');
+      const html = buildDebtPaymentHTML(receipt, biz, paperSize, rate);
+      const desktopAPI = typeof window !== 'undefined' ? (window as any).desktopAPI : null;
+      if (desktopAPI && typeof desktopAPI.printReceipt === 'function') {
+        const res = await desktopAPI.printReceipt({ html, pageSize: paperSize, silent: false });
+        if (res?.success) {
+          await recordInvoicePrint();
+          return true;
+        }
+      }
+      const success = printHtmlViaIframe(html);
+      if (success) await recordInvoicePrint();
+      return success;
+    } catch (err) {
+      console.error('[Print] directPrintDebtPaymentReceipt web error:', err);
+      return false;
+    } finally {
+      releaseGenerationLock();
+    }
   }
   const Print = await getPrintModule();
   if (!Print || typeof Print.printAsync !== 'function') {
