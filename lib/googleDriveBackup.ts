@@ -3,6 +3,7 @@
  *
  * Saves customer database and settings directly to their personal Google Drive.
  * Zero data is stored on external or developer servers.
+ * Universal support: Android, iOS, Windows Desktop (Electron), and Web.
  *
  * Scope: drive.file (safe, restricted scope strictly accessing files created by Froshiar).
  */
@@ -10,11 +11,10 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  exportBackup,
-  validateAndParseBackup,
+  generateBackupData,
+  validateAndParseBackupContent,
   assertBackupWithinItemLimit,
   performRestore,
-  type FroshiarBackup,
   type RestoreSummary,
 } from '@/lib/backup';
 import { useBusinessStore } from '@/store/businessStore';
@@ -27,9 +27,13 @@ const WEB_CLIENT_ID =
 const DRIVE_SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
   'https://www.googleapis.com/auth/drive.appdata',
+  'email',
+  'profile',
+  'openid',
 ];
 
 const GDRIVE_CONFIG_KEY = '@froshiar_gdrive_config';
+const GDRIVE_WEB_TOKEN_KEY = '@froshiar_gdrive_web_token';
 const BACKUP_FILENAME = 'froshiar_backup.json';
 const AUTO_BACKUP_COOLDOWN_MS = 45 * 1000; // 45 seconds debounce between auto-saves
 
@@ -66,11 +70,90 @@ async function getGoogleSignin() {
   if (!googleSigninConfigured) {
     GoogleSignin.configure({
       webClientId: WEB_CLIENT_ID,
-      scopes: DRIVE_SCOPES,
+      scopes: [
+        'https://www.googleapis.com/auth/drive.file',
+        'https://www.googleapis.com/auth/drive.appdata',
+      ],
     });
     googleSigninConfigured = true;
   }
   return GoogleSignin;
+}
+
+// ─── Web Browser GIS Helper ─────────────────────────────────────────────────
+
+function connectGoogleDriveWebBrowser(): Promise<{
+  accessToken: string;
+  user: { email?: string | null; displayName?: string | null; photoUrl?: string | null };
+}> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return reject(new Error('Window or DOM not available'));
+    }
+
+    const loadGis = () => {
+      return new Promise<void>((res, rej) => {
+        if ((window as any).google?.accounts?.oauth2) {
+          return res();
+        }
+        const existing = document.getElementById('google-gsi-client');
+        if (existing) {
+          existing.addEventListener('load', () => res());
+          return;
+        }
+        const script = document.createElement('script');
+        script.id = 'google-gsi-client';
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
+        script.onload = () => res();
+        script.onerror = () => rej(new Error('Failed to load Google Identity Services'));
+        document.head.appendChild(script);
+      });
+    };
+
+    loadGis()
+      .then(() => {
+        const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: WEB_CLIENT_ID,
+          scope: DRIVE_SCOPES.join(' '),
+          callback: async (resp: any) => {
+            if (resp.error) {
+              if (resp.error === 'access_denied') {
+                return reject(new Error('SIGN_IN_CANCELLED'));
+              }
+              return reject(new Error(resp.error_description || resp.error));
+            }
+            if (resp.access_token) {
+              try {
+                const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${resp.access_token}` },
+                });
+                const u = await userRes.json();
+                return resolve({
+                  accessToken: resp.access_token,
+                  user: {
+                    email: u.email || null,
+                    displayName: u.name || null,
+                    photoUrl: u.picture || null,
+                  },
+                });
+              } catch {
+                return resolve({
+                  accessToken: resp.access_token,
+                  user: { email: null, displayName: null, photoUrl: null },
+                });
+              }
+            }
+            reject(new Error('GDRIVE_TOKEN_ERROR'));
+          },
+        });
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
 }
 
 // ─── Config Persistence ─────────────────────────────────────────────────────
@@ -101,6 +184,43 @@ export async function setAutoBackupEnabled(enabled: boolean): Promise<void> {
 // ─── Authentication & Token Management ─────────────────────────────────────
 
 async function getValidAccessToken(): Promise<string> {
+  if (Platform.OS === 'web') {
+    const stored = await AsyncStorage.getItem(GDRIVE_WEB_TOKEN_KEY);
+    if (stored) {
+      try {
+        const testRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${stored}` },
+        });
+        if (testRes.ok) {
+          return stored;
+        }
+      } catch {
+        // Token check failed
+      }
+    }
+
+    // Attempt Desktop reconnect if available
+    const desktopAPI = typeof window !== 'undefined' ? (window as any).desktopAPI : null;
+    if (desktopAPI && typeof desktopAPI.connectGoogleDrive === 'function') {
+      const res = await desktopAPI.connectGoogleDrive();
+      if (res?.success && res?.accessToken) {
+        await AsyncStorage.setItem(GDRIVE_WEB_TOKEN_KEY, res.accessToken);
+        if (res.email) {
+          await saveGoogleDriveConfig({
+            isConnected: true,
+            email: res.email,
+            displayName: res.displayName,
+            photoUrl: res.photoUrl,
+          });
+        }
+        return res.accessToken;
+      }
+    }
+
+    throw new Error('GDRIVE_AUTH_REQUIRED');
+  }
+
+  // Native iOS / Android
   const GoogleSignin = await getGoogleSignin();
 
   try {
@@ -112,14 +232,13 @@ async function getValidAccessToken(): Promise<string> {
     // Access token expired or missing — fall through to silent refresh
   }
 
-  // Attempt silent refresh
   try {
     await GoogleSignin.signInSilently();
     const tokens = await GoogleSignin.getTokens();
     if (tokens?.accessToken) {
       return tokens.accessToken;
     }
-  } catch (err) {
+  } catch {
     throw new Error('GDRIVE_AUTH_REQUIRED');
   }
 
@@ -130,32 +249,71 @@ async function getValidAccessToken(): Promise<string> {
  * Connect user's Google Drive account.
  */
 export async function connectGoogleDrive(): Promise<GoogleDriveConfig> {
-  const GoogleSignin = await getGoogleSignin();
+  let accessToken: string | null = null;
+  let user: { email?: string | null; displayName?: string | null; photoUrl?: string | null } = {};
 
-  if (Platform.OS === 'android') {
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+  if (Platform.OS === 'web') {
+    const desktopAPI = typeof window !== 'undefined' ? (window as any).desktopAPI : null;
+    if (desktopAPI && typeof desktopAPI.connectGoogleDrive === 'function') {
+      const res = await desktopAPI.connectGoogleDrive();
+      if (res?.cancelled) {
+        throw new Error('SIGN_IN_CANCELLED');
+      }
+      if (!res?.success || !res?.accessToken) {
+        throw new Error(res?.error || 'GDRIVE_TOKEN_ERROR');
+      }
+      accessToken = res.accessToken;
+      user = {
+        email: res.email || null,
+        displayName: res.displayName || null,
+        photoUrl: res.photoUrl || null,
+      };
+    } else {
+      const webAuth = await connectGoogleDriveWebBrowser();
+      accessToken = webAuth.accessToken;
+      user = webAuth.user;
+    }
+
+    if (!accessToken) {
+      throw new Error('GDRIVE_TOKEN_ERROR');
+    }
+
+    await AsyncStorage.setItem(GDRIVE_WEB_TOKEN_KEY, accessToken);
+  } else {
+    // Native mobile (Android / iOS)
+    const GoogleSignin = await getGoogleSignin();
+
+    if (Platform.OS === 'android') {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    }
+
+    const signInResult = await GoogleSignin.signIn();
+    const tokens = await GoogleSignin.getTokens();
+
+    if (!tokens?.accessToken) {
+      throw new Error('GDRIVE_TOKEN_ERROR');
+    }
+
+    accessToken = tokens.accessToken;
+    const u = signInResult.data?.user;
+    user = {
+      email: u?.email ?? null,
+      displayName: u?.name ?? null,
+      photoUrl: u?.photo ?? null,
+    };
   }
 
-  // Force scope prompt if needed
-  const signInResult = await GoogleSignin.signIn();
-  const tokens = await GoogleSignin.getTokens();
-
-  if (!tokens?.accessToken) {
-    throw new Error('GDRIVE_TOKEN_ERROR');
-  }
-
-  const user = signInResult.data?.user;
   const config = await saveGoogleDriveConfig({
     isConnected: true,
-    email: user?.email ?? null,
-    displayName: user?.name ?? null,
-    photoUrl: user?.photo ?? null,
+    email: user.email ?? null,
+    displayName: user.displayName ?? null,
+    photoUrl: user.photoUrl ?? null,
     autoBackupEnabled: true,
   });
 
   // Query if an existing backup already exists on Drive
   try {
-    const existing = await findBackupFileOnDrive(tokens.accessToken);
+    const existing = await findBackupFileOnDrive(accessToken);
     if (existing) {
       await saveGoogleDriveConfig({
         lastBackupAt: existing.modifiedTime ?? null,
@@ -173,11 +331,19 @@ export async function connectGoogleDrive(): Promise<GoogleDriveConfig> {
  * Disconnect Google Drive account.
  */
 export async function disconnectGoogleDrive(): Promise<void> {
-  try {
-    const GoogleSignin = await getGoogleSignin();
-    await GoogleSignin.signOut().catch(() => {});
-  } catch {
-    // Native module might be unbundled
+  if (Platform.OS === 'web') {
+    const token = await AsyncStorage.getItem(GDRIVE_WEB_TOKEN_KEY);
+    if (token) {
+      fetch(`https://oauth2.googleapis.com/revoke?token=${token}`, { method: 'POST' }).catch(() => {});
+      await AsyncStorage.removeItem(GDRIVE_WEB_TOKEN_KEY);
+    }
+  } else {
+    try {
+      const GoogleSignin = await getGoogleSignin();
+      await GoogleSignin.signOut().catch(() => {});
+    } catch {
+      // Native module might be unbundled
+    }
   }
 
   await saveGoogleDriveConfig({
@@ -228,7 +394,7 @@ async function findBackupFileOnDrive(
 
 /**
  * Exports all system data (all SQLite tables, settings, stores) and uploads
- * directly to the user's personal Google Drive.
+ * directly to the user's personal Google Drive. Universal for Native & Desktop.
  */
 export async function uploadBackupToGoogleDrive(): Promise<{
   success: boolean;
@@ -243,13 +409,13 @@ export async function uploadBackupToGoogleDrive(): Promise<{
   try {
     const accessToken = await getValidAccessToken();
 
-    // 1. Export complete SQLite & Zustand system dump
-    const fileUri = await exportBackup();
-
-    const { File } = await import('expo-file-system');
-    const backupFile = new File(fileUri);
-    const backupJsonString = await backupFile.text();
-    const backupBytes = new Blob([backupJsonString]).size || backupJsonString.length;
+    // 1. Generate full backup object (universal for SQLite / Web)
+    const backupData = await generateBackupData();
+    const backupJsonString = JSON.stringify(backupData, null, 2);
+    const backupBytes =
+      typeof Blob !== 'undefined'
+        ? new Blob([backupJsonString]).size
+        : backupJsonString.length;
 
     // 2. Search if file already exists in Drive
     const existingFile = await findBackupFileOnDrive(accessToken);
@@ -319,6 +485,7 @@ export async function uploadBackupToGoogleDrive(): Promise<{
 /**
  * Downloads the latest backup file from Google Drive, validates it,
  * checks licensing item limits, and performs a clean merge restore into SQLite.
+ * Universal for Native & Desktop.
  */
 export async function restoreBackupFromGoogleDrive(
   onProgress?: (step: { table: string; index: number; total: number }) => void
@@ -330,7 +497,7 @@ export async function restoreBackupFromGoogleDrive(
     throw new Error('NO_GDRIVE_BACKUP_FOUND');
   }
 
-  // Download media
+  // Download raw JSON
   const downloadUrl = `https://www.googleapis.com/drive/v3/files/${driveFile.id}?alt=media`;
   const res = await fetch(downloadUrl, {
     method: 'GET',
@@ -346,14 +513,8 @@ export async function restoreBackupFromGoogleDrive(
 
   const rawJson = await res.text();
 
-  // Save to temporary cache file to validate and parse
-  const { File, Paths } = await import('expo-file-system');
-  const tempFile = new File(Paths.cache, `gdrive_restore_${Date.now()}.json`);
-  if (tempFile.exists) tempFile.delete();
-  await tempFile.write(rawJson);
-
   // Validate format and ensure it conforms to Froshiar schema
-  const backup = await validateAndParseBackup(tempFile.uri);
+  const backup = validateAndParseBackupContent(rawJson);
   await assertBackupWithinItemLimit(backup);
 
   // Execute restore merge
@@ -373,13 +534,6 @@ export async function restoreBackupFromGoogleDrive(
     useSettingsStore.persist.rehydrate(),
     useQuotationStore.persist.rehydrate(),
   ]);
-
-  // Clean up cache file
-  try {
-    if (tempFile.exists) tempFile.delete();
-  } catch {
-    // Non-fatal
-  }
 
   return summary;
 }

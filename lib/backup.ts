@@ -127,6 +127,7 @@ function resolveMediaUri(relOrAbs: unknown, baseDocDir: string | null | undefine
  */
 async function collectMediaFiles(): Promise<Record<string, string>> {
   const media: Record<string, string> = {};
+  if (Platform.OS === 'web') return media;
   try {
     const FileSystem = await import('expo-file-system/legacy');
     const baseDir = FileSystem.documentDirectory;
@@ -171,6 +172,7 @@ async function collectMediaFiles(): Promise<Record<string, string>> {
  * Restores Base64 media files into the target device's permanent document directory.
  */
 async function restoreMediaFiles(media: Record<string, string> | undefined): Promise<number> {
+  if (Platform.OS === 'web') return 0;
   if (!media || typeof media !== 'object') return 0;
   try {
     const FileSystem = await import('expo-file-system/legacy');
@@ -208,44 +210,88 @@ async function restoreMediaFiles(media: Record<string, string> | undefined): Pro
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 
-export async function exportBackup(): Promise<string> {
-  // Lazy import — never runs at module-evaluation time.
-  const { File, Paths } = await import('expo-file-system');
-
+export async function generateBackupData(): Promise<FroshiarBackup> {
   const db = await getDatabase();
   const settingsPlaceholders = SETTINGS_ALLOWLIST.map(() => '?').join(', ');
 
-  const [
-    businesses, settings, categories, products, inventory_history,
-    customers, sales, sale_items,
-    debts, invoice_counter, purchases, purchase_items, purchase_counter,
-    purchase_debts, purchase_audit_log, debt_payments, expenses, suppliers, exchange_rates,
-    discarded_products,
-  ] = await Promise.all([
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM businesses'),
-    db.getAllAsync<Record<string, unknown>>(
-      `SELECT * FROM settings WHERE key IN (${settingsPlaceholders})`,
-      [...SETTINGS_ALLOWLIST]
-    ),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM categories'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM products'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM inventory_history'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM customers'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM sales'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM sale_items'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM debts'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM invoice_counter'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchases'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_items'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_counter'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_debts'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_audit_log'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM debt_payments'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM expenses'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM suppliers'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM exchange_rates'),
-    db.getAllAsync<Record<string, unknown>>('SELECT * FROM discarded_products'),
-  ]);
+  let businesses: Record<string, unknown>[] = [];
+  let settings: Record<string, unknown>[] = [];
+  let categories: Record<string, unknown>[] = [];
+  let products: Record<string, unknown>[] = [];
+  let inventory_history: Record<string, unknown>[] = [];
+  let customers: Record<string, unknown>[] = [];
+  let sales: Record<string, unknown>[] = [];
+  let sale_items: Record<string, unknown>[] = [];
+  let debts: Record<string, unknown>[] = [];
+  let invoice_counter: Record<string, unknown>[] = [];
+  let purchases: Record<string, unknown>[] = [];
+  let purchase_items: Record<string, unknown>[] = [];
+  let purchase_counter: Record<string, unknown>[] = [];
+  let purchase_debts: Record<string, unknown>[] = [];
+  let purchase_audit_log: Record<string, unknown>[] = [];
+  let debt_payments: Record<string, unknown>[] = [];
+  let expenses: Record<string, unknown>[] = [];
+  let suppliers: Record<string, unknown>[] = [];
+  let exchange_rates: Record<string, unknown>[] = [];
+  let discarded_products: Record<string, unknown>[] = [];
+
+  if (Platform.OS === 'web' || !db) {
+    const getLocal = (k: string) => {
+      try {
+        if (typeof localStorage === 'undefined') return [];
+        const raw = localStorage.getItem(k);
+        return raw ? JSON.parse(raw) : [];
+      } catch {
+        return [];
+      }
+    };
+    const b = getLocal('@froshiar_business_db');
+    businesses = Array.isArray(b) ? b : b && typeof b === 'object' ? [b] : [];
+    categories = getLocal('@froshiar_db_categories');
+    products = getLocal('@froshiar_db_products');
+    inventory_history = getLocal('@froshiar_db_history');
+    customers = getLocal('@froshiar_db_customers');
+    sales = getLocal('@froshiar_db_sales');
+    debts = getLocal('@froshiar_db_debts');
+    purchases = getLocal('@froshiar_db_purchases');
+    purchase_debts = getLocal('@froshiar_db_purchase_debts');
+    suppliers = getLocal('@froshiar_db_suppliers');
+    exchange_rates = getLocal('@froshiar_db_exchange_rates');
+    discarded_products = getLocal('@froshiar_db_discarded');
+    expenses = getLocal('@froshiar_db_expenses');
+  } else {
+    [
+      businesses, settings, categories, products, inventory_history,
+      customers, sales, sale_items,
+      debts, invoice_counter, purchases, purchase_items, purchase_counter,
+      purchase_debts, purchase_audit_log, debt_payments, expenses, suppliers, exchange_rates,
+      discarded_products,
+    ] = await Promise.all([
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM businesses'),
+      db.getAllAsync<Record<string, unknown>>(
+        `SELECT * FROM settings WHERE key IN (${settingsPlaceholders})`,
+        [...SETTINGS_ALLOWLIST]
+      ),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM categories'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM products'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM inventory_history'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM customers'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM sales'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM sale_items'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM debts'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM invoice_counter'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchases'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_items'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_counter'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_debts'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_audit_log'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM debt_payments'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM expenses'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM suppliers'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM exchange_rates'),
+      db.getAllAsync<Record<string, unknown>>('SELECT * FROM discarded_products'),
+    ]);
+  }
 
   // Clean relative media URIs in DB records so they travel portably
   const businessesCleaned = businesses.map((row) => ({
@@ -378,8 +424,32 @@ export async function exportBackup(): Promise<string> {
     media: mediaFiles,
   };
 
+  return backup;
+}
+
+export async function exportBackup(): Promise<string> {
+  const backup = await generateBackupData();
   const dateStr  = new Date().toISOString().split('T')[0];
   const fileName = `Froshiar_Backup_${dateStr}.json`;
+
+  if (Platform.OS === 'web') {
+    const jsonStr = JSON.stringify(backup, null, 2);
+    if (typeof document !== 'undefined') {
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+    return fileName;
+  }
+
+  // Lazy import — never runs at module-evaluation time.
+  const { File, Paths } = await import('expo-file-system');
   const file     = new File(Paths.document, fileName);
 
   if (file.exists) file.delete();
@@ -424,12 +494,7 @@ const REQUIRED_FIELD: Partial<Record<(typeof KNOWN_TABLES)[number], string>> = {
   discarded_products: 'product_name',
 };
 
-export async function validateAndParseBackup(fileUri: string): Promise<FroshiarBackup> {
-  // Lazy import — never runs at module-evaluation time.
-  const { File } = await import('expo-file-system');
-
-  const content = await new File(fileUri).text();
-
+export function validateAndParseBackupContent(content: string): FroshiarBackup {
   let parsed: unknown;
   try {
     parsed = JSON.parse(content);
@@ -458,6 +523,26 @@ export async function validateAndParseBackup(fileUri: string): Promise<FroshiarB
   }
 
   return backup;
+}
+
+export async function validateAndParseBackup(fileUri: string): Promise<FroshiarBackup> {
+  if (Platform.OS === 'web') {
+    if (fileUri.trim().startsWith('{')) {
+      return validateAndParseBackupContent(fileUri);
+    }
+    try {
+      const res = await fetch(fileUri);
+      const content = await res.text();
+      return validateAndParseBackupContent(content);
+    } catch {
+      return validateAndParseBackupContent(fileUri);
+    }
+  }
+
+  // Lazy import — never runs at module-evaluation time.
+  const { File } = await import('expo-file-system');
+  const content = await new File(fileUri).text();
+  return validateAndParseBackupContent(content);
 }
 
 // ─── Pre-restore limit check ──────────────────────────────────────────────────
@@ -493,6 +578,34 @@ export async function assertBackupWithinItemLimit(backup: FroshiarBackup): Promi
   if (limit === Infinity) return;
 
   const db = await getDatabase();
+  if (Platform.OS === 'web' || !db) {
+    let localProducts: any[] = [];
+    try {
+      const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('@froshiar_db_products') : null;
+      localProducts = raw ? JSON.parse(raw) : [];
+    } catch {}
+    const localTotal = localProducts.reduce(
+      (sum, p) => (Number(p.is_active ?? 1) === 1 && Number(p.quantity ?? 0) > 0 ? sum + Number(p.quantity) : sum),
+      0
+    );
+    const localUuids = new Set(localProducts.map((p) => String(p.uuid || p.id)));
+
+    const products = backup.database?.products ?? [];
+    const incomingNew = products.reduce((sum, row) => {
+      const isActive = Number(row.is_active ?? 1) === 1;
+      const quantity = Number(row.quantity ?? 0);
+      const uuid = String(row.uuid || row.id || '');
+      const alreadyLocal = !!uuid && localUuids.has(uuid);
+      return isActive && quantity > 0 && !alreadyLocal ? sum + quantity : sum;
+    }, 0);
+
+    const projected = localTotal + incomingNew;
+    if (projected > limit) {
+      throw new Error(`RESTORE_LIMIT_EXCEEDED|${projected},${limit}`);
+    }
+    return;
+  }
+
   const [localTotalRow, localUuidRows] = await Promise.all([
     db.getFirstAsync<{ total: number }>(
       'SELECT COALESCE(SUM(quantity), 0) AS total FROM products WHERE is_active = 1 AND quantity > 0'
@@ -584,6 +697,95 @@ export async function performRestore(
     start('media_files');
     const mediaCount = await restoreMediaFiles(backup.media);
     report('media_files', { inserted: mediaCount, updated: 0, skipped: 0 });
+  }
+
+  if (Platform.OS === 'web' || !db) {
+    let totalInserted = 0;
+    let totalUpdated = 0;
+    let totalSkipped = 0;
+
+    const mergeTableWeb = (key: string, rows: Record<string, unknown>[] | undefined, tableName: string) => {
+      if (!rows || !Array.isArray(rows)) return;
+      start(tableName);
+      let tIns = 0;
+      let tUpd = 0;
+      let tSkip = 0;
+      try {
+        let existing: any[] = [];
+        const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+        if (raw) existing = JSON.parse(raw);
+        const map = new Map<string, any>();
+        existing.forEach((item) => {
+          const idKey = String(item.uuid || item.id || item.name || '');
+          if (idKey) map.set(idKey, item);
+        });
+
+        rows.forEach((row) => {
+          const idKey = String(row.uuid || row.id || row.name || '');
+          if (idKey && map.has(idKey)) {
+            map.set(idKey, { ...map.get(idKey), ...row });
+            tUpd++;
+          } else {
+            const fallbackKey = idKey || `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+            map.set(fallbackKey, row);
+            tIns++;
+          }
+        });
+
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(key, JSON.stringify(Array.from(map.values())));
+        }
+      } catch (err) {
+        warnings.push(`Failed to restore ${tableName}: ${String(err)}`);
+      }
+      totalInserted += tIns;
+      totalUpdated += tUpd;
+      totalSkipped += tSkip;
+      report(tableName, { inserted: tIns, updated: tUpd, skipped: tSkip });
+    };
+
+    start('businesses');
+    if (database.businesses && database.businesses.length > 0) {
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('@froshiar_business_db', JSON.stringify(database.businesses[0]));
+        }
+        report('businesses', { inserted: 1, updated: 0, skipped: 0 });
+        totalInserted++;
+      } catch {
+        report('businesses', { inserted: 0, updated: 0, skipped: 1 });
+      }
+    } else {
+      report('businesses', { inserted: 0, updated: 0, skipped: 0 });
+    }
+
+    mergeTableWeb('@froshiar_db_categories', database.categories, 'categories');
+    mergeTableWeb('@froshiar_db_products', database.products, 'products');
+    mergeTableWeb('@froshiar_db_inventory_history', database.inventory_history, 'inventory_history');
+    mergeTableWeb('@froshiar_db_customers', database.customers, 'customers');
+    mergeTableWeb('@froshiar_db_sales', database.sales, 'sales');
+    mergeTableWeb('@froshiar_db_debts', database.debts, 'debts');
+    mergeTableWeb('@froshiar_db_purchases', database.purchases, 'purchases');
+    mergeTableWeb('@froshiar_db_purchase_debts', database.purchase_debts, 'purchase_debts');
+    mergeTableWeb('@froshiar_db_suppliers', database.suppliers, 'suppliers');
+    mergeTableWeb('@froshiar_db_expenses', database.expenses, 'expenses');
+    mergeTableWeb('@froshiar_db_exchange_rates', database.exchange_rates, 'exchange_rates');
+    mergeTableWeb('@froshiar_db_discarded', database.discarded_products, 'discarded_products');
+
+    onProgress?.({ phase: 'stores' });
+    await mergeBusinessStore(backup.stores?.business, baseDocDir);
+    await mergeSettingsStore(backup.stores?.settings, true);
+    await mergeQuotationsStore(backup.stores?.quotations);
+    await mergeDashboardBanners(backup.stores?.dashboardBanners, baseDocDir);
+
+    onProgress?.({ phase: 'done' });
+    return {
+      inserted: totalInserted,
+      updated: totalUpdated,
+      skipped: totalSkipped,
+      warnings,
+      perTable,
+    };
   }
 
   await db.withTransactionAsync(async () => {

@@ -226,6 +226,21 @@ export default function DataScreen() {
 
   async function loadDbStats() {
     try {
+      if (Platform.OS === 'web') {
+        let total = 0;
+        try {
+          const p = typeof localStorage !== 'undefined' ? localStorage.getItem('@froshiar_db_products') : null;
+          const s = typeof localStorage !== 'undefined' ? localStorage.getItem('@froshiar_db_sales') : null;
+          const pur = typeof localStorage !== 'undefined' ? localStorage.getItem('@froshiar_db_purchases') : null;
+          const c = typeof localStorage !== 'undefined' ? localStorage.getItem('@froshiar_db_customers') : null;
+          if (p) total += (JSON.parse(p) as any[]).length;
+          if (s) total += (JSON.parse(s) as any[]).length;
+          if (pur) total += (JSON.parse(pur) as any[]).length;
+          if (c) total += (JSON.parse(c) as any[]).length;
+        } catch {}
+        setDbRecords(total);
+        return;
+      }
       const db = await getDatabase();
       const counts = await Promise.all([
         db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM products'),

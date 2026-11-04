@@ -28,5 +28,6 @@ contextBridge.exposeInMainWorld('desktopAPI', {
 
   // Google Authentication on Desktop
   signInWithGoogle: () => ipcRenderer.invoke('desktop:signInWithGoogle'),
+  connectGoogleDrive: () => ipcRenderer.invoke('desktop:connectGoogleDrive'),
 });
 

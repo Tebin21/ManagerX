@@ -594,7 +594,7 @@ ipcMain.handle('desktop:signInWithGoogle', async () => {
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
       authWindow.webContents.setUserAgent(chromeUserAgent);
 
-      const redirectUri = `http://127.0.0.1:${serverPort}/oauth2callback`;
+      const redirectUri = 'https://managerx-bac3a.firebaseapp.com/__/auth/handler';
       const clientId =
         '1097351210121-glmjp9ul4vfa45hhsvemnmmpajff8eh6.apps.googleusercontent.com';
       const nonce = Math.random().toString(36).substring(2);
@@ -633,6 +633,99 @@ ipcMain.handle('desktop:signInWithGoogle', async () => {
       authWindow.webContents.on('will-navigate', (_e, url) => checkUrl(url));
       authWindow.webContents.on('will-redirect', (_e, url) => checkUrl(url));
       authWindow.webContents.on('did-navigate', (_e, url) => checkUrl(url));
+      authWindow.webContents.on('did-finish-load', () => checkUrl(authWindow.webContents.getURL()));
+
+      authWindow.on('closed', () => {
+        if (!handled) {
+          handled = true;
+          resolve({ success: false, cancelled: true });
+        }
+      });
+
+      authWindow.loadURL(authUrl);
+    } catch (err) {
+      resolve({ success: false, error: err.message });
+    }
+  });
+});
+
+ipcMain.handle('desktop:connectGoogleDrive', async () => {
+  return new Promise((resolve) => {
+    try {
+      const authWindow = new BrowserWindow({
+        width: 540,
+        height: 700,
+        parent: mainWindow,
+        modal: true,
+        show: true,
+        title: 'Google Drive - فرۆشیار',
+        autoHideMenuBar: true,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+        },
+      });
+
+      const chromeUserAgent =
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+      authWindow.webContents.setUserAgent(chromeUserAgent);
+
+      const redirectUri = 'https://managerx-bac3a.firebaseapp.com/__/auth/handler';
+      const clientId =
+        '1097351210121-glmjp9ul4vfa45hhsvemnmmpajff8eh6.apps.googleusercontent.com';
+      const scopes = encodeURIComponent(
+        'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata email profile openid'
+      );
+      const authUrl =
+        `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${encodeURIComponent(clientId)}` +
+        `&response_type=token` +
+        `&scope=${scopes}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&prompt=select_account%20consent`;
+
+      let handled = false;
+
+      const finishWithToken = async (accessToken) => {
+        if (handled) return;
+        handled = true;
+        try {
+          authWindow.close();
+        } catch {}
+
+        try {
+          const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          const user = await res.json();
+          resolve({
+            success: true,
+            accessToken,
+            email: user.email || null,
+            displayName: user.name || null,
+            photoUrl: user.picture || null,
+          });
+        } catch {
+          resolve({ success: true, accessToken, email: null, displayName: null, photoUrl: null });
+        }
+      };
+
+      const checkUrl = (targetUrl) => {
+        if (!targetUrl || handled) return;
+        if (targetUrl.includes('access_token=')) {
+          const hash = targetUrl.split('#')[1] || targetUrl.split('?')[1] || '';
+          const params = new URLSearchParams(hash);
+          const accessToken = params.get('access_token');
+          if (accessToken) {
+            finishWithToken(accessToken);
+          }
+        }
+      };
+
+      authWindow.webContents.on('will-navigate', (_e, url) => checkUrl(url));
+      authWindow.webContents.on('will-redirect', (_e, url) => checkUrl(url));
+      authWindow.webContents.on('did-navigate', (_e, url) => checkUrl(url));
+      authWindow.webContents.on('did-finish-load', () => checkUrl(authWindow.webContents.getURL()));
 
       authWindow.on('closed', () => {
         if (!handled) {
