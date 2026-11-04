@@ -186,24 +186,59 @@ export async function signInWithIdToken(idToken: string): Promise<{ user: WebUse
   }
 }
 
+let _dedicatedWebAuth: any = null;
+
 export async function signInWithGoogleWeb(): Promise<{ user: WebUser }> {
   const { initializeApp, getApps } = await import('firebase/app');
-  const { getAuth, signInWithPopup, GoogleAuthProvider: WebGoogleAuthProvider } = await import('firebase/auth');
+  const {
+    initializeAuth,
+    getAuth,
+    signInWithPopup,
+    GoogleAuthProvider: WebGoogleAuthProvider,
+    inMemoryPersistence,
+    browserLocalPersistence,
+  } = await import('firebase/auth');
 
-  const app = getApps().length === 0 ? initializeApp({
-    apiKey: FIREBASE_API_KEY,
-    authDomain: 'managerx-bac3a.firebaseapp.com',
-    projectId: 'managerx-bac3a',
-    storageBucket: 'managerx-bac3a.firebasestorage.app',
-    messagingSenderId: '1097351210121',
-    appId: '1:1097351210121:web:760994c20ecc605e641258',
-  }) : getApps()[0];
+  if (!_dedicatedWebAuth) {
+    const existing = getApps().find((a) => a.name === 'froshiar_web_auth');
+    const app =
+      existing ||
+      initializeApp(
+        {
+          apiKey: FIREBASE_API_KEY,
+          authDomain: 'managerx-bac3a.firebaseapp.com',
+          projectId: 'managerx-bac3a',
+          storageBucket: 'managerx-bac3a.firebasestorage.app',
+          messagingSenderId: '1097351210121',
+          appId: '1:1097351210121:web:760994c20ecc605e641258',
+        },
+        'froshiar_web_auth'
+      );
 
-  const auth = getAuth(app);
+    try {
+      _dedicatedWebAuth = initializeAuth(app, {
+        persistence: [inMemoryPersistence, browserLocalPersistence],
+      });
+    } catch {
+      _dedicatedWebAuth = getAuth(app);
+    }
+  }
+
   const provider = new WebGoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
 
-  const result = await signInWithPopup(auth, provider);
+  let result: any = null;
+  try {
+    result = await signInWithPopup(_dedicatedWebAuth, provider);
+  } catch (err: any) {
+    if (err?.message?.includes('Database is closing/hidden') || err?.message?.includes('closing')) {
+      await new Promise((r) => setTimeout(r, 600));
+      result = await signInWithPopup(_dedicatedWebAuth, provider);
+    } else {
+      throw err;
+    }
+  }
+
   const fbUser = result.user;
   const token = await fbUser.getIdToken();
 
@@ -214,7 +249,7 @@ export async function signInWithGoogleWeb(): Promise<{ user: WebUser }> {
     photoURL: fbUser.photoURL,
     phoneNumber: fbUser.phoneNumber,
     emailVerified: fbUser.emailVerified,
-    providerData: (fbUser.providerData || []).map(p => ({ providerId: p.providerId })),
+    providerData: (fbUser.providerData || []).map((p: any) => ({ providerId: p.providerId })),
     _idToken: token,
     _refreshToken: (fbUser as any).refreshToken,
     getIdToken: async () => token,
