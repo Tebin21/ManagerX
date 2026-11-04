@@ -155,7 +155,7 @@ export default function LoginScreen() {
             useManagementStore.getState().clearEmployeeSession();
             useManagementStore.getState().setCurrentUserAccount(emp);
             useManagementStore.setState({
-              isManager: true,
+              isManager: emp.role === 'manager',
               isEmployee: false,
               currentUserAccount: emp,
               currentPermissions: ALL_ACTIVE_PERMISSIONS,

@@ -1688,6 +1688,22 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
       }
       const docRef = doc(db, 'employee_accounts', getCleanDocId(emp.email) || emp.id);
       await deleteDoc(docRef);
+
+      // If this was an employee and no other staff remains under this manager, revert manager to standalone 'user' role
+      if (emp.managerEmail && emp.managerEmail.toLowerCase() !== emp.email.toLowerCase()) {
+        const mgrEmail = emp.managerEmail.toLowerCase();
+        const mgrDocId = getCleanDocId(mgrEmail);
+        const remainingStaff = employees.filter(
+          (e) =>
+            e.id !== emp.id &&
+            e.email?.toLowerCase() !== emp.email?.toLowerCase() &&
+            e.managerEmail?.toLowerCase() === mgrEmail
+        );
+        if (remainingStaff.length === 0) {
+          await setDoc(doc(db, 'employee_accounts', mgrDocId), { role: 'user' }, { merge: true });
+          await setDoc(doc(db, 'user_subscriptions', mgrDocId), { role: 'user' }, { merge: true });
+        }
+      }
     } catch (e) {
       console.error('Failed to delete employee:', e);
       alert(isKu ? 'هەڵەیەک ڕوویدا لە سڕینەوە' : 'Failed to delete employee');
@@ -2601,7 +2617,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     setUnlimitedInvoices(true);
     setUnlimitedQuotations(true);
 
-    setStoreEnabled(true);
+    setStoreEnabled(false);
     setStoreName('');
     setStoreSubdomain('');
     setFormPlatform('all');
@@ -2643,6 +2659,42 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     setStoreName('');
     setStoreSubdomain('');
     setFormPlatform('all');
+
+    setSelectedRegisteredUserEmail('');
+    setUserSearchTerm('');
+    setShowCalendar(false);
+    setFormError(null);
+    setIsAddModalOpen(true);
+  };
+
+  // ── Button 3: Add Staff Employee directly under a Store / Manager ──
+  const handleOpenAddEmployeeForStore = (owner: EmployeeAccount) => {
+    setAddModalMode('create_custom');
+    setCustomAccountRole('employee');
+    setFormName('');
+    setFormEmail('');
+    setFormPassword(generateRandomPassword());
+    setFormManagerEmail(owner.email);
+    setFormPhone('');
+    setFormPrice('');
+    setFormDuration(30);
+
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    setFormStartedAt(todayStr);
+    setFormExpiresAt('');
+
+    setFormLimits(DEFAULT_LIMITS);
+    setUnlimitedItems(false);
+    setUnlimitedQuantity(false);
+    setUnlimitedSales(false);
+    setUnlimitedInvoices(false);
+    setUnlimitedQuotations(false);
+
+    setStoreEnabled(false);
+    setStoreName('');
+    setStoreSubdomain('');
+    setFormPlatform(owner.targetPlatform || 'all');
 
     setSelectedRegisteredUserEmail('');
     setUserSearchTerm('');
@@ -2771,13 +2823,24 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         permissions: isStoreManager ? ALL_ACTIVE_PERMISSIONS : DEFAULT_PERMISSIONS,
         createdAt: new Date().toISOString(),
         accountType: addModalMode === 'upgrade_registered' ? 'registered' : 'custom',
-        role: isStoreManager ? 'manager' : 'employee',
+        role: isStoreManager ? 'user' : 'employee',
         targetPlatform: formPlatform || 'all',
         upgradeReceipt: upgradeReceiptData,
       };
 
       const docRef = doc(db, 'employee_accounts', docId);
       await setDoc(docRef, stripUndefined(newAccount), { merge: true });
+
+      // If adding a staff employee, immediately promote the parent store owner to manager role
+      if (!isStoreManager && mgrEmail && mgrEmail !== cleanEmail) {
+        try {
+          const mgrDocId = getCleanDocId(mgrEmail);
+          await setDoc(doc(db, 'employee_accounts', mgrDocId), { role: 'manager' }, { merge: true });
+          await setDoc(doc(db, 'user_subscriptions', mgrDocId), { role: 'manager' }, { merge: true });
+        } catch (promoteErr) {
+          console.warn('[EmployeeManagement] Failed to promote parent store to manager:', promoteErr);
+        }
+      }
 
       // 2. Synchronize to user_subscriptions so cloud verification activates in mobile app
       try {
@@ -4121,6 +4184,17 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                             <span>{isKu ? 'نوێکردنەوە' : 'Renew'}</span>
                           </button>
 
+                          {/* Add Staff Employee for this store */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAddEmployeeForStore(emp)}
+                            className="px-3 py-2 rounded-xl text-xs font-bold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 transition flex items-center gap-1.5 cursor-pointer"
+                            title={isKu ? 'زیادکردنی کارمەند بۆ ئەم مارکێتە' : 'Add Staff Employee'}
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            <span>{isKu ? '+ کارمەند' : '+ Staff'}</span>
+                          </button>
+
                           {/* Toggle Team Expand if Manager */}
                           {hasTeam && (
                             <button
@@ -4139,14 +4213,19 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                     {/* Expandable Team List for Managers */}
                     {hasTeam && isExpanded && (
                       <div className="bg-slate-950/60 p-4 border-t border-slate-800/80 animate-in slide-in-from-top-2 duration-200">
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                           <span className="text-xs font-black text-amber-400 flex items-center gap-1.5">
                             <Users className="w-3.5 h-3.5" />
                             <span>{isKu ? `تیمی ئەم بەڕێوەبەرە (${teamEmployees.length} کارمەند):` : `Supervised Team (${teamEmployees.length} Employees):`}</span>
                           </span>
-                          <span className="text-[10px] text-slate-400">
-                            {isKu ? 'هەموو ئەم کارمەندانە لەسەر لایسێنس و ژمێریاری ئەم بەڕێوەبەرەن' : 'Linked under this manager account'}
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAddEmployeeForStore(emp)}
+                            className="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition flex items-center gap-1 cursor-pointer shadow-sm"
+                          >
+                            <UserPlus className="w-3 h-3" />
+                            <span>{isKu ? '+ زیادکردنی کارمەند' : '+ Add Employee'}</span>
+                          </button>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
@@ -4512,6 +4591,21 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                           title={isKu ? 'ناردنی نامەی وەتسئەپ' : 'Send WhatsApp Reminder'}
                         >
                           <MessageCircle className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {(!emp.managerEmail || emp.managerEmail.toLowerCase() === emp.email.toLowerCase()) && (
+                        <button
+                          onClick={() => handleOpenAddEmployeeForStore(emp)}
+                          className={`p-2 sm:px-3 py-2 rounded-xl border transition cursor-pointer flex items-center gap-1.5 text-xs font-bold ${
+                            isDarkMode
+                              ? 'bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border-indigo-500/30'
+                              : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-300'
+                          }`}
+                          title={isKu ? 'زیادکردنی کارمەند بۆ ئەم مارکێتە' : 'Add Staff Employee'}
+                        >
+                          <UserPlus className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">{isKu ? '+ کارمەند' : '+ Staff'}</span>
                         </button>
                       )}
 
@@ -5602,13 +5696,22 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                     </button>
                   </div>
 
-                  {customAccountRole === 'manager' && (
+                  {customAccountRole === 'manager' ? (
                     <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold flex items-center gap-2.5">
                       <Sparkles className="w-4 h-4 shrink-0 text-amber-500" />
                       <span>
                         {isKu
-                          ? '⭐ ئەم هەژمارە وەک خاوەن فرۆشگا (PRO بێ سنوور) لەسەر کۆمپیوتەر و مۆبایل کاردەکات بە بەستنەوەی گووگڵ درایڤ و کۆنترۆڵی کارمەندان.'
-                          : '⭐ This account activates as Store Owner (PRO Lifetime) on Desktop and Mobile with Google Drive and Staff Control.'}
+                          ? '⭐ ئەم هەژمارە بە پلانی PRO (بێ سنوور) دروست دەبێت و وەک فرۆشگای سەربەخۆ کاردەکات. وێب ستۆر بە ناچالاکی دەمێنێتەوە تا لە بەشی وێب ستۆر کارای دەکەیت. کاتێک یەکەم کارمەندی بۆ زیاد بکەیت، دەستبەجێ بەشی بەڕێوەبەرایەتی بۆ دەکرێتەوە.'
+                          : '⭐ Standalone PRO account. Web Store is inactive until enabled under Web Stores. When you add their first employee, they dynamically promote to Manager.'}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-700 dark:text-purple-300 text-xs font-bold flex items-center gap-2.5">
+                      <Users className="w-4 h-4 shrink-0 text-purple-500" />
+                      <span>
+                        {isKu
+                          ? `👥 ئەم کارمەندە دەبەسترێتەوە بە فرۆشگای (${formManagerEmail || 'بەڕێوەبەر'}). بە دروستکردنی، فرۆشگاکە ڕاستەوخۆ دەبێتە بەڕێوەبەر بە دەسەڵاتی تەواو بەسەریدا.`
+                          : `👥 This employee is linked to store (${formManagerEmail || 'Manager'}). Upon creation, the store dynamically becomes Manager.`}
                       </span>
                     </div>
                   )}
