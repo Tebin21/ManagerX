@@ -96,6 +96,12 @@ for (const vf of VECTOR_FONTS) {
   }
 }
 css += '</style>\n';
+css += '<script>\n';
+css += '  if (typeof window !== "undefined" && (window.location.pathname.endsWith("/index.html") || window.location.pathname.endsWith("index.html"))) {\n';
+css += '    var clean = window.location.pathname.replace(/\\/?index\\.html$/, "") || "/";\n';
+css += '    window.history.replaceState(null, "", clean + window.location.search + window.location.hash);\n';
+css += '  }\n';
+css += '</script>\n';
 
 function injectHtml(targetPath) {
   if (!fs.existsSync(targetPath)) return;

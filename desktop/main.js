@@ -94,6 +94,12 @@ function generateVectorIconsCss(distDir) {
     console.error('Failed to generate vector icon CSS:', e);
   }
   css += '</style>\n';
+  css += '<script>\n';
+  css += '  if (typeof window !== "undefined" && (window.location.pathname.endsWith("/index.html") || window.location.pathname.endsWith("index.html"))) {\n';
+  css += '    var clean = window.location.pathname.replace(/\\/?index\\.html$/, "") || "/";\n';
+  css += '    window.history.replaceState(null, "", clean + window.location.search + window.location.hash);\n';
+  css += '  }\n';
+  css += '</script>\n';
   cachedVectorCss = css;
   return css;
 }
@@ -113,6 +119,12 @@ function startLocalServer(distDir) {
         if (reqPath.startsWith('/oauth2callback')) {
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
           res.end('<!DOCTYPE html><html><body style="background:#0F172A;color:#fff;font-family:sans-serif;text-align:center;padding:50px;"><h3>سەرکەوتوو بوو! دەتوانیت پەنجەرەکە دابخەیت...</h3></body></html>');
+          return;
+        }
+
+        if (cleanUrl === '/index.html') {
+          res.writeHead(302, { Location: '/' });
+          res.end();
           return;
         }
 
@@ -248,7 +260,7 @@ async function createWindow() {
 
   // Load via internal loopback server if available, or fallback
   if (serverPort) {
-    mainWindow.loadURL(`http://127.0.0.1:${serverPort}/index.html`);
+    mainWindow.loadURL(`http://127.0.0.1:${serverPort}/`);
   } else {
     mainWindow.loadFile(path.join(distDir, 'index.html'));
   }
