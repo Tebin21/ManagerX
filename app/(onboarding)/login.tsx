@@ -201,6 +201,15 @@ export default function LoginScreen() {
         } else if (empResult.error === 'ACCOUNT_SUSPENDED') {
           setAuthError(isRTL ? 'ئەم ئەکاونتە ڕاگیراوە لەلایەن بەڕێوەبەرەوە.' : 'This account has been suspended by management.');
           return;
+        } else if (empResult.error === 'PLATFORM_MISMATCH_MACOS') {
+          setAuthError(isRTL ? 'ئەم هەژمارە تایبەتە بە کۆمپیوتەری ماکبووک (macOS).' : 'This account is restricted to macOS devices.');
+          return;
+        } else if (empResult.error === 'PLATFORM_MISMATCH_WINDOWS') {
+          setAuthError(isRTL ? 'ئەم هەژمارە تایبەتە بە کۆمپیوتەری ویندۆز (Windows).' : 'This account is restricted to Windows devices.');
+          return;
+        } else if (empResult.error === 'WRONG_PASSWORD') {
+          setAuthError(isRTL ? 'وشەی نهێنی هەڵەیە.' : 'Incorrect password.');
+          return;
         }
       } catch (e) {
         console.warn('[Login] Employee auth check failed:', e);

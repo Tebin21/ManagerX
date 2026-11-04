@@ -176,6 +176,7 @@ export interface EmployeeAccount {
   permissions: EmployeePermissions;
   accountType?: 'registered' | 'custom';
   role?: 'manager' | 'employee' | 'user';
+  targetPlatform?: 'all' | 'macos' | 'windows';
   provider?: string;
   upgradeReceipt?: UpgradeReceipt;
 }
@@ -645,6 +646,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
   const [formPrice, setFormPrice] = useState('');
   const [formDuration, setFormDuration] = useState<number | 'unlimited'>(30); // days
   const [customAccountRole, setCustomAccountRole] = useState<'manager' | 'employee'>('manager');
+  const [formPlatform, setFormPlatform] = useState<'all' | 'macos' | 'windows'>('all');
   const [formStartedAt, setFormStartedAt] = useState<string>(''); // YYYY-MM-DD
   const [formExpiresAt, setFormExpiresAt] = useState<string>(''); // YYYY-MM-DD
   const [showCalendar, setShowCalendar] = useState<boolean>(false);
@@ -2351,6 +2353,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     setStoreEnabled(store?.enabled || false);
     setStoreName(store?.storeName || '');
     setStoreSubdomain(store?.subdomain || '');
+    setFormPlatform(emp.targetPlatform || 'all');
 
     setShowCalendar(false);
     setFormError(null);
@@ -2408,6 +2411,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         expiresAt: expDate || null,
         durationDays: typeof formDuration === 'number' ? formDuration : null,
         limits: updatedLimits,
+        targetPlatform: formPlatform || 'all',
         onlineStore: updatedStore ? stripUndefined(updatedStore) : null,
       };
 
@@ -2431,6 +2435,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
             onlineStore: updatedStore ? stripUndefined(updatedStore) : null,
             priceAmount: formPrice.trim() || null,
             limits: updatedLimits,
+            targetPlatform: formPlatform || 'all',
             updatedAt: new Date().toISOString(),
           }),
           { merge: true }
@@ -2599,6 +2604,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     setStoreEnabled(true);
     setStoreName('');
     setStoreSubdomain('');
+    setFormPlatform('all');
 
     setSelectedRegisteredUserEmail('');
     setUserSearchTerm('');
@@ -2636,6 +2642,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     setStoreEnabled(false);
     setStoreName('');
     setStoreSubdomain('');
+    setFormPlatform('all');
 
     setSelectedRegisteredUserEmail('');
     setUserSearchTerm('');
@@ -2765,6 +2772,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         createdAt: new Date().toISOString(),
         accountType: addModalMode === 'upgrade_registered' ? 'registered' : 'custom',
         role: isStoreManager ? 'manager' : 'employee',
+        targetPlatform: formPlatform || 'all',
         upgradeReceipt: upgradeReceiptData,
       };
 
@@ -2791,6 +2799,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
             onlineStore: updatedStore || null,
             priceAmount: formPrice.trim() || (isStoreManager ? 'PRO / هەمیشەیی' : null),
             limits: updatedLimits,
+            targetPlatform: formPlatform || 'all',
             upgradeReceipt: upgradeReceiptData,
             upgradedAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -3988,6 +3997,24 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                                 <span>{isKu ? 'ئەکاونتی تایبەت (پاسۆرد)' : 'Custom Account'}</span>
                               </span>
                             )}
+
+                            {/* Target Platform Badge */}
+                            {emp.targetPlatform === 'macos' ? (
+                              <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                                <Laptop className="w-3 h-3 text-purple-400" />
+                                <span> macOS (ماکبووک)</span>
+                              </span>
+                            ) : emp.targetPlatform === 'windows' ? (
+                              <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30 flex items-center gap-1">
+                                <Laptop className="w-3 h-3 text-blue-400" />
+                                <span>⊞ Windows (ویندۆز)</span>
+                              </span>
+                            ) : (
+                              <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                                <Globe className="w-3 h-3 text-emerald-400" />
+                                <span>{isKu ? 'گشتی (گشت ئامێرێک)' : 'All Platforms'}</span>
+                              </span>
+                            )}
                           </div>
 
                           {/* Email & Phone */}
@@ -4432,6 +4459,24 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                             <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center gap-1">
                               <Key className="w-3 h-3 text-purple-500" />
                               <span>{isKu ? 'کارمەند (پاسۆرد)' : 'Password Account'}</span>
+                            </span>
+                          )}
+
+                          {/* Target Platform Badge */}
+                          {emp.targetPlatform === 'macos' ? (
+                            <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                              <Laptop className="w-3 h-3 text-purple-500" />
+                              <span> macOS (ماکبووک)</span>
+                            </span>
+                          ) : emp.targetPlatform === 'windows' ? (
+                            <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30 flex items-center gap-1">
+                              <Laptop className="w-3 h-3 text-blue-500" />
+                              <span>⊞ Windows (ویندۆز)</span>
+                            </span>
+                          ) : (
+                            <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                              <Globe className="w-3 h-3 text-emerald-500" />
+                              <span>{isKu ? 'گشتی (گشت ئامێرێک)' : 'All Platforms'}</span>
                             </span>
                           )}
 
@@ -5568,6 +5613,64 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                     </div>
                   )}
 
+                  {/* Target Platform / Operating System Selector */}
+                  <div className={`p-3.5 rounded-2xl border space-y-2.5 ${
+                    isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <label className={`block text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                        {isKu ? '💻 سیستەمی کۆمپیوتەر / کارپێکردن:' : '💻 Target Operating System:'}
+                      </label>
+                      <span className="text-[11px] font-medium text-slate-400">
+                        {isKu ? 'دیاریبکە بۆ چ ئامێرێک کاربکات' : 'Specify intended OS'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFormPlatform('all')}
+                        className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                          formPlatform === 'all'
+                            ? 'bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-500/20'
+                            : isDarkMode
+                            ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                            : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 shadow-2xs'
+                        }`}
+                      >
+                        <Globe className="w-3.5 h-3.5 shrink-0" />
+                        <span>{isKu ? 'گشتی (گشت سیستمەکان)' : 'All Systems'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormPlatform('macos')}
+                        className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                          formPlatform === 'macos'
+                            ? 'bg-purple-600 text-white border-purple-400 shadow-md shadow-purple-500/20'
+                            : isDarkMode
+                            ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                            : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 shadow-2xs'
+                        }`}
+                      >
+                        <Laptop className="w-3.5 h-3.5 shrink-0" />
+                        <span>{isKu ? ' ماکبووک (macOS)' : ' macOS (Mac)'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormPlatform('windows')}
+                        className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                          formPlatform === 'windows'
+                            ? 'bg-blue-600 text-white border-blue-400 shadow-md shadow-blue-500/20'
+                            : isDarkMode
+                            ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                            : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 shadow-2xs'
+                        }`}
+                      >
+                        <Laptop className="w-3.5 h-3.5 shrink-0" />
+                        <span>{isKu ? '⊞ ویندۆز (Windows)' : '⊞ Windows PC'}</span>
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
                     {/* Name */}
                     <div>
@@ -6241,6 +6344,62 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                           : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-100 shadow-2xs'
                       }`}
                     />
+                  </div>
+
+                  {/* Target Platform / Operating System Selector */}
+                  <div className="col-span-1 md:col-span-2 lg:col-span-3 p-3.5 rounded-2xl border space-y-2.5 bg-slate-200/30 dark:bg-slate-900/40 border-slate-300 dark:border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <label className={`block text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                        {isKu ? '💻 سیستەمی کۆمپیوتەر / کارپێکردن:' : '💻 Target Operating System:'}
+                      </label>
+                      <span className="text-[11px] font-medium text-slate-400">
+                        {isKu ? 'دیاریبکە بۆ چ ئامێرێک کاربکات' : 'Specify intended OS'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFormPlatform('all')}
+                        className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                          formPlatform === 'all'
+                            ? 'bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-500/20'
+                            : isDarkMode
+                            ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                            : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 shadow-2xs'
+                        }`}
+                      >
+                        <Globe className="w-3.5 h-3.5 shrink-0" />
+                        <span>{isKu ? 'گشتی (گشت سیستمەکان)' : 'All Systems'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormPlatform('macos')}
+                        className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                          formPlatform === 'macos'
+                            ? 'bg-purple-600 text-white border-purple-400 shadow-md shadow-purple-500/20'
+                            : isDarkMode
+                            ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                            : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 shadow-2xs'
+                        }`}
+                      >
+                        <Laptop className="w-3.5 h-3.5 shrink-0" />
+                        <span>{isKu ? ' ماکبووک (macOS)' : ' macOS (Mac)'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormPlatform('windows')}
+                        className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                          formPlatform === 'windows'
+                            ? 'bg-blue-600 text-white border-blue-400 shadow-md shadow-blue-500/20'
+                            : isDarkMode
+                            ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                            : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 shadow-2xs'
+                        }`}
+                      >
+                        <Laptop className="w-3.5 h-3.5 shrink-0" />
+                        <span>{isKu ? '⊞ ویندۆز (Windows)' : '⊞ Windows PC'}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

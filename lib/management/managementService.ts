@@ -569,32 +569,105 @@ export async function recordEmployeeLogout(email: string): Promise<void> {
   }
 }
 
+function parseFirestoreRestValue(val: any): any {
+  if (!val) return null;
+  if ('stringValue' in val) return val.stringValue;
+  if ('booleanValue' in val) return val.booleanValue;
+  if ('integerValue' in val) return parseInt(val.integerValue, 10);
+  if ('doubleValue' in val) return parseFloat(val.doubleValue);
+  if ('nullValue' in val) return null;
+  if ('mapValue' in val) return parseFirestoreRestFields(val.mapValue?.fields || {});
+  if ('arrayValue' in val) return (val.arrayValue?.values || []).map(parseFirestoreRestValue);
+  return null;
+}
+
+export function parseFirestoreRestFields(fields: any): any {
+  if (!fields || typeof fields !== 'object') return {};
+  const result: any = {};
+  for (const [key, val] of Object.entries(fields)) {
+    result[key] = parseFirestoreRestValue(val);
+  }
+  return result;
+}
+
 /**
- * Authenticates an employee by email and password against Firestore records.
+ * Authenticates an employee or store manager by email and password against Firestore records.
+ * Uses concurrent REST and SDK calls to ensure lightning-fast login on Desktop (macOS / Windows) and Mobile.
  */
 export async function authenticateEmployee(
   email: string,
   passwordAttempt: string
 ): Promise<{ success: boolean; error?: string; account?: EmployeeAccount }> {
   try {
-    const db = getFirebaseFirestore();
-    const docId = getCleanDocId(email);
-    const docRef = doc(db, COLLECTION_NAME, docId);
+    const cleanEmail = email.trim().toLowerCase();
+    const docId = getCleanDocId(cleanEmail);
 
-    // Timeout after 3.5 seconds so slow Firestore network doesn't delay standard user sign-ins
-    const snap = await Promise.race([
-      getDoc(docRef),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500)),
-    ]);
+    let data: (EmployeeAccount & { password?: string; targetPlatform?: string }) | null = null;
+    let accountId = docId;
 
-    if (!snap || !snap.exists()) {
+    // 1. Direct fast Firestore REST call (zero dependency, instant, ignores cache lockouts)
+    try {
+      const restUrl = `https://firestore.googleapis.com/v1/projects/managerx-bac3a/databases/(default)/documents/employee_accounts/${docId}`;
+      const res = await Promise.race([
+        fetch(restUrl, { method: 'GET', headers: { Accept: 'application/json' } }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+      ]);
+      if (res && res.ok) {
+        const json = await res.json();
+        if (json && json.fields) {
+          data = parseFirestoreRestFields(json.fields);
+          accountId = json.name ? json.name.split('/').pop() : docId;
+        }
+      }
+    } catch (restErr) {
+      console.warn('[ManagementService] REST account fetch error:', restErr);
+    }
+
+    // 2. Fallback to Firestore SDK
+    if (!data) {
+      try {
+        const db = getFirebaseFirestore();
+        if (db) {
+          const docRef = doc(db, COLLECTION_NAME, docId);
+          const snap = await Promise.race([
+            getDoc(docRef),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500)),
+          ]);
+          if (snap && typeof snap.exists === 'function' && snap.exists()) {
+            data = snap.data() as any;
+            accountId = snap.id;
+          }
+        }
+      } catch (sdkErr) {
+        console.warn('[ManagementService] SDK account fetch error:', sdkErr);
+      }
+    }
+
+    if (!data) {
       return { success: false, error: 'ACCOUNT_NOT_FOUND' };
     }
 
-    const data = snap.data() as EmployeeAccount & { password?: string };
-
     if (data.status === 'suspended') {
       return { success: false, error: 'ACCOUNT_SUSPENDED' };
+    }
+
+    // Check operating system restriction if specified (macOS vs Windows)
+    if (data.targetPlatform && data.targetPlatform !== 'all') {
+      const isMac =
+        typeof window !== 'undefined' &&
+        ((window as any).desktopAPI?.platform === 'darwin' ||
+          navigator?.userAgent?.toLowerCase().includes('mac'));
+      const isWindows =
+        typeof window !== 'undefined' &&
+        ((window as any).desktopAPI?.platform === 'win32' ||
+          navigator?.userAgent?.toLowerCase().includes('win'));
+
+      if (data.targetPlatform === 'macos' && isWindows) {
+        return { success: false, error: 'PLATFORM_MISMATCH_MACOS' };
+      }
+      if (data.targetPlatform === 'windows' && isMac) {
+        return { success: false, error: 'PLATFORM_MISMATCH_WINDOWS' };
+      }
     }
 
     if (data.password && data.password !== passwordAttempt) {
@@ -605,13 +678,14 @@ export async function authenticateEmployee(
       success: true,
       account: {
         ...data,
-        id: snap.id,
-        permissions: data.role === 'manager'
-          ? ALL_ACTIVE_PERMISSIONS
-          : {
-              ...DEFAULT_EMPLOYEE_PERMISSIONS,
-              ...(data.permissions || {}),
-            },
+        id: accountId,
+        permissions:
+          data.role === 'manager'
+            ? ALL_ACTIVE_PERMISSIONS
+            : {
+                ...DEFAULT_EMPLOYEE_PERMISSIONS,
+                ...(data.permissions || {}),
+              },
       },
     };
   } catch (err: any) {

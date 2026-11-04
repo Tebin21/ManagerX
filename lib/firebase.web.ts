@@ -1,4 +1,20 @@
 import { Platform } from 'react-native';
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import {
+  getFirestore,
+  collection as fsCollection,
+  doc as fsDoc,
+  getDoc as fsGetDoc,
+  getDocs as fsGetDocs,
+  setDoc as fsSetDoc,
+  deleteDoc as fsDeleteDoc,
+  writeBatch as fsWriteBatch,
+  onSnapshot as fsOnSnapshot,
+  serverTimestamp as fsServerTimestamp,
+  query as fsQuery,
+  where as fsWhere,
+  type Firestore,
+} from 'firebase/firestore';
 
 // Firebase Web Auth Implementation
 // Uses Firebase Authentication REST API so authentication works seamlessly across Web and Desktop (Electron).
@@ -310,42 +326,142 @@ export async function getIdToken(user: WebUser): Promise<string> {
   return user?._idToken || '';
 }
 
-// Cloud Firestore safe no-op stubs on Web (offline store model)
-const dummyDocRef = { id: 'dummy', path: 'dummy' };
-const dummySnapshot = {
-  exists: () => false,
-  data: () => null,
-  id: 'dummy',
-  empty: true,
-  docs: [],
-  size: 0,
+// Cloud Firestore Web & Desktop Implementation
+const WEB_FIREBASE_CONFIG = {
+  apiKey: FIREBASE_API_KEY,
+  authDomain: 'managerx-bac3a.firebaseapp.com',
+  projectId: 'managerx-bac3a',
+  storageBucket: 'managerx-bac3a.firebasestorage.app',
+  messagingSenderId: '1097351210121',
+  appId: '1:1097351210121:web:froshiar',
 };
 
-export function getFirebaseFirestore(): any {
-  return {
-    collection: () => dummyDocRef,
-    doc: () => dummyDocRef,
-  };
+let _webFirestore: Firestore | null = null;
+
+export function getFirebaseFirestore(): Firestore {
+  try {
+    if (!_webFirestore) {
+      const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(WEB_FIREBASE_CONFIG);
+      _webFirestore = getFirestore(app);
+    }
+    return _webFirestore;
+  } catch (e) {
+    console.warn('[FirebaseWeb] getFirebaseFirestore init error:', e);
+    const app: FirebaseApp = initializeApp(WEB_FIREBASE_CONFIG, 'froshiar_firestore_app');
+    _webFirestore = getFirestore(app);
+    return _webFirestore;
+  }
 }
 
-export const collection = () => dummyDocRef;
-export const doc = () => dummyDocRef;
-export const getDoc = async () => dummySnapshot;
-export const getDocs = async () => dummySnapshot;
-export const setDoc = async () => {};
-export const deleteDoc = async () => {};
-export const writeBatch = () => ({
-  set: () => {},
-  delete: () => {},
-  update: () => {},
-  commit: async () => {},
-});
-export const onSnapshot = (_ref: any, callback?: any) => {
-  if (typeof callback === 'function') {
-    callback(dummySnapshot);
+export const collection = (dbOrRef: any, ...pathSegments: string[]) => {
+  try {
+    const target = dbOrRef?.id ? dbOrRef : getFirebaseFirestore();
+    return fsCollection(target, ...pathSegments);
+  } catch (e) {
+    console.warn('[FirebaseWeb] collection call fallback:', e);
+    return { id: pathSegments[pathSegments.length - 1] || 'col', path: pathSegments.join('/') } as any;
   }
-  return () => {};
 };
-export const serverTimestamp = () => new Date();
-export const query = () => dummyDocRef;
-export const where = () => dummyDocRef;
+
+export const doc = (dbOrRef: any, ...pathSegments: string[]) => {
+  try {
+    const target = dbOrRef?.id ? dbOrRef : getFirebaseFirestore();
+    return fsDoc(target, ...pathSegments);
+  } catch (e) {
+    console.warn('[FirebaseWeb] doc call fallback:', e);
+    return { id: pathSegments[pathSegments.length - 1] || 'doc', path: pathSegments.join('/') } as any;
+  }
+};
+
+export const getDoc = async (docRef: any) => {
+  try {
+    return await fsGetDoc(docRef);
+  } catch (e) {
+    console.warn('[FirebaseWeb] getDoc failed:', e);
+    return {
+      exists: () => false,
+      data: () => null,
+      id: docRef?.id || '',
+    } as any;
+  }
+};
+
+export const getDocs = async (queryRef: any) => {
+  try {
+    return await fsGetDocs(queryRef);
+  } catch (e) {
+    console.warn('[FirebaseWeb] getDocs failed:', e);
+    return { docs: [], empty: true, size: 0, forEach: () => {} } as any;
+  }
+};
+
+export const setDoc = async (docRef: any, data: any, options?: any) => {
+  try {
+    return await fsSetDoc(docRef, data, options || {});
+  } catch (e) {
+    console.warn('[FirebaseWeb] setDoc failed:', e);
+  }
+};
+
+export const deleteDoc = async (docRef: any) => {
+  try {
+    return await fsDeleteDoc(docRef);
+  } catch (e) {
+    console.warn('[FirebaseWeb] deleteDoc failed:', e);
+  }
+};
+
+export const writeBatch = (db?: any) => {
+  try {
+    return fsWriteBatch(db || getFirebaseFirestore());
+  } catch (e) {
+    return {
+      set: () => {},
+      delete: () => {},
+      update: () => {},
+      commit: async () => {},
+    } as any;
+  }
+};
+
+export const onSnapshot = (ref: any, callback?: any, errorCallback?: any) => {
+  try {
+    return fsOnSnapshot(
+      ref,
+      (snap) => {
+        if (typeof callback === 'function') callback(snap);
+      },
+      (err) => {
+        console.warn('[FirebaseWeb] onSnapshot live update error:', err);
+        if (typeof errorCallback === 'function') errorCallback(err);
+      }
+    );
+  } catch (e) {
+    console.warn('[FirebaseWeb] onSnapshot subscription failed:', e);
+    return () => {};
+  }
+};
+
+export const serverTimestamp = () => {
+  try {
+    return fsServerTimestamp();
+  } catch {
+    return new Date();
+  }
+};
+
+export const query = (colRef: any, ...clauses: any[]) => {
+  try {
+    return fsQuery(colRef, ...clauses);
+  } catch {
+    return colRef;
+  }
+};
+
+export const where = (field: string, op: any, value: any) => {
+  try {
+    return fsWhere(field, op, value);
+  } catch {
+    return null as any;
+  }
+};

@@ -110,6 +110,7 @@ export interface EmployeeAccount {
   deviceName?: string;
   role?: 'manager' | 'employee' | 'user';
   accountType?: 'registered' | 'custom';
+  targetPlatform?: 'all' | 'macos' | 'windows';
   permissions: EmployeePermissions;
   upgradeReceipt?: UpgradeReceipt;
 }
