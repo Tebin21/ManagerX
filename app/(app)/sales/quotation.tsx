@@ -640,7 +640,7 @@ export default function SalesQuotationScreen() {
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
           categories={inventory.categories}
-          onScanPress={() => setScannerOpen(true)}
+          onScanPress={Platform.OS !== 'web' ? () => setScannerOpen(true) : undefined}
         />
 
         {/* Product List / Grid */}
@@ -1740,7 +1740,9 @@ export default function SalesQuotationScreen() {
           onBack={() => setStep(1)}
           rightAction={
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: isTablet ? 12 : 8 }}>
-              <HeaderActionButton icon="barcode-outline" onPress={() => setScannerOpen(true)} />
+              {Platform.OS !== 'web' && (
+                <HeaderActionButton icon="barcode-outline" onPress={() => setScannerOpen(true)} />
+              )}
               <HeaderActionButton icon="add-circle-outline" onPress={() => setStep(1)} />
             </View>
           }
@@ -2215,17 +2217,19 @@ export default function SalesQuotationScreen() {
     <View style={[styles.container, { backgroundColor: isDark ? '#0B111E' : colors.gray50 }]}>
       {step === 1 ? renderStep1() : step === 2 ? renderStep2() : renderStep3()}
 
-      {/* Barcode Scanner Modal */}
-      <BarcodeScannerModal
-        visible={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        mode="single"
-        onScanSingle={(code) => {
-          handleBarcodeScanned(code);
-          setScannerOpen(false);
-        }}
-        title={isKuLanguage ? 'سکانی باڕکۆدی کاڵا بۆ عەرز' : 'Scan Product for Quote'}
-      />
+      {/* Barcode Scanner Modal - Mobile Only */}
+      {Platform.OS !== 'web' && (
+        <BarcodeScannerModal
+          visible={scannerOpen}
+          onClose={() => setScannerOpen(false)}
+          mode="single"
+          onScanSingle={(code) => {
+            handleBarcodeScanned(code);
+            setScannerOpen(false);
+          }}
+          title={isKuLanguage ? 'سکانی باڕکۆدی کاڵا بۆ عەرز' : 'Scan Product for Quote'}
+        />
+      )}
 
       {/* Persistent Default Terms & Notes Editor Modal */}
       <EditDefaultNotesModal

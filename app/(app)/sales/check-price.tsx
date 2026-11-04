@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -162,31 +163,33 @@ export default function CheckPriceScreen() {
               }}
             />
 
-            {/* Scan Barcode Button */}
-            <TouchableOpacity
-              onPress={() => setScannerOpen(true)}
-              style={[
-                styles.headerScanBtn,
-                isTablet && {
-                  height: headerButtonSize,
-                  paddingHorizontal: isTabletLandscape ? 20 : 16,
-                  borderRadius: Math.round(headerButtonSize * 0.28),
-                },
-              ]}
-              activeOpacity={0.8}
-              hitSlop={6}
-            >
-              <Ionicons name="barcode-outline" size={isTablet ? headerIconSize : 19} color="#FFFFFF" />
-              <Text
+            {/* Scan Barcode Button - Mobile Only */}
+            {Platform.OS !== 'web' && (
+              <TouchableOpacity
+                onPress={() => setScannerOpen(true)}
                 style={[
-                  styles.headerScanBtnText,
-                  isTablet && { fontSize: isTabletLandscape ? 16 : 14 },
-                  isKuLanguage && applyKurdishFont(true, { fontWeight: '700' }),
+                  styles.headerScanBtn,
+                  isTablet && {
+                    height: headerButtonSize,
+                    paddingHorizontal: isTabletLandscape ? 20 : 16,
+                    borderRadius: Math.round(headerButtonSize * 0.28),
+                  },
                 ]}
+                activeOpacity={0.8}
+                hitSlop={6}
               >
-                {isKuLanguage ? 'سکان' : 'Scan'}
-              </Text>
-            </TouchableOpacity>
+                <Ionicons name="barcode-outline" size={isTablet ? headerIconSize : 19} color="#FFFFFF" />
+                <Text
+                  style={[
+                    styles.headerScanBtnText,
+                    isTablet && { fontSize: isTabletLandscape ? 16 : 14 },
+                    isKuLanguage && applyKurdishFont(true, { fontWeight: '700' }),
+                  ]}
+                >
+                  {isKuLanguage ? 'سکان' : 'Scan'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         }
       />
@@ -197,7 +200,7 @@ export default function CheckPriceScreen() {
         selectedCategory={selectedCategory}
         onCategoryChange={setSelectedCategory}
         categories={categories}
-        onScanPress={() => setScannerOpen(true)}
+        onScanPress={Platform.OS !== 'web' ? () => setScannerOpen(true) : undefined}
       />
 
       <FlatList
@@ -253,19 +256,21 @@ export default function CheckPriceScreen() {
         }
       />
 
-      {/* Barcode Scanner Camera Modal */}
-      <BarcodeScannerModal
-        visible={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        mode="single"
-        title={isKuLanguage ? 'سکانی بەرهەم بۆ پشکنینی نرخ' : 'Scan Product to Check Price'}
-        subtitle={
-          isKuLanguage
-            ? 'بارکۆدەکە بخەرە بەرامبەر کامێرا بۆ دەرکەوتنی نرخ و زانیاری'
-            : 'Point camera at barcode to inspect price and details'
-        }
-        onScanSingle={handleBarcodeScanned}
-      />
+      {/* Barcode Scanner Camera Modal - Mobile Only */}
+      {Platform.OS !== 'web' && (
+        <BarcodeScannerModal
+          visible={scannerOpen}
+          onClose={() => setScannerOpen(false)}
+          mode="single"
+          title={isKuLanguage ? 'سکانی بەرهەم بۆ پشکنینی نرخ' : 'Scan Product to Check Price'}
+          subtitle={
+            isKuLanguage
+              ? 'بارکۆدەکە بخەرە بەرامبەر کامێرا بۆ دەرکەوتنی نرخ و زانیاری'
+              : 'Point camera at barcode to inspect price and details'
+          }
+          onScanSingle={handleBarcodeScanned}
+        />
+      )}
 
       {/* Detailed Price & Profit Inspection Modal */}
       <PriceCheckModal

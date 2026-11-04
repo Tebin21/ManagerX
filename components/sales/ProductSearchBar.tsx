@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, TextInput, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TextInput, ScrollView, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -59,7 +59,7 @@ export function ProductSearchBar({
           returnKeyType="search"
           clearButtonMode="while-editing"
         />
-        {onScanPress && (
+        {onScanPress && Platform.OS !== 'web' && (
           <TouchableOpacity
             onPress={onScanPress}
             style={styles.scanBtn}

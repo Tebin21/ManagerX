@@ -511,46 +511,48 @@ export default function NewSaleScreen() {
       >
         <SaleStepIndicator step={1} />
 
-        {/* Simplified & Clean Barcode Scanner Banner with Single Icon */}
-        <TouchableOpacity
-          style={[
-            styles.navBarScanBanner,
-            {
-              backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-              borderColor: isDark ? hexToRgba(colors.primary, 0.25) : 'rgba(0,0,0,0.06)',
-              borderWidth: 1,
-            },
-          ]}
-          onPress={() => {
-            try {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-            } catch {}
-            setScannerOpen(true);
-          }}
-          activeOpacity={0.82}
-        >
-          <View style={[styles.navBarScanContent, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <View
-              style={[
-                styles.navBarScanIconCircle,
-                {
-                  backgroundColor: isDark ? hexToRgba(colors.primary, 0.18) : '#FEF3C7',
-                  borderColor: isDark ? hexToRgba(colors.primary, 0.3) : '#FDE68A',
-                },
-              ]}
-            >
-              <Ionicons name="barcode-outline" size={24} color={isDark ? colors.primary : '#725D18'} />
+        {/* Simplified & Clean Barcode Scanner Banner with Single Icon - Mobile Only */}
+        {Platform.OS !== 'web' && (
+          <TouchableOpacity
+            style={[
+              styles.navBarScanBanner,
+              {
+                backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                borderColor: isDark ? hexToRgba(colors.primary, 0.25) : 'rgba(0,0,0,0.06)',
+                borderWidth: 1,
+              },
+            ]}
+            onPress={() => {
+              try {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+              } catch {}
+              setScannerOpen(true);
+            }}
+            activeOpacity={0.82}
+          >
+            <View style={[styles.navBarScanContent, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View
+                style={[
+                  styles.navBarScanIconCircle,
+                  {
+                    backgroundColor: isDark ? hexToRgba(colors.primary, 0.18) : '#FEF3C7',
+                    borderColor: isDark ? hexToRgba(colors.primary, 0.3) : '#FDE68A',
+                  },
+                ]}
+              >
+                <Ionicons name="barcode-outline" size={24} color={isDark ? colors.primary : '#725D18'} />
+              </View>
+              <View style={[styles.navBarScanTextCol, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+                <Text style={[styles.navBarScanTitle, { color: colors.black }]}>
+                  {isKuLanguage ? 'سکانەری بارکۆد و QR' : 'Barcode & QR Scanner'}
+                </Text>
+                <Text style={[styles.navBarScanSub, { color: colors.gray400 }]}>
+                  {isKuLanguage ? 'بەرهەمەکان سکان بکە بۆ سەبەتە' : 'Scan items rapidly into cart'}
+                </Text>
+              </View>
             </View>
-            <View style={[styles.navBarScanTextCol, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
-              <Text style={[styles.navBarScanTitle, { color: colors.black }]}>
-                {isKuLanguage ? 'سکانەری بارکۆد و QR' : 'Barcode & QR Scanner'}
-              </Text>
-              <Text style={[styles.navBarScanSub, { color: colors.gray400 }]}>
-                {isKuLanguage ? 'بەرهەمەکان سکان بکە بۆ سەبەتە' : 'Scan items rapidly into cart'}
-              </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        )}
       </AppHeader>
 
       <View style={[styles.flex, isTablet && contentContainerStyle]}>
@@ -641,7 +643,9 @@ export default function NewSaleScreen() {
         onBack={() => setStep(1)}
         rightAction={
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: isTablet ? 12 : 8 }}>
-            <HeaderActionButton icon="barcode-outline" onPress={() => setScannerOpen(true)} />
+            {Platform.OS !== 'web' && (
+              <HeaderActionButton icon="barcode-outline" onPress={() => setScannerOpen(true)} />
+            )}
             <HeaderActionButton icon="add-circle-outline" onPress={() => setStep(1)} />
           </View>
         }
@@ -671,29 +675,31 @@ export default function NewSaleScreen() {
               >
                 {/* Quick Actions: Scan More / Add Items */}
                 <View style={[styles.step2ActionRow, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTablet ? 12 : 10, marginBottom: 12 }]}>
-                  <TouchableOpacity
-                    style={[
-                      styles.step2ScanBtn,
-                      {
-                        backgroundColor: colors.primary,
-                        flexDirection: isRTL ? 'row-reverse' : 'row',
-                      },
-                      styles.step2BtnTablet,
-                    ]}
-                    onPress={() => setScannerOpen(true)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="barcode-outline" size={isTablet ? 20 : 18} color="#FFFFFF" />
-                    <Text
+                  {Platform.OS !== 'web' && (
+                    <TouchableOpacity
                       style={[
-                        styles.step2ScanBtnText,
-                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                        isTablet && { fontSize: 14.5 },
+                        styles.step2ScanBtn,
+                        {
+                          backgroundColor: colors.primary,
+                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                        },
+                        styles.step2BtnTablet,
                       ]}
+                      onPress={() => setScannerOpen(true)}
+                      activeOpacity={0.8}
                     >
-                      {isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
-                    </Text>
-                  </TouchableOpacity>
+                      <Ionicons name="barcode-outline" size={isTablet ? 20 : 18} color="#FFFFFF" />
+                      <Text
+                        style={[
+                          styles.step2ScanBtnText,
+                          isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          isTablet && { fontSize: 14.5 },
+                        ]}
+                      >
+                        {isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
 
                   <TouchableOpacity
                     style={[
@@ -814,29 +820,31 @@ export default function NewSaleScreen() {
         <KeyboardAwareScrollView contentContainerStyle={[styles.step2Body, isTablet && contentContainerStyle]}>
           {/* Quick Actions: Scan More / Add Items */}
           <View style={[styles.step2ActionRow, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTablet ? 12 : 10 }]}>
-            <TouchableOpacity
-              style={[
-                styles.step2ScanBtn,
-                {
-                  backgroundColor: colors.primary,
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                },
-                isTablet && styles.step2BtnTablet,
-              ]}
-              onPress={() => setScannerOpen(true)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="barcode-outline" size={isTablet ? 20 : 18} color="#FFFFFF" />
-              <Text
+            {Platform.OS !== 'web' && (
+              <TouchableOpacity
                 style={[
-                  styles.step2ScanBtnText,
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                  isTablet && { fontSize: 14.5 },
+                  styles.step2ScanBtn,
+                  {
+                    backgroundColor: colors.primary,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                  isTablet && styles.step2BtnTablet,
                 ]}
+                onPress={() => setScannerOpen(true)}
+                activeOpacity={0.8}
               >
-                {isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
-              </Text>
-            </TouchableOpacity>
+                <Ionicons name="barcode-outline" size={isTablet ? 20 : 18} color="#FFFFFF" />
+                <Text
+                  style={[
+                    styles.step2ScanBtnText,
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    isTablet && { fontSize: 14.5 },
+                  ]}
+                >
+                  {isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[
@@ -1653,15 +1661,17 @@ export default function NewSaleScreen() {
       {step === 2 && renderStep2()}
       {step === 3 && renderStep3()}
 
-      <BarcodeScannerModal
-        visible={scannerOpen}
-        onClose={() => handleFinishScanner(0)}
-        mode="multi"
-        title={isKuLanguage ? 'سکانەری بەرهەمەکانی فرۆشتن' : 'Sales Barcode Scanner'}
-        subtitle={isKuLanguage ? 'کامێرا بگرە لەسەر بارکۆدەکان بۆ زیادکردنی ڕاستەوخۆ' : 'Scan items rapidly into cart'}
-        onScanMulti={handleScanMulti}
-        onFinishMulti={handleFinishScanner}
-      />
+      {Platform.OS !== 'web' && (
+        <BarcodeScannerModal
+          visible={scannerOpen}
+          onClose={() => handleFinishScanner(0)}
+          mode="multi"
+          title={isKuLanguage ? 'سکانەری بەرهەمەکانی فرۆشتن' : 'Sales Barcode Scanner'}
+          subtitle={isKuLanguage ? 'کامێرا بگرە لەسەر بارکۆدەکان بۆ زیادکردنی ڕاستەوخۆ' : 'Scan items rapidly into cart'}
+          onScanMulti={handleScanMulti}
+          onFinishMulti={handleFinishScanner}
+        />
+      )}
     </View>
   );
 }

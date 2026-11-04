@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Pressable,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -624,30 +625,32 @@ export function PriceCheckModal({
               },
             ]}
           >
-            {/* Primary Action: Scan Another Item */}
-            <TouchableOpacity
-              onPress={() => {
-                onClose();
-                onScanAnother();
-              }}
-              activeOpacity={0.85}
-              style={[
-                styles.scanAnotherBtn,
-                { backgroundColor: colors.primary },
-                isTablet && { paddingVertical: 18, borderRadius: 16 },
-              ]}
-            >
-              <Ionicons name="barcode-outline" size={isTablet ? 24 : 20} color="#FFFFFF" style={{ marginEnd: 8 }} />
-              <Text
+            {/* Primary Action: Scan Another Item - Mobile Only */}
+            {Platform.OS !== 'web' && (
+              <TouchableOpacity
+                onPress={() => {
+                  onClose();
+                  onScanAnother();
+                }}
+                activeOpacity={0.85}
                 style={[
-                  styles.scanAnotherText,
-                  isTablet && { fontSize: 17 },
-                  isKuLanguage && applyKurdishFont(true, { fontWeight: '700' }),
+                  styles.scanAnotherBtn,
+                  { backgroundColor: colors.primary },
+                  isTablet && { paddingVertical: 18, borderRadius: 16 },
                 ]}
               >
-                {isKuLanguage ? 'سکانکردنی کاڵای تر' : 'Scan Another Product'}
-              </Text>
-            </TouchableOpacity>
+                <Ionicons name="barcode-outline" size={isTablet ? 24 : 20} color="#FFFFFF" style={{ marginEnd: 8 }} />
+                <Text
+                  style={[
+                    styles.scanAnotherText,
+                    isTablet && { fontSize: 17 },
+                    isKuLanguage && applyKurdishFont(true, { fontWeight: '700' }),
+                  ]}
+                >
+                  {isKuLanguage ? 'سکانکردنی کاڵای تر' : 'Scan Another Product'}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <View style={[styles.secondaryButtonsRow, { flexDirection }]}>
               {/* Add to Sale / Sell Now */}

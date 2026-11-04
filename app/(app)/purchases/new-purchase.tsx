@@ -1634,77 +1634,79 @@ export default function NewPurchaseScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Prominent Barcode / QR Scanner Button Banner */}
-      <TouchableOpacity
-        style={[
-          styles.scanBarcodeBanner,
-          {
-            borderColor: colors.primary,
-            backgroundColor: colors.primary + '12',
-            flexDirection: isRTL ? 'row-reverse' : 'row',
-          },
-        ]}
-        onPress={() => handleOpenScanner()}
-        activeOpacity={0.8}
-      >
-        <View style={[styles.scanIconBadge, { backgroundColor: colors.primary }]}>
-          <Ionicons name="barcode-outline" size={24} color="#FFFFFF" />
-        </View>
-        <View style={[styles.scanBannerTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
-          <Text
-            style={[
-              styles.scanBannerTitle,
-              {
-                color: colors.primary,
-                textAlign: isRTL ? 'right' : 'left',
-                writingDirection: isRTL ? 'rtl' : 'ltr',
-                alignSelf: 'stretch',
-              },
-              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-            ]}
-          >
-            {isArLanguage ? 'مسح الباركود أو QR' : isKuLanguage ? 'سکانی بارکۆد یان QR' : 'Scan Barcode or QR'}
-          </Text>
-          <Text
-            style={[
-              styles.scanBannerSub,
-              {
-                color: colors.gray500,
-                textAlign: isRTL ? 'right' : 'left',
-                writingDirection: isRTL ? 'rtl' : 'ltr',
-                alignSelf: 'stretch',
-              },
-              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
-            ]}
-          >
-            {isArLanguage
-              ? 'افتح الكاميرا لمسح وتعبئة المعرف فوراً'
-              : isKuLanguage
-              ? 'کامێرای مۆبایل بکەرەوە بۆ تۆمارکردنی خێرای ئایدی'
-              : 'Open camera to auto-fill product ID instantly'}
-          </Text>
-        </View>
-        <View
+      {/* Prominent Barcode / QR Scanner Button Banner - Mobile Only */}
+      {Platform.OS !== 'web' && (
+        <TouchableOpacity
           style={[
-            styles.scanActionPill,
+            styles.scanBarcodeBanner,
             {
-              backgroundColor: colors.primary,
+              borderColor: colors.primary,
+              backgroundColor: colors.primary + '12',
               flexDirection: isRTL ? 'row-reverse' : 'row',
-              gap: 4,
             },
           ]}
+          onPress={() => handleOpenScanner()}
+          activeOpacity={0.8}
         >
-          <Ionicons name="camera" size={16} color="#FFFFFF" />
-          <Text
+          <View style={[styles.scanIconBadge, { backgroundColor: colors.primary }]}>
+            <Ionicons name="barcode-outline" size={24} color="#FFFFFF" />
+          </View>
+          <View style={[styles.scanBannerTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+            <Text
+              style={[
+                styles.scanBannerTitle,
+                {
+                  color: colors.primary,
+                  textAlign: isRTL ? 'right' : 'left',
+                  writingDirection: isRTL ? 'rtl' : 'ltr',
+                  alignSelf: 'stretch',
+                },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+            >
+              {isArLanguage ? 'مسح الباركود أو QR' : isKuLanguage ? 'سکانی بارکۆد یان QR' : 'Scan Barcode or QR'}
+            </Text>
+            <Text
+              style={[
+                styles.scanBannerSub,
+                {
+                  color: colors.gray500,
+                  textAlign: isRTL ? 'right' : 'left',
+                  writingDirection: isRTL ? 'rtl' : 'ltr',
+                  alignSelf: 'stretch',
+                },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+              ]}
+            >
+              {isArLanguage
+                ? 'افتح الكاميرا لمسح وتعبئة المعرف فوراً'
+                : isKuLanguage
+                ? 'کامێرای مۆبایل بکەرەوە بۆ تۆمارکردنی خێرای ئایدی'
+                : 'Open camera to auto-fill product ID instantly'}
+            </Text>
+          </View>
+          <View
             style={[
-              styles.scanActionPillText,
-              (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              styles.scanActionPill,
+              {
+                backgroundColor: colors.primary,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                gap: 4,
+              },
             ]}
           >
-            {isArLanguage ? 'مسح' : isKuLanguage ? 'سکان' : 'Scan'}
-          </Text>
-        </View>
-      </TouchableOpacity>
+            <Ionicons name="camera" size={16} color="#FFFFFF" />
+            <Text
+              style={[
+                styles.scanActionPillText,
+                (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+            >
+              {isArLanguage ? 'مسح' : isKuLanguage ? 'سکان' : 'Scan'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       {idType === 'shared' && (
         <View
@@ -1748,26 +1750,28 @@ export default function NewPurchaseScreen() {
                 { flexDirection: isRTL ? 'row-reverse' : 'row' },
               ]}
             >
-              <TouchableOpacity
-                onPress={() => handleOpenScanner()}
-                style={[
-                  styles.itemActionBtn,
-                  { borderColor: colors.primary, backgroundColor: colors.softBlue },
-                  { flexDirection: isRTL ? 'row-reverse' : 'row' },
-                ]}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="barcode-outline" size={14} color={colors.primary} />
-                <Text
+              {Platform.OS !== 'web' && (
+                <TouchableOpacity
+                  onPress={() => handleOpenScanner()}
                   style={[
-                    styles.itemActionBtnText,
-                    { color: colors.primary },
-                    (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    styles.itemActionBtn,
+                    { borderColor: colors.primary, backgroundColor: colors.softBlue },
+                    { flexDirection: isRTL ? 'row-reverse' : 'row' },
                   ]}
+                  activeOpacity={0.7}
                 >
-                  {isArLanguage ? 'مسح' : isKuLanguage ? 'سکان' : 'Scan'}
-                </Text>
-              </TouchableOpacity>
+                  <Ionicons name="barcode-outline" size={14} color={colors.primary} />
+                  <Text
+                    style={[
+                      styles.itemActionBtnText,
+                      { color: colors.primary },
+                      (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
+                    {isArLanguage ? 'مسح' : isKuLanguage ? 'سکان' : 'Scan'}
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               <GenerateIdButton
                 loading={isGeneratingShared}
@@ -2002,26 +2006,28 @@ export default function NewPurchaseScreen() {
                       { flexDirection: isRTL ? 'row-reverse' : 'row' },
                     ]}
                   >
-                    <TouchableOpacity
-                      onPress={() => handleOpenScanner(i)}
-                      style={[
-                        styles.itemActionBtn,
-                        { borderColor: colors.primary, backgroundColor: colors.softBlue },
-                        { flexDirection: isRTL ? 'row-reverse' : 'row' },
-                      ]}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="barcode-outline" size={14} color={colors.primary} />
-                      <Text
+                    {Platform.OS !== 'web' && (
+                      <TouchableOpacity
+                        onPress={() => handleOpenScanner(i)}
                         style={[
-                          styles.itemActionBtnText,
-                          { color: colors.primary },
-                          (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          styles.itemActionBtn,
+                          { borderColor: colors.primary, backgroundColor: colors.softBlue },
+                          { flexDirection: isRTL ? 'row-reverse' : 'row' },
                         ]}
+                        activeOpacity={0.7}
                       >
-                        {isArLanguage ? 'مسح' : isKuLanguage ? 'سکان' : 'Scan'}
-                      </Text>
-                    </TouchableOpacity>
+                        <Ionicons name="barcode-outline" size={14} color={colors.primary} />
+                        <Text
+                          style={[
+                            styles.itemActionBtnText,
+                            { color: colors.primary },
+                            (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          ]}
+                        >
+                          {isArLanguage ? 'مسح' : isKuLanguage ? 'سکان' : 'Scan'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
 
                     <GenerateIdButton
                       loading={generatingCustomIdxs.has(i)}
@@ -3242,28 +3248,30 @@ export default function NewPurchaseScreen() {
         )}
       </KeyboardAvoidingView>
 
-      <BarcodeScannerModal
-        visible={scannerVisible}
-        onClose={() => setScannerVisible(false)}
-        mode={targetCustomIdx !== null ? 'single' : 'batch_ids'}
-        title={isArLanguage ? 'مسح باركود المادة' : isKuLanguage ? 'سکانی بارکۆدی کاڵا' : 'Scan Product Barcode'}
-        subtitle={
-          targetCustomIdx !== null
-            ? (isArLanguage ? `امسح الرمز للمادة #${targetCustomIdx + 1}` : isKuLanguage ? `کۆد بۆ ئایتەمی #${targetCustomIdx + 1} سکان بکە` : `Scan barcode for item #${targetCustomIdx + 1}`)
-            : (isArLanguage ? 'امسح الرموز بالتسلسل لفاتورة الشراء هذه' : isKuLanguage ? 'کۆدەکان یەک لەدوای یەک سکان بکە بۆ وەسڵی کڕین' : 'Scan item codes sequentially for this purchase')
-        }
-        initialCodes={
-          targetCustomIdx !== null
-            ? (customIds[targetCustomIdx] ? [customIds[targetCustomIdx]] : [])
-            : idType === 'custom'
-            ? customIds.filter(Boolean)
-            : sharedId
-            ? [sharedId]
-            : []
-        }
-        onScanSingle={handleScanSingle}
-        onApplyBatchIds={handleApplyBatchIds}
-      />
+      {Platform.OS !== 'web' && (
+        <BarcodeScannerModal
+          visible={scannerVisible}
+          onClose={() => setScannerVisible(false)}
+          mode={targetCustomIdx !== null ? 'single' : 'batch_ids'}
+          title={isArLanguage ? 'مسح باركود المادة' : isKuLanguage ? 'سکانی بارکۆدی کاڵا' : 'Scan Product Barcode'}
+          subtitle={
+            targetCustomIdx !== null
+              ? (isArLanguage ? `امسح الرمز للمادة #${targetCustomIdx + 1}` : isKuLanguage ? `کۆد بۆ ئایتەمی #${targetCustomIdx + 1} سکان بکە` : `Scan barcode for item #${targetCustomIdx + 1}`)
+              : (isArLanguage ? 'امسح الرموز بالتسلسل لفاتورة الشراء هذه' : isKuLanguage ? 'کۆدەکان یەک لەدوای یەک سکان بکە بۆ وەسڵی کڕین' : 'Scan item codes sequentially for this purchase')
+          }
+          initialCodes={
+            targetCustomIdx !== null
+              ? (customIds[targetCustomIdx] ? [customIds[targetCustomIdx]] : [])
+              : idType === 'custom'
+              ? customIds.filter(Boolean)
+              : sharedId
+              ? [sharedId]
+              : []
+          }
+          onScanSingle={handleScanSingle}
+          onApplyBatchIds={handleApplyBatchIds}
+        />
+      )}
     </View>
   );
 }
