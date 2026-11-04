@@ -86,12 +86,33 @@ function formatActivitySubtitleForReport(act: DashboardActivityItem, isKurdish: 
 }
 
 export function buildDashboardReportHTML(
-  stats: DashboardOverviewStats,
+  rawStats: DashboardOverviewStats,
   activities: DashboardActivityItem[],
   periodLabel: string,
   business: BusinessInfo,
   dir: 'ltr' | 'rtl' = 'rtl'
 ): string {
+  const stats: DashboardOverviewStats = rawStats || {
+    totalRevenue: 0,
+    totalSales: 0,
+    totalInvoices: 0,
+    totalPurchasesCost: 0,
+    totalPurchasesCount: 0,
+    expectedProfit: 0,
+    totalDiscount: 0,
+    totalExpenses: 0,
+    totalCustomers: 0,
+    totalSuppliers: 0,
+    totalItems: 0,
+    lowStockCount: 0,
+    customerDebtTotal: 0,
+    supplierDebtTotal: 0,
+    totalBatchesCount: 0,
+    activeBatchesCount: 0,
+    depletedBatchesCount: 0,
+    multiBatchProductsCount: 0,
+    expiringBatchesCount: 0,
+  };
   const isKurdish = dir === 'rtl' || isKurdishPdfActive();
   const lang = isKurdish ? 'ku' : 'en';
 

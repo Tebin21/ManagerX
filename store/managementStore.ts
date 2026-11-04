@@ -56,9 +56,11 @@ export const useManagementStore = create<ManagementState>()(
           set({ managedEmployees: [], isManager: false });
           return;
         }
+        const userAcc = get().currentUserAccount;
+        const isOwnerRole = userAcc?.role === 'manager' || userAcc?.role === 'user';
         set({
           managedEmployees,
-          isManager: managedEmployees.length > 0,
+          isManager: isOwnerRole || managedEmployees.length > 0 || get().isManager,
         });
       },
 

@@ -176,7 +176,7 @@ export default function DashboardViewScreen() {
       const business = useBusinessStore.getState();
       const { shareDashboardReport } = await import('@/lib/generateInvoice');
       await shareDashboardReport(
-        stats,
+        stats || DEFAULT_DASHBOARD_STATS,
         activities,
         periodLabel,
         {
@@ -203,6 +203,8 @@ export default function DashboardViewScreen() {
     setRefreshing(true);
     loadDashboardData();
   }, [loadDashboardData]);
+
+  const safeStats = stats || DEFAULT_DASHBOARD_STATS;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.gray50 }]}>
@@ -353,7 +355,7 @@ export default function DashboardViewScreen() {
             {showRevenue && (
               <DashboardMetricSquare
                 title={t('dashboard.totalRevenue')}
-                value={stats.totalRevenue}
+                value={safeStats.totalRevenue}
                 isCurrency
                 icon="wallet"
                 color="#10B981"
@@ -367,7 +369,7 @@ export default function DashboardViewScreen() {
             {showPurchases && (
               <DashboardMetricSquare
                 title={t('dashboard.totalPurchasesCost')}
-                value={stats.totalPurchasesCost}
+                value={safeStats.totalPurchasesCost}
                 isCurrency
                 icon="bag-handle"
                 color="#8B5CF6"
@@ -381,7 +383,7 @@ export default function DashboardViewScreen() {
             {showExpenses && (
               <DashboardMetricSquare
                 title={isKurdish ? 'کۆی مەسروفات' : 'Total Expenses'}
-                value={stats.totalExpenses}
+                value={safeStats.totalExpenses}
                 isCurrency
                 icon="cash-outline"
                 color="#E11D48"
@@ -395,12 +397,12 @@ export default function DashboardViewScreen() {
             {showRevenue && (
               <DashboardMetricSquare
                 title={t('dashboard.expectedProfit')}
-                value={stats.expectedProfit}
+                value={safeStats.expectedProfit}
                 isCurrency
                 icon="trending-up"
-                color={stats.expectedProfit >= 0 ? '#059669' : colors.error}
+                color={safeStats.expectedProfit >= 0 ? '#059669' : colors.error}
                 subtitle={
-                  stats.expectedProfit >= 0
+                  safeStats.expectedProfit >= 0
                     ? isKurdish
                       ? 'قازانج'
                       : 'Profit'
@@ -417,7 +419,7 @@ export default function DashboardViewScreen() {
             {showSales && (
               <DashboardMetricSquare
                 title={t('dashboard.totalSalesCount')}
-                value={stats.totalSales}
+                value={safeStats.totalSales}
                 isCurrency
                 icon="receipt"
                 color="#06B6D4"
@@ -431,7 +433,7 @@ export default function DashboardViewScreen() {
             {showSales && (
               <DashboardMetricSquare
                 title={t('dashboard.totalInvoices')}
-                value={stats.totalInvoices}
+                value={safeStats.totalInvoices}
                 icon="document-text"
                 color="#6366F1"
                 subtitle={isKurdish ? 'پسوولە' : 'Invoices'}
@@ -444,7 +446,7 @@ export default function DashboardViewScreen() {
             {showStockAlerts && (
               <DashboardMetricSquare
                 title={t('dashboard.totalCustomers')}
-                value={stats.totalCustomers}
+                value={safeStats.totalCustomers}
                 icon="people"
                 color="#F59E0B"
                 subtitle={isKurdish ? 'کڕیار' : 'Customers'}
@@ -457,7 +459,7 @@ export default function DashboardViewScreen() {
             {showStockAlerts && (
               <DashboardMetricSquare
                 title={t('dashboard.totalSuppliers')}
-                value={stats.totalSuppliers}
+                value={safeStats.totalSuppliers}
                 icon="business"
                 color="#14B8A6"
                 subtitle={isKurdish ? 'دابینکەر' : 'Suppliers'}
@@ -470,7 +472,7 @@ export default function DashboardViewScreen() {
             {showStockAlerts && (
               <DashboardMetricSquare
                 title={t('dashboard.totalItems')}
-                value={stats.totalItems}
+                value={safeStats.totalItems}
                 icon="cube"
                 color="#EC4899"
                 subtitle={isKurdish ? 'کاڵا' : 'Items'}
@@ -483,12 +485,12 @@ export default function DashboardViewScreen() {
             {showStockAlerts && (
               <DashboardMetricSquare
                 title={t('dashboard.lowStockAlert')}
-                value={stats.lowStockCount}
+                value={safeStats.lowStockCount}
                 icon="alert-circle"
                 color="#EF4444"
-                isAlert={stats.lowStockCount > 0}
+                isAlert={safeStats.lowStockCount > 0}
                 subtitle={
-                  stats.lowStockCount > 0
+                  safeStats.lowStockCount > 0
                     ? isKurdish
                       ? 'ئاگاداری'
                       : 'Low'
@@ -505,7 +507,7 @@ export default function DashboardViewScreen() {
             {showStockAlerts && (
               <DashboardMetricSquare
                 title={t('dashboard.totalBatches')}
-                value={stats.totalBatchesCount}
+                value={safeStats.totalBatchesCount}
                 icon="layers"
                 color="#6366F1"
                 subtitle={isKurdish ? 'وەجبە' : 'Batches'}
@@ -518,19 +520,19 @@ export default function DashboardViewScreen() {
             {showStockAlerts && (
               <DashboardMetricSquare
                 title={t('dashboard.activeBatches')}
-                value={stats.activeBatchesCount}
+                value={safeStats.activeBatchesCount}
                 icon="cube"
                 color="#10B981"
                 subtitle={
-                  stats.expiringBatchesCount > 0
+                  safeStats.expiringBatchesCount > 0
                     ? isKurdish
-                      ? `${stats.expiringBatchesCount} نزیک بەسەرچوون`
-                      : `${stats.expiringBatchesCount} Expiring`
+                      ? `${safeStats.expiringBatchesCount} نزیک بەسەرچوون`
+                      : `${safeStats.expiringBatchesCount} Expiring`
                     : isKurdish
                     ? 'لە کۆگادا'
                     : 'In Stock'
                 }
-                isAlert={stats.expiringBatchesCount > 0}
+                isAlert={safeStats.expiringBatchesCount > 0}
                 delay={310}
                 isLocked={lockStockAlerts}
               />
@@ -540,7 +542,7 @@ export default function DashboardViewScreen() {
             {showStockAlerts && (
               <DashboardMetricSquare
                 title={t('dashboard.depletedBatches')}
-                value={stats.depletedBatchesCount}
+                value={safeStats.depletedBatchesCount}
                 icon="checkmark-done-circle"
                 color="#64748B"
                 subtitle={isKurdish ? 'فرۆشراو' : 'Sold Out'}
@@ -553,7 +555,7 @@ export default function DashboardViewScreen() {
             {showStockAlerts && (
               <DashboardMetricSquare
                 title={t('dashboard.multiBatchItems')}
-                value={stats.multiBatchProductsCount}
+                value={safeStats.multiBatchProductsCount}
                 icon="duplicate"
                 color="#F59E0B"
                 subtitle={isKurdish ? 'فرە-وەجبە' : 'Multi-Batch'}
@@ -566,7 +568,7 @@ export default function DashboardViewScreen() {
             {showDebts && (
               <DashboardMetricSquare
                 title={t('dashboard.customerDebts')}
-                value={stats.customerDebtTotal}
+                value={safeStats.customerDebtTotal}
                 isCurrency
                 icon="arrow-down-circle"
                 color="#EA580C"
@@ -580,7 +582,7 @@ export default function DashboardViewScreen() {
             {showDebts && (
               <DashboardMetricSquare
                 title={t('dashboard.supplierDebts')}
-                value={stats.supplierDebtTotal}
+                value={safeStats.supplierDebtTotal}
                 isCurrency
                 icon="arrow-up-circle"
                 color="#DC2626"
@@ -594,7 +596,7 @@ export default function DashboardViewScreen() {
             {showExpenses && (
               <DashboardMetricSquare
                 title={t('dashboard.totalDiscounts')}
-                value={stats.totalDiscount}
+                value={safeStats.totalDiscount}
                 isCurrency
                 icon="pricetag"
                 color="#8B5CF6"

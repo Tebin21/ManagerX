@@ -135,6 +135,10 @@ export async function createEmployeeAccount(input: {
   displayName: string;
   managerEmail: string;
   permissions?: Partial<EmployeePermissions>;
+  role?: 'manager' | 'employee' | 'user';
+  phone?: string;
+  priceAmount?: string;
+  limits?: import('./types').EmployeeUsageLimits;
 }): Promise<EmployeeAccount> {
   const db = getFirebaseFirestore();
   const cleanEmail = input.email.trim().toLowerCase();
@@ -146,21 +150,71 @@ export async function createEmployeeAccount(input: {
     throw new Error('EMPLOYEE_EMAIL_ALREADY_EXISTS');
   }
 
+  const isManagerRole = input.role === 'manager';
+  const defaultLimits: import('./types').EmployeeUsageLimits = isManagerRole
+    ? {
+        maxItems: 'unlimited',
+        maxQuantity: 'unlimited',
+        maxSales: 'unlimited',
+        maxInvoices: 'unlimited',
+        maxQuotations: 'unlimited',
+      }
+    : (input.limits || {
+        maxItems: 'unlimited',
+        maxQuantity: 'unlimited',
+        maxSales: 'unlimited',
+        maxInvoices: 'unlimited',
+        maxQuotations: 'unlimited',
+      });
+
   const newAccount: EmployeeAccount & { password?: string } = {
     id: `emp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     email: cleanEmail,
     password: input.password,
     displayName: input.displayName.trim(),
-    managerEmail: input.managerEmail.trim().toLowerCase(),
+    managerEmail: (input.managerEmail || cleanEmail).trim().toLowerCase(),
+    phone: input.phone?.trim() || undefined,
+    priceAmount: input.priceAmount || (isManagerRole ? 'PRO / هەمیشەیی' : undefined),
+    role: input.role || 'employee',
     createdAt: new Date().toISOString(),
     status: 'active',
-    permissions: {
-      ...DEFAULT_EMPLOYEE_PERMISSIONS,
-      ...(input.permissions || {}),
-    },
+    limits: defaultLimits,
+    permissions: isManagerRole
+      ? ALL_ACTIVE_PERMISSIONS
+      : {
+          ...DEFAULT_EMPLOYEE_PERMISSIONS,
+          ...(input.permissions || {}),
+        },
   };
 
   await setDoc(docRef, newAccount, { merge: true });
+
+  // If this is a store manager or PRO account, mirror to user_subscriptions so PRO activates instantly everywhere
+  if (isManagerRole || input.role === 'user') {
+    try {
+      const subRef = doc(db, 'user_subscriptions', docId);
+      await setDoc(
+        subRef,
+        {
+          id: docId,
+          email: cleanEmail,
+          customerName: input.displayName.trim(),
+          phone: input.phone?.trim() || null,
+          status: 'active',
+          tier: 'pro',
+          planId: 'lifetime',
+          startDate: new Date().toISOString(),
+          priceAmount: input.priceAmount || 'PRO / هەمیشەیی',
+          limits: defaultLimits,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    } catch (e) {
+      console.warn('[ManagementService] user_subscriptions sync warning:', e);
+    }
+  }
+
   return newAccount;
 }
 
@@ -552,10 +606,12 @@ export async function authenticateEmployee(
       account: {
         ...data,
         id: snap.id,
-        permissions: {
-          ...DEFAULT_EMPLOYEE_PERMISSIONS,
-          ...(data.permissions || {}),
-        },
+        permissions: data.role === 'manager'
+          ? ALL_ACTIVE_PERMISSIONS
+          : {
+              ...DEFAULT_EMPLOYEE_PERMISSIONS,
+              ...(data.permissions || {}),
+            },
       },
     };
   } catch (err: any) {

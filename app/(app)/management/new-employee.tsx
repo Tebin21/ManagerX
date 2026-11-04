@@ -39,20 +39,21 @@ export default function NewEmployeeScreen() {
   const isManager = useManagementStore((s) => s.isManager);
   const isAdmin = isAdminEmail(currentAuthUser?.email);
 
-  // Security route guard: Adding employees is strictly prohibited in the mobile app for store managers; only central website Admin Panel can create staff
+  // Security route guard: Admin and Store Managers can access
   React.useEffect(() => {
-    if (!isAdmin) {
+    if (!isAdmin && !isManager) {
       Alert.alert(
         'دەسەڵاتت نییە',
-        'زیادکردنی کارمەندی نوێ تەنها لە ڕێگەی ئەدمین پانێڵی سایتەکەوە ئەنجام دەدرێت.'
+        'تەنها بەڕێوەبەر و سەرپەرشتیار دەتوانن هەژمار دروست بکەن.'
       );
       router.replace('/(app)/management');
     }
-  }, [isAdmin]);
+  }, [isAdmin, isManager]);
 
   // Pre-fill manager email if available, otherwise blank
   const defaultManagerEmail = (currentAuthUser?.email || '').trim().toLowerCase();
 
+  const [role, setRole] = useState<'manager' | 'employee'>(isAdmin ? 'manager' : 'employee');
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,7 +63,7 @@ export default function NewEmployeeScreen() {
 
   const handleSubmit = async () => {
     if (!displayName.trim()) {
-      Alert.alert(t('common.error'), 'تکایە ناوی کارمەند بنووسە.');
+      Alert.alert(t('common.error'), role === 'manager' ? 'تکایە ناوی خاوەن فرۆشگا بنووسە.' : 'تکایە ناوی کارمەند بنووسە.');
       return;
     }
     if (!email.trim() || !email.includes('@')) {
@@ -74,8 +75,11 @@ export default function NewEmployeeScreen() {
       return;
     }
 
-    // Non-admin managers can strictly only bind to their own authenticated email
-    const finalManagerEmail = isAdmin
+    // If role is manager, their managerEmail is their own email
+    const cleanEmpEmail = email.trim().toLowerCase();
+    const finalManagerEmail = role === 'manager'
+      ? cleanEmpEmail
+      : isAdmin
       ? managerEmail.trim().toLowerCase()
       : (currentAuthUser?.email || '').trim().toLowerCase();
 
@@ -88,22 +92,30 @@ export default function NewEmployeeScreen() {
     try {
       await createEmployeeAccount({
         displayName: displayName.trim(),
-        email: email.trim().toLowerCase(),
+        email: cleanEmpEmail,
         password: password.trim(),
         managerEmail: finalManagerEmail,
+        role: role,
+        priceAmount: role === 'manager' ? 'PRO / هەمیشەیی' : undefined,
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      Alert.alert(t('common.success'), t('management.employeeCreatedSuccess'), [
-        {
-          text: t('common.ok'),
-          onPress: () => router.back(),
-        },
-      ]);
+      Alert.alert(
+        t('common.success'),
+        role === 'manager'
+          ? 'هەژماری خاوەن فرۆشگا (PRO بێ سنوور) بە سەرکەوتوویی دروستکرا. ئێستا دەتوانێت ڕاستەوخۆ لەسەر کۆمپیوتەر یان مۆبایل بچێتە ژوورەوە.'
+          : t('management.employeeCreatedSuccess'),
+        [
+          {
+            text: t('common.ok'),
+            onPress: () => router.back(),
+          },
+        ]
+      );
     } catch (err: any) {
       console.error('[NewEmployee] Create error:', err);
       if (err?.message === 'EMPLOYEE_EMAIL_ALREADY_EXISTS') {
-        Alert.alert(t('common.error'), 'ئەم ئیمەیڵە پێشتر بەکارهاتووە بۆ کارمەندێکی تر.');
+        Alert.alert(t('common.error'), 'ئەم ئیمەیڵە پێشتر بەکارهاتووە بۆ هەژمارێکی تر.');
       } else {
         Alert.alert(t('common.error'), t('common.tryAgain'));
       }
@@ -131,10 +143,99 @@ export default function NewEmployeeScreen() {
               isTablet && { padding: 32, borderRadius: 24 },
             ]}
           >
+            {/* Account Role Selector (Admin only) */}
+            {isAdmin && (
+              <View style={[styles.formGroup, { marginBottom: 20 }]}>
+                <Text style={[styles.label, { color: colors.black }, isTablet && { fontSize: 16 }]}>
+                  جۆری هەژمار (ڕۆڵ)
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TouchableOpacity
+                    onPress={() => setRole('manager')}
+                    activeOpacity={0.8}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 12,
+                      paddingHorizontal: 8,
+                      borderRadius: 12,
+                      borderWidth: 1.5,
+                      borderColor: role === 'manager' ? colors.primary : colors.gray300,
+                      backgroundColor: role === 'manager' ? (isDark ? '#2A2415' : '#FEF9C3') : 'transparent',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Ionicons
+                      name="storefront"
+                      size={20}
+                      color={role === 'manager' ? colors.primary : colors.gray400}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '700',
+                        color: role === 'manager' ? colors.primary : colors.gray500,
+                        marginTop: 4,
+                      }}
+                    >
+                      خاوەن فرۆشگا (PRO)
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setRole('employee')}
+                    activeOpacity={0.8}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 12,
+                      paddingHorizontal: 8,
+                      borderRadius: 12,
+                      borderWidth: 1.5,
+                      borderColor: role === 'employee' ? colors.primary : colors.gray300,
+                      backgroundColor: role === 'employee' ? (isDark ? '#2A2415' : '#FEF9C3') : 'transparent',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Ionicons
+                      name="person"
+                      size={20}
+                      color={role === 'employee' ? colors.primary : colors.gray400}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '700',
+                        color: role === 'employee' ? colors.primary : colors.gray500,
+                        marginTop: 4,
+                      }}
+                    >
+                      کارمەندی فرۆشگا
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {role === 'manager' && (
+                  <View
+                    style={{
+                      marginTop: 10,
+                      padding: 10,
+                      borderRadius: 10,
+                      backgroundColor: isDark ? '#1E293B' : '#F1F5F9',
+                      borderLeftWidth: 4,
+                      borderLeftColor: colors.primary,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, color: colors.gray600, lineHeight: 18 }}>
+                      ⭐ ئەم هەژمارە ڕاستەوخۆ دەبێتە <Text style={{ fontWeight: '700', color: colors.primary }}>PRO بێ سنوور (هەمیشەیی)</Text> بە دەسەڵاتی تەواوی بەستنەوەی گۆگڵ درایڤ و بەڕێوەبردنی کارمەندەکانی خۆی.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Display Name */}
             <View style={styles.formGroup}>
               <Text style={[styles.label, { color: colors.black }, isTablet && { fontSize: 16 }]}>
-                {t('management.employeeName')}
+                {role === 'manager' ? 'ناوی خاوەن فرۆشگا / مارکێت' : t('management.employeeName')}
               </Text>
               <TextInput
                 style={[
@@ -147,7 +248,7 @@ export default function NewEmployeeScreen() {
                   },
                   isTablet && { height: 56, fontSize: 16, paddingHorizontal: 18, borderRadius: 14 },
                 ]}
-                placeholder="نموونە: ئارام ئەحمەد"
+                placeholder={role === 'manager' ? 'نموونە: مارکێتی سەردەم' : 'نموونە: ئارام ئەحمەد'}
                 placeholderTextColor={colors.gray400}
                 value={displayName}
                 onChangeText={setDisplayName}
@@ -222,47 +323,49 @@ export default function NewEmployeeScreen() {
               </View>
             </View>
 
-            {/* Manager Official Email */}
-            <View style={styles.formGroup}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={[styles.label, { color: colors.black }, isTablet && { fontSize: 16 }]}>
-                  {t('management.managerEmail')}
+            {/* Manager Official Email (only for employee accounts) */}
+            {role === 'employee' && (
+              <View style={styles.formGroup}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={[styles.label, { color: colors.black }, isTablet && { fontSize: 16 }]}>
+                    {t('management.managerEmail')}
+                  </Text>
+                  {!isAdmin && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="lock-closed" size={isTablet ? 15 : 13} color={colors.primary} />
+                      <Text style={{ fontSize: isTablet ? 13 : 11, color: colors.primary, fontWeight: '600' }}>
+                        تایبەت بە هەژماری خۆت
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                      borderColor: colors.gray300,
+                      color: !isAdmin ? colors.gray600 : colors.black,
+                      textAlign: 'left',
+                      opacity: !isAdmin ? 0.85 : 1,
+                    },
+                    isTablet && { height: 56, fontSize: 16, paddingHorizontal: 18, borderRadius: 14 },
+                  ]}
+                  placeholder="manager@gmail.com"
+                  placeholderTextColor={colors.gray400}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={isAdmin}
+                  value={isAdmin ? managerEmail : (currentAuthUser?.email || '')}
+                  onChangeText={setManagerEmail}
+                />
+                <Text style={[styles.hint, { color: colors.gray500 }, isTablet && { fontSize: 13.5, lineHeight: 20 }]}>
+                  {!isAdmin
+                    ? 'ئەم کارمەندە تەنها دەبەسترێتەوە بە کۆگاو مارکێتەکەی خۆت و هیچ بەڕێوەبەرێکی تر نایبینێت.'
+                    : 'داتاکانی کارمەند ڕاستەوخۆ دەبەسترێنەوە بە هەژماری کلاود و گۆگڵ درایڤی ئەم بەڕێوەبەرە.'}
                 </Text>
-                {!isAdmin && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Ionicons name="lock-closed" size={isTablet ? 15 : 13} color={colors.primary} />
-                    <Text style={{ fontSize: isTablet ? 13 : 11, color: colors.primary, fontWeight: '600' }}>
-                      تایبەت بە هەژماری خۆت
-                    </Text>
-                  </View>
-                )}
               </View>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
-                    borderColor: colors.gray300,
-                    color: !isAdmin ? colors.gray600 : colors.black,
-                    textAlign: 'left',
-                    opacity: !isAdmin ? 0.85 : 1,
-                  },
-                  isTablet && { height: 56, fontSize: 16, paddingHorizontal: 18, borderRadius: 14 },
-                ]}
-                placeholder="manager@gmail.com"
-                placeholderTextColor={colors.gray400}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                editable={isAdmin}
-                value={isAdmin ? managerEmail : (currentAuthUser?.email || '')}
-                onChangeText={setManagerEmail}
-              />
-              <Text style={[styles.hint, { color: colors.gray500 }, isTablet && { fontSize: 13.5, lineHeight: 20 }]}>
-                {!isAdmin
-                  ? 'ئەم کارمەندە تەنها دەبەسترێتەوە بە کۆگاو مارکێتەکەی خۆت و هیچ بەڕێوەبەرێکی تر نایبینێت.'
-                  : 'داتاکانی کارمەند ڕاستەوخۆ دەبەسترێنەوە بە هەژماری کلاود و گۆگڵ درایڤی ئەم بەڕێوەبەرە.'}
-              </Text>
-            </View>
+            )}
 
             {/* Submit Button */}
             <TouchableOpacity

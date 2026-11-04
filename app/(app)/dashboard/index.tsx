@@ -37,12 +37,11 @@ export default function DashboardScreen() {
     user.id === 'dev_user_1';
   const displayEmployees = isAdmin ? (allEmployees.length > 0 ? allEmployees : managedEmployees) : managedEmployees;
 
-  // All accounts are normal standard accounts; management banner is strictly hidden unless user actively manages staff
+  // Management banner is visible for store managers and admins
   const showManagementBanner =
     !isEmployee &&
     !isDemoAccount &&
-    isManager &&
-    managedEmployees.length > 0;
+    (isAdmin || isManager);
 
   const [isDriveConnected, setIsDriveConnected] = React.useState(false);
 

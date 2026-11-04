@@ -115,6 +115,7 @@ export default function LoginScreen() {
 
   // Large screen vs phone breakpoint
   const isLargeScreen = isTablet || width >= 720;
+  const isDesktopOrWeb = isLargeScreen || Platform.OS === 'web';
 
   const curLang: 'ku' | 'en' | 'ar' = language === 'en' ? 'en' : language === 'ar' ? 'ar' : 'ku';
   const strings = LOGIN_STRINGS[curLang];
@@ -132,17 +133,40 @@ export default function LoginScreen() {
     useAuthStore.setState({ isLoading: true });
 
     try {
-      // 1. Check if this is an employee account managed via Management Hub
+      // 1. Check if this is an employee or store manager account created via Management Hub / Admin Panel
       try {
         const { authenticateEmployee, recordEmployeeLogin } = await import('@/lib/management/managementService');
         const empResult = await authenticateEmployee(email.trim(), password);
         if (empResult.success && empResult.account) {
           const emp = empResult.account;
           const { useManagementStore } = await import('@/store/managementStore');
-          // Clean reset of all management state before binding employee
+          const { ALL_ACTIVE_PERMISSIONS } = await import('@/lib/management/types');
+          const isStoreManager =
+            emp.role === 'manager' ||
+            emp.role === 'user' ||
+            !emp.managerEmail ||
+            emp.managerEmail.toLowerCase() === emp.email.toLowerCase();
+
+          // Clean reset of all management state before binding
           useManagementStore.getState().resetAllManagementState();
-          useManagementStore.getState().setCurrentEmployee(emp);
-          useManagementStore.getState().initEmployeeLiveSubscription(emp.email);
+
+          if (isStoreManager) {
+            // Log in as Store Manager / Desktop Owner
+            useManagementStore.getState().clearEmployeeSession();
+            useManagementStore.getState().setCurrentUserAccount(emp);
+            useManagementStore.setState({
+              isManager: true,
+              isEmployee: false,
+              currentUserAccount: emp,
+              currentPermissions: ALL_ACTIVE_PERMISSIONS,
+            });
+            // Subscribe to their managed staff
+            useManagementStore.getState().initManagerSubscription(emp.email);
+          } else {
+            // Log in as Employee
+            useManagementStore.getState().setCurrentEmployee(emp);
+            useManagementStore.getState().initEmployeeLiveSubscription(emp.email);
+          }
 
           await recordEmployeeLogin(emp.email);
 
@@ -157,7 +181,7 @@ export default function LoginScreen() {
           // Direct business sync to manager's email namespace with complete data bleed prevention
           const { useBusinessStore } = await import('@/store/businessStore');
           const prevOwner = useBusinessStore.getState().ownerUserId;
-          const targetOwner = (emp.managerEmail || emp.email).trim().toLowerCase();
+          const targetOwner = (isStoreManager ? emp.email : (emp.managerEmail || emp.email)).trim().toLowerCase();
 
           if (prevOwner && prevOwner.toLowerCase() !== targetOwner.toLowerCase()) {
             // Device has data from a different manager or account — wipe completely to isolate
@@ -538,26 +562,30 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Divider */}
-          <View style={styles.dividerRow}>
-            <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
-            <Text
-              style={[
-                styles.dividerText,
-                curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
-                { color: isDark ? '#64748B' : '#94A3B8' },
-              ]}
-            >
-              {strings.or}
-            </Text>
-            <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
-          </View>
+          {/* Divider and Social Logins - strictly for mobile; hidden on Desktop */}
+          {!isDesktopOrWeb && (
+            <>
+              <View style={styles.dividerRow}>
+                <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
+                <Text
+                  style={[
+                    styles.dividerText,
+                    curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+                    { color: isDark ? '#64748B' : '#94A3B8' },
+                  ]}
+                >
+                  {strings.or}
+                </Text>
+                <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
+              </View>
 
-          {/* Social Logins */}
-          <View style={styles.socialBtnsWrapper}>
-            <GoogleSignInButton onPress={handleGoogle} loading={isLoading} label={strings.googleBtn} />
-            <AppleSignInButton onPress={handleApple} loading={isLoading} />
-          </View>
+              {/* Social Logins */}
+              <View style={styles.socialBtnsWrapper}>
+                <GoogleSignInButton onPress={handleGoogle} loading={isLoading} label={strings.googleBtn} />
+                <AppleSignInButton onPress={handleApple} loading={isLoading} />
+              </View>
+            </>
+          )}
 
           {/* Desktop Offline Local Mode Button */}
           {isLargeScreen && (
@@ -661,31 +689,52 @@ export default function LoginScreen() {
         </View>
       )}
 
-      {/* Don't have an account -> Sign up link */}
-      <TouchableOpacity
-        onPress={() => router.push('/(onboarding)/signup' as never)}
-        activeOpacity={0.7}
-        style={styles.signUpRow}
-      >
-        <Text
-          style={[
-            styles.signUpPrompt,
-            curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
-            { color: isDark ? '#94A3B8' : '#64748B' },
-          ]}
+      {/* Don't have an account -> Sign up link (mobile only; desktop shows credential note) */}
+      {!isDesktopOrWeb ? (
+        <TouchableOpacity
+          onPress={() => router.push('/(onboarding)/signup' as never)}
+          activeOpacity={0.7}
+          style={styles.signUpRow}
         >
-          {strings.noAccount}{' '}
           <Text
             style={[
-              styles.signUpLinkText,
-              curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              { color: '#F8C61E' },
+              styles.signUpPrompt,
+              curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+              { color: isDark ? '#94A3B8' : '#64748B' },
             ]}
           >
-            {strings.signUpLink}
+            {strings.noAccount}{' '}
+            <Text
+              style={[
+                styles.signUpLinkText,
+                curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                { color: '#F8C61E' },
+              ]}
+            >
+              {strings.signUpLink}
+            </Text>
           </Text>
-        </Text>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      ) : (
+        <View style={{ marginTop: 22, alignItems: 'center' }}>
+          <Text
+            style={[
+              {
+                fontSize: 12.5,
+                color: isDark ? '#94A3B8' : '#64748B',
+                textAlign: 'center',
+              },
+              curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+            ]}
+          >
+            {curLang === 'ku'
+              ? '🔒 هەژماری فرۆشیار و وشەی نهێنی لەلایەن بەڕێوەبەرەوە دابین دەکرێت'
+              : curLang === 'ar'
+              ? '🔒 يتم تزويد حساب المتجر وكلمة المرور من قبل المسؤول'
+              : '🔒 Store account and login password are provided by administration'}
+          </Text>
+        </View>
+      )}
     </View>
   );
 
