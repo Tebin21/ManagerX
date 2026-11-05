@@ -49,6 +49,10 @@ export default function PurchasesScreen() {
   }, []);
 
   const { count, total } = useMemo(() => getTodayStats(purchases), [purchases]);
+  const iconBoxBg = useMemo(
+    () => (isDark ? hexToRgba(colors.primary, 0.20) : hexToRgba(colors.primary, 0.12)),
+    [colors.primary, isDark]
+  );
   const [showSavedImagesModal, setShowSavedImagesModal] = useState(false);
   const savedPresets = useSavedProductStore((s) => s.savedPresets);
   const savedPhotosCount = useMemo(
@@ -250,7 +254,7 @@ export default function PurchasesScreen() {
                     borderRadius: 18,
                     marginBottom: 12,
                   },
-                  { backgroundColor: colors.softBlue },
+                  { backgroundColor: iconBoxBg },
                 ]}
               >
                 <Ionicons
@@ -314,13 +318,13 @@ export default function PurchasesScreen() {
                       height: isTabletLandscape ? 64 : 56,
                       borderRadius: 18,
                     },
-                    { backgroundColor: isDark ? hexToRgba(colors.success, 0.15) : '#F0FDF4' },
+                    { backgroundColor: iconBoxBg },
                   ]}
                 >
                   <Ionicons
                     name="list-outline"
                     size={isTabletLandscape ? 30 : isTablet ? 26 : 20}
-                    color={colors.success}
+                    color={colors.primary}
                   />
                 </View>
                 <View style={{ flexShrink: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
@@ -390,7 +394,7 @@ export default function PurchasesScreen() {
                       height: isTabletLandscape ? 64 : 56,
                       borderRadius: 18,
                     },
-                    { backgroundColor: colors.softBlue },
+                    { backgroundColor: iconBoxBg },
                   ]}
                 >
                   <Ionicons
@@ -466,7 +470,7 @@ export default function PurchasesScreen() {
                       height: isTabletLandscape ? 64 : 56,
                       borderRadius: 18,
                     },
-                    { backgroundColor: hexToRgba(colors.primary, 0.12) },
+                    { backgroundColor: iconBoxBg },
                   ]}
                 >
                   <Ionicons

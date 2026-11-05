@@ -220,15 +220,50 @@ function getNormalizedWebCategories(): WebCategoryRecord[] {
   return list;
 }
 
-export async function getDefaultCategoryName(): Promise<string> {
+function syncWebCategoriesFromSources(): WebCategoryRecord[] {
   const cats = getNormalizedWebCategories();
+  const products = getLocal<any[]>(KEYS.products, []);
+  const purchases = getLocal<any[]>(KEYS.purchases, []);
+
+  const existingNames = new Set(cats.map((c) => c.name.toLowerCase()));
+  let modified = false;
+
+  const addIfMissing = (rawName: any) => {
+    const catName = String(rawName || '').trim();
+    if (catName && !existingNames.has(catName.toLowerCase())) {
+      cats.push({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        name: catName,
+        is_default: (catName === 'گشتی' || catName === 'General' || catName === 'بنەڕەت') ? 1 : 0,
+      });
+      existingNames.add(catName.toLowerCase());
+      modified = true;
+    }
+  };
+
+  products.forEach((p) => addIfMissing(p.category));
+  purchases.forEach((pur) => {
+    addIfMissing(pur.category);
+    if (Array.isArray(pur.items)) {
+      pur.items.forEach((item: any) => addIfMissing(item.category));
+    }
+  });
+
+  if (modified) {
+    setLocal(KEYS.categories, cats);
+  }
+
+  return cats;
+}
+
+export async function getDefaultCategoryName(): Promise<string> {
+  const cats = syncWebCategoriesFromSources();
   const def = cats.find((c) => c.is_default === 1);
   return def ? def.name : 'گشتی';
 }
 
 export async function getProductCategories(): Promise<string[]> {
-  const cats = getNormalizedWebCategories();
-  const products = getLocal<any[]>(KEYS.products, []);
+  const cats = syncWebCategoriesFromSources();
   const set = new Set<string>();
 
   // Always put default category first
@@ -238,39 +273,12 @@ export async function getProductCategories(): Promise<string[]> {
   // Other categories from category list
   cats.forEach((c) => set.add(c.name));
 
-  // Any categories attached to products
-  products.forEach((p) => {
-    if (p.category && String(p.category).trim()) {
-      set.add(String(p.category).trim());
-    }
-  });
-
   return Array.from(set);
 }
 
 export async function getAllManagedCategories(): Promise<Array<{ name: string; productCount: number; isDefault: boolean }>> {
-  const cats = getNormalizedWebCategories();
+  const cats = syncWebCategoriesFromSources();
   const products = getLocal<any[]>(KEYS.products, []);
-
-  // Also sync any categories that might exist on products
-  const existingNames = new Set(cats.map((c) => c.name.toLowerCase()));
-  let addedFromProducts = false;
-  products.forEach((p) => {
-    const catName = p.category ? String(p.category).trim() : '';
-    if (catName && !existingNames.has(catName.toLowerCase())) {
-      cats.push({
-        id: Date.now() + Math.floor(Math.random() * 1000),
-        name: catName,
-        is_default: 0,
-      });
-      existingNames.add(catName.toLowerCase());
-      addedFromProducts = true;
-    }
-  });
-
-  if (addedFromProducts) {
-    setLocal(KEYS.categories, cats);
-  }
 
   const result = cats.map((cat) => ({
     name: cat.name,
@@ -294,7 +302,7 @@ export async function addManagedCategory(name: string): Promise<void> {
   const trimmed = name.trim();
   if (!trimmed) throw new Error('CATEGORY_NAME_REQUIRED');
 
-  const cats = getNormalizedWebCategories();
+  const cats = syncWebCategoriesFromSources();
   const existing = cats.find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
   if (existing) {
     throw new Error('CATEGORY_ALREADY_EXISTS');
@@ -395,6 +403,27 @@ export async function deleteManagedCategory(name: string): Promise<void> {
   });
   if (updatedProducts) {
     setLocal(KEYS.products, products);
+  }
+
+  // Reassign purchases to the fallback default category
+  const purchases = getLocal<any[]>(KEYS.purchases, []);
+  let updatedPurchases = false;
+  purchases.forEach((pur) => {
+    if (String(pur.category || '').trim().toLowerCase() === trimmed.toLowerCase()) {
+      pur.category = fallbackCat;
+      updatedPurchases = true;
+    }
+    if (Array.isArray(pur.items)) {
+      pur.items.forEach((item: any) => {
+        if (String(item.category || '').trim().toLowerCase() === trimmed.toLowerCase()) {
+          item.category = fallbackCat;
+          updatedPurchases = true;
+        }
+      });
+    }
+  });
+  if (updatedPurchases) {
+    setLocal(KEYS.purchases, purchases);
   }
 }
 

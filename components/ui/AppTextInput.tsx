@@ -139,11 +139,14 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
               style={applyKurdishFont(isKurdish, [
                 styles.input,
                 {
-                  height: inputHeight,
+                  height: rest.multiline ? undefined : inputHeight,
+                  minHeight: rest.multiline ? (inputHeight || 48) * 1.6 : undefined,
                   fontSize: Math.round((isTablet ? 17 : 15) * uiScaleFactor * 10) / 10,
                   flex: 1,
                   color: colors.black,
                   textAlign,
+                  textAlignVertical: rest.multiline ? 'top' : 'center',
+                  paddingTop: rest.multiline ? 12 : undefined,
                 },
                 Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any),
                 forceLatin && { textAlign: 'left', writingDirection: 'ltr' },
@@ -197,7 +200,7 @@ const styles = StyleSheet.create({
   },
   input: {
     height:      Theme.input.height,
-    paddingStart: 16,
+    paddingHorizontal: 16,
     fontSize:    15,
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any) : {}),
   },

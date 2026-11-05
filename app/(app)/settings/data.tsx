@@ -45,6 +45,7 @@ import {
   performRestore,
   type FroshiarBackup,
   type RestoreSummary,
+  type BackupScope,
 } from '@/lib/backup';
 import { useAuthStore }     from '@/store/authStore';
 import { useBusinessStore }  from '@/store/businessStore';
@@ -93,6 +94,17 @@ export default function DataScreen() {
   const [backing,          setBacking]          = useState(false);
   const [restoring,        setRestoring]        = useState(false);
   const [resetting,        setResetting]        = useState(false);
+  const [showBackupModal,  setShowBackupModal]  = useState(false);
+  const [selectedScope,    setSelectedScope]    = useState<BackupScope>('all');
+  const [backupStats,      setBackupStats]      = useState({
+    products: 0,
+    categories: 0,
+    sales: 0,
+    customers: 0,
+    purchases: 0,
+    suppliers: 0,
+    expenses: 0,
+  });
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [showResetModal,   setShowResetModal]   = useState(false);
   const [resetInput,       setResetInput]       = useState('');
@@ -228,27 +240,65 @@ export default function DataScreen() {
     try {
       if (Platform.OS === 'web') {
         let total = 0;
+        let pCount = 0, catCount = 0, sCount = 0, cCount = 0, purCount = 0, supCount = 0, expCount = 0;
         try {
           const p = typeof localStorage !== 'undefined' ? localStorage.getItem('@froshiar_db_products') : null;
+          const cat = typeof localStorage !== 'undefined' ? localStorage.getItem('@froshiar_db_categories') : null;
           const s = typeof localStorage !== 'undefined' ? localStorage.getItem('@froshiar_db_sales') : null;
           const pur = typeof localStorage !== 'undefined' ? localStorage.getItem('@froshiar_db_purchases') : null;
           const c = typeof localStorage !== 'undefined' ? localStorage.getItem('@froshiar_db_customers') : null;
-          if (p) total += (JSON.parse(p) as any[]).length;
-          if (s) total += (JSON.parse(s) as any[]).length;
-          if (pur) total += (JSON.parse(pur) as any[]).length;
-          if (c) total += (JSON.parse(c) as any[]).length;
+          const sup = typeof localStorage !== 'undefined' ? localStorage.getItem('@froshiar_db_suppliers') : null;
+          const exp = typeof localStorage !== 'undefined' ? localStorage.getItem('@froshiar_db_expenses') : null;
+
+          if (p) pCount = (JSON.parse(p) as any[]).length;
+          if (cat) catCount = (JSON.parse(cat) as any[]).length;
+          if (s) sCount = (JSON.parse(s) as any[]).length;
+          if (pur) purCount = (JSON.parse(pur) as any[]).length;
+          if (c) cCount = (JSON.parse(c) as any[]).length;
+          if (sup) supCount = (JSON.parse(sup) as any[]).length;
+          if (exp) expCount = (JSON.parse(exp) as any[]).length;
+          total = pCount + sCount + purCount + cCount;
         } catch {}
         setDbRecords(total);
+        setBackupStats({
+          products: pCount,
+          categories: catCount,
+          sales: sCount,
+          customers: cCount,
+          purchases: purCount,
+          suppliers: supCount,
+          expenses: expCount,
+        });
         return;
       }
       const db = await getDatabase();
-      const counts = await Promise.all([
+      const [pRow, catRow, sRow, cRow, purRow, supRow, expRow] = await Promise.all([
         db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM products'),
+        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM categories'),
         db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM sales'),
-        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM purchases'),
         db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM customers'),
+        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM purchases'),
+        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM suppliers'),
+        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM expenses'),
       ]);
-      setDbRecords(counts.reduce((s, r) => s + (r?.cnt ?? 0), 0));
+      const pCount = pRow?.cnt ?? 0;
+      const catCount = catRow?.cnt ?? 0;
+      const sCount = sRow?.cnt ?? 0;
+      const cCount = cRow?.cnt ?? 0;
+      const purCount = purRow?.cnt ?? 0;
+      const supCount = supRow?.cnt ?? 0;
+      const expCount = expRow?.cnt ?? 0;
+
+      setDbRecords(pCount + sCount + purCount + cCount);
+      setBackupStats({
+        products: pCount,
+        categories: catCount,
+        sales: sCount,
+        customers: cCount,
+        purchases: purCount,
+        suppliers: supCount,
+        expenses: expCount,
+      });
     } catch {
       setDbRecords(0);
     }
@@ -258,10 +308,12 @@ export default function DataScreen() {
   // expo-sharing is loaded lazily so that a missing native module never crashes
   // the screen at mount time.
 
-  async function handleBackup() {
+  async function handleBackup(scopeToUse?: BackupScope) {
+    const scope = scopeToUse ?? selectedScope;
+    setShowBackupModal(false);
     setBacking(true);
     try {
-      const uri = await exportBackup();
+      const uri = await exportBackup({ scope });
 
       // Try to open the system share sheet; fail gracefully if unavailable.
       try {
@@ -659,7 +711,10 @@ export default function DataScreen() {
             icon="cloud-upload"
             label={t('settings.dataScreen.backupData')}
             sub={t('settings.dataScreen.backupDataSub')}
-            onPress={handleBackup}
+            onPress={() => {
+              void loadDbStats();
+              setShowBackupModal(true);
+            }}
             disabled={backing || restoring}
             rightElement={
               backing
@@ -716,6 +771,280 @@ export default function DataScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* ── Backup Scope Selection Modal ───────────────────────────────── */}
+      <Modal
+        transparent
+        visible={showBackupModal}
+        animationType="fade"
+        onRequestClose={() => setShowBackupModal(false)}
+        statusBarTranslucent
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
+      >
+        <View style={styles.overlay}>
+          <View style={[
+            styles.dialog,
+            styles.backupScopeDialog,
+            IS_IOS && styles.glassDialog,
+            {
+              backgroundColor: IS_IOS
+                ? (isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)')
+                : (isDark ? colors.gray100 : '#FFFFFF'),
+              borderColor: IS_IOS
+                ? (isDark ? 'rgba(255, 255, 255, 0.20)' : 'rgba(255, 255, 255, 0.85)')
+                : (isDark ? colors.gray200 : 'transparent'),
+              borderWidth: IS_IOS ? 1.2 : (isDark ? 1 : 0),
+            },
+          ]}>
+            <View style={[styles.dialogIconWrap, { backgroundColor: isDark ? hexToRgba(colors.primary, 0.20) : hexToRgba(colors.primary, 0.12) }]}>
+              <Ionicons name="cloud-upload" size={28} color={colors.primary} />
+            </View>
+
+            <Text style={[styles.dialogTitle, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }, { color: colors.black }]}>
+              {t('settings.dataScreen.backupScopeTitle')}
+            </Text>
+
+            <Text style={[styles.dialogMsg, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR }, { color: colors.gray500, marginBottom: 14 }]}>
+              {t('settings.dataScreen.backupScopeSub')}
+            </Text>
+
+            <ScrollView style={{ width: '100%', maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+              <View style={{ gap: 10, width: '100%', paddingBottom: 6 }}>
+                {/* 1. All Data */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setSelectedScope('all')}
+                  style={[
+                    styles.scopeOptionCard,
+                    {
+                      borderColor: selectedScope === 'all' ? colors.primary : (isDark ? colors.gray200 : colors.gray200),
+                      borderWidth: selectedScope === 'all' ? 2 : 1,
+                      backgroundColor: selectedScope === 'all'
+                        ? (isDark ? hexToRgba(colors.primary, 0.18) : hexToRgba(colors.primary, 0.08))
+                        : (isDark ? colors.gray50 : colors.gray50),
+                      flexDirection,
+                    },
+                  ]}
+                >
+                  <View style={[styles.scopeIconBox, { backgroundColor: isDark ? hexToRgba(colors.primary, 0.20) : hexToRgba(colors.primary, 0.12) }]}>
+                    <Ionicons name="layers-outline" size={20} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                    <View style={{ flexDirection, alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text style={[styles.scopeTitle, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }, { color: colors.black }]}>
+                        {t('settings.dataScreen.backupScopeAll')}
+                      </Text>
+                      <View style={[styles.scopeBadge, { backgroundColor: isDark ? hexToRgba(colors.primary, 0.25) : hexToRgba(colors.primary, 0.15) }]}>
+                        <Text style={[styles.scopeBadgeText, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }, { color: colors.primary }]}>
+                          {t('settings.dataScreen.backupScopeAllBadge')}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.scopeSub, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR }, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
+                      {t('settings.dataScreen.backupScopeAllSub')}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={selectedScope === 'all' ? 'radio-button-on' : 'radio-button-off'}
+                    size={22}
+                    color={selectedScope === 'all' ? colors.primary : colors.gray400}
+                  />
+                </TouchableOpacity>
+
+                {/* 2. Sales & Customers */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setSelectedScope('sales_customers')}
+                  style={[
+                    styles.scopeOptionCard,
+                    {
+                      borderColor: selectedScope === 'sales_customers' ? colors.primary : (isDark ? colors.gray200 : colors.gray200),
+                      borderWidth: selectedScope === 'sales_customers' ? 2 : 1,
+                      backgroundColor: selectedScope === 'sales_customers'
+                        ? (isDark ? hexToRgba(colors.primary, 0.18) : hexToRgba(colors.primary, 0.08))
+                        : (isDark ? colors.gray50 : colors.gray50),
+                      flexDirection,
+                    },
+                  ]}
+                >
+                  <View style={[styles.scopeIconBox, { backgroundColor: isDark ? hexToRgba(colors.primary, 0.20) : hexToRgba(colors.primary, 0.12) }]}>
+                    <Ionicons name="cart-outline" size={20} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                    <View style={{ flexDirection, alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text style={[styles.scopeTitle, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }, { color: colors.black }]}>
+                        {t('settings.dataScreen.backupScopeSales')}
+                      </Text>
+                      <View style={[styles.scopeBadge, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.20)' : '#EFF6FF' }]}>
+                        <Text style={[styles.scopeBadgeText, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR }, { color: isDark ? '#60A5FA' : '#2563EB' }]}>
+                          {t('settings.dataScreen.backupSalesBadge', { sales: backupStats.sales, customers: backupStats.customers })}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.scopeSub, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR }, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
+                      {t('settings.dataScreen.backupScopeSalesSub')}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={selectedScope === 'sales_customers' ? 'radio-button-on' : 'radio-button-off'}
+                    size={22}
+                    color={selectedScope === 'sales_customers' ? colors.primary : colors.gray400}
+                  />
+                </TouchableOpacity>
+
+                {/* 3. Inventory & Products */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setSelectedScope('inventory')}
+                  style={[
+                    styles.scopeOptionCard,
+                    {
+                      borderColor: selectedScope === 'inventory' ? colors.primary : (isDark ? colors.gray200 : colors.gray200),
+                      borderWidth: selectedScope === 'inventory' ? 2 : 1,
+                      backgroundColor: selectedScope === 'inventory'
+                        ? (isDark ? hexToRgba(colors.primary, 0.18) : hexToRgba(colors.primary, 0.08))
+                        : (isDark ? colors.gray50 : colors.gray50),
+                      flexDirection,
+                    },
+                  ]}
+                >
+                  <View style={[styles.scopeIconBox, { backgroundColor: isDark ? hexToRgba(colors.primary, 0.20) : hexToRgba(colors.primary, 0.12) }]}>
+                    <Ionicons name="cube-outline" size={20} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                    <View style={{ flexDirection, alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text style={[styles.scopeTitle, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }, { color: colors.black }]}>
+                        {t('settings.dataScreen.backupScopeInventory')}
+                      </Text>
+                      <View style={[styles.scopeBadge, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : '#ECFDF5' }]}>
+                        <Text style={[styles.scopeBadgeText, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR }, { color: isDark ? '#34D399' : '#059669' }]}>
+                          {t('settings.dataScreen.backupInventoryBadge', { products: backupStats.products, categories: backupStats.categories })}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.scopeSub, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR }, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
+                      {t('settings.dataScreen.backupScopeInventorySub')}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={selectedScope === 'inventory' ? 'radio-button-on' : 'radio-button-off'}
+                    size={22}
+                    color={selectedScope === 'inventory' ? colors.primary : colors.gray400}
+                  />
+                </TouchableOpacity>
+
+                {/* 4. Purchases & Suppliers */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setSelectedScope('purchases_suppliers')}
+                  style={[
+                    styles.scopeOptionCard,
+                    {
+                      borderColor: selectedScope === 'purchases_suppliers' ? colors.primary : (isDark ? colors.gray200 : colors.gray200),
+                      borderWidth: selectedScope === 'purchases_suppliers' ? 2 : 1,
+                      backgroundColor: selectedScope === 'purchases_suppliers'
+                        ? (isDark ? hexToRgba(colors.primary, 0.18) : hexToRgba(colors.primary, 0.08))
+                        : (isDark ? colors.gray50 : colors.gray50),
+                      flexDirection,
+                    },
+                  ]}
+                >
+                  <View style={[styles.scopeIconBox, { backgroundColor: isDark ? hexToRgba(colors.primary, 0.20) : hexToRgba(colors.primary, 0.12) }]}>
+                    <Ionicons name="bag-handle-outline" size={20} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                    <View style={{ flexDirection, alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text style={[styles.scopeTitle, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }, { color: colors.black }]}>
+                        {t('settings.dataScreen.backupScopePurchases')}
+                      </Text>
+                      <View style={[styles.scopeBadge, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.20)' : '#FFFBEB' }]}>
+                        <Text style={[styles.scopeBadgeText, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR }, { color: isDark ? '#FBBF24' : '#D97706' }]}>
+                          {t('settings.dataScreen.backupPurchasesBadge', { purchases: backupStats.purchases, suppliers: backupStats.suppliers })}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.scopeSub, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR }, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
+                      {t('settings.dataScreen.backupScopePurchasesSub')}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={selectedScope === 'purchases_suppliers' ? 'radio-button-on' : 'radio-button-off'}
+                    size={22}
+                    color={selectedScope === 'purchases_suppliers' ? colors.primary : colors.gray400}
+                  />
+                </TouchableOpacity>
+
+                {/* 5. Dashboard & Financials */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setSelectedScope('dashboard_financial')}
+                  style={[
+                    styles.scopeOptionCard,
+                    {
+                      borderColor: selectedScope === 'dashboard_financial' ? colors.primary : (isDark ? colors.gray200 : colors.gray200),
+                      borderWidth: selectedScope === 'dashboard_financial' ? 2 : 1,
+                      backgroundColor: selectedScope === 'dashboard_financial'
+                        ? (isDark ? hexToRgba(colors.primary, 0.18) : hexToRgba(colors.primary, 0.08))
+                        : (isDark ? colors.gray50 : colors.gray50),
+                      flexDirection,
+                    },
+                  ]}
+                >
+                  <View style={[styles.scopeIconBox, { backgroundColor: isDark ? hexToRgba(colors.primary, 0.20) : hexToRgba(colors.primary, 0.12) }]}>
+                    <Ionicons name="pie-chart-outline" size={20} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                    <View style={{ flexDirection, alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text style={[styles.scopeTitle, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }, { color: colors.black }]}>
+                        {t('settings.dataScreen.backupScopeDashboard')}
+                      </Text>
+                      <View style={[styles.scopeBadge, { backgroundColor: isDark ? 'rgba(168, 85, 247, 0.20)' : '#FAF5FF' }]}>
+                        <Text style={[styles.scopeBadgeText, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR }, { color: isDark ? '#C084FC' : '#9333EA' }]}>
+                          {t('settings.dataScreen.backupDashboardBadge', { expenses: backupStats.expenses })}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.scopeSub, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR }, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
+                      {t('settings.dataScreen.backupScopeDashboardSub')}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={selectedScope === 'dashboard_financial' ? 'radio-button-on' : 'radio-button-off'}
+                    size={22}
+                    color={selectedScope === 'dashboard_financial' ? colors.primary : colors.gray400}
+                  />
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+
+            <View style={[styles.dialogBtns, { flexDirection, marginTop: 14 }]}>
+              <TouchableOpacity
+                style={[styles.btnCancel, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}
+                onPress={() => setShowBackupModal(false)}
+                disabled={backing}
+              >
+                <Text style={[styles.btnCancelText, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR }, { color: colors.gray600 }]}>
+                  {t('settings.dataScreen.backupCancelBtn')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.btnRestore, { backgroundColor: colors.primary }]}
+                onPress={() => handleBackup(selectedScope)}
+                disabled={backing}
+              >
+                {backing ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={[styles.btnRestoreText, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {t('settings.dataScreen.backupStartBtn')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ── Reset confirmation modal ───────────────────────────────────── */}
       <Modal
@@ -1058,5 +1387,41 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: SETTINGS_KURDISH_FONT_BOLD,
     includeFontPadding: false,
+  },
+  backupScopeDialog: {
+    maxWidth: 520,
+    maxHeight: '90%',
+  },
+  scopeOptionCard: {
+    width: '100%',
+    padding: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    gap: 12,
+  },
+  scopeIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scopeTitle: {
+    fontSize: 14.5,
+    fontWeight: '700',
+  },
+  scopeSub: {
+    fontSize: 12,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  scopeBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  scopeBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

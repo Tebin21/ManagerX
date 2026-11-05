@@ -292,7 +292,7 @@ function BusinessHeaderImpl() {
   const setShowOnDashboard = useBusinessStore((s) => s.setShowOnDashboard);
   const insets = useSafeAreaInsets();
   const { colors: themeColors, isDark } = useAppTheme();
-  const { isTablet, isTabletLandscape, headerMaxWidth, uiScaleFactor } = useResponsive();
+  const { isTablet, isTabletLandscape, headerMaxWidth, uiScaleFactor, width } = useResponsive();
   const { isRTL, textAlign } = useRTL();
   const lang = useLanguageStore((s) => s.language) || 'ku';
   const isKurdish = lang === 'ku';
@@ -682,8 +682,8 @@ function BusinessHeaderImpl() {
   const resolved = resolveType(type, isKurdish, isArabic);
   const typeEmoji = resolved?.emoji || '🏢';
   const styles = React.useMemo(
-    () => getStyles(isTablet, isTabletLandscape, uiScaleFactor, isDark),
-    [isTablet, isTabletLandscape, uiScaleFactor, isDark]
+    () => getStyles(isTablet, isTabletLandscape, uiScaleFactor, isDark, width),
+    [isTablet, isTabletLandscape, uiScaleFactor, isDark, width]
   );
 
   // Current tab media for modal UI
@@ -1221,12 +1221,18 @@ function BusinessHeaderImpl() {
 
 export const BusinessHeader = React.memo(BusinessHeaderImpl);
 
-function getStyles(isTablet: boolean, isTabletLandscape: boolean = false, scale: number = 1.0, isDark: boolean = false) {
+function getStyles(isTablet: boolean, isTabletLandscape: boolean = false, scale: number = 1.0, isDark: boolean = false, screenWidth: number = 0) {
   const cardRadius = Math.round((isTabletLandscape ? 30 : isTablet ? 26 : 24) * scale);
   const cardPaddingTop = Math.round((isTabletLandscape ? 22 : isTablet ? 20 : 16) * scale);
   const cardPaddingBottom = Math.round((isTabletLandscape ? 20 : isTablet ? 18 : 16) * scale);
   const cardPaddingHorizontal = Math.round((isTabletLandscape ? 28 : isTablet ? 22 : 16) * scale);
-  const dynamicMinHeight = Math.round((isTabletLandscape ? 240 : isTablet ? 225 : 205) * scale);
+  
+  // Responsive banner height:
+  // On desktop computers / widescreen (screenWidth >= 1024 or isTabletLandscape), increase height so the banner is large, balanced and no longer squashed/thin!
+  const isDesktop = screenWidth >= 1024 || (isTabletLandscape && screenWidth >= 900);
+  const dynamicMinHeight = Math.round(
+    (isDesktop ? (screenWidth >= 1300 ? 320 : 290) : isTabletLandscape ? 260 : isTablet ? 230 : 205) * scale
+  );
 
   return StyleSheet.create({
     pressableRoot: {

@@ -186,6 +186,8 @@ export default function EditProductScreen() {
         try {
           const { addManagedCategory } = await import('@/lib/sqlite');
           await addManagedCategory(category.trim());
+          const { useInventoryStore } = await import('@/store/inventoryStore');
+          await useInventoryStore.getState().loadManagedCategories();
         } catch {
           // ignore duplicate
         }

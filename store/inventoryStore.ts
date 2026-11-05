@@ -34,6 +34,92 @@ function computeLowStockCount(
   return products.filter((p) => computeProductLowStock(p, globalEnabled, globalThreshold)).length;
 }
 
+function unifyCategories(
+  categoryNames: string[] = [],
+  managed: Array<{ name: string; productCount: number; isDefault: boolean }> = [],
+  products: InventoryProduct[] = []
+): {
+  categories: string[];
+  managedCategories: Array<{ name: string; productCount: number; isDefault: boolean }>;
+} {
+  const map = new Map<string, { name: string; productCount: number; isDefault: boolean }>();
+
+  // 1. Add all from managedCategories
+  (managed || []).forEach((m) => {
+    const trimmed = m?.name?.trim();
+    if (trimmed) {
+      map.set(trimmed.toLowerCase(), {
+        name: trimmed,
+        productCount: Number(m.productCount) || 0,
+        isDefault: Boolean(m.isDefault),
+      });
+    }
+  });
+
+  // 2. Add all from categoryNames (if not yet in map)
+  (categoryNames || []).forEach((name) => {
+    const trimmed = name?.trim();
+    if (!trimmed) return;
+    const key = trimmed.toLowerCase();
+    if (!map.has(key)) {
+      const prodCount = (products || []).filter(
+        (p) => p?.isActive && p?.category?.trim().toLowerCase() === key
+      ).length;
+      map.set(key, {
+        name: trimmed,
+        productCount: prodCount,
+        isDefault: trimmed === 'گشتی' || trimmed === 'General' || trimmed === 'بنەڕەت',
+      });
+    }
+  });
+
+  // 3. Add any categories from products array
+  (products || []).forEach((p) => {
+    const trimmed = p?.category?.trim();
+    if (!trimmed) return;
+    const key = trimmed.toLowerCase();
+    if (!map.has(key)) {
+      const prodCount = products.filter(
+        (prod) => prod?.isActive && prod?.category?.trim().toLowerCase() === key
+      ).length;
+      map.set(key, {
+        name: trimmed,
+        productCount: prodCount,
+        isDefault: trimmed === 'گشتی' || trimmed === 'General' || trimmed === 'بنەڕەت',
+      });
+    }
+  });
+
+  // 4. Guarantee default category exists
+  let list = Array.from(map.values());
+  const hasDefault = list.some((c) => c.isDefault);
+  if (!hasDefault) {
+    const gen = list.find(
+      (c) =>
+        c.name === 'گشتی' ||
+        c.name.toLowerCase() === 'general' ||
+        c.name === 'بنەڕەت'
+    );
+    if (gen) {
+      gen.isDefault = true;
+    } else {
+      list.unshift({ name: 'گشتی', productCount: 0, isDefault: true });
+    }
+  }
+
+  // 5. Sort: Default ALWAYS first, then alphabetical
+  list.sort((a, b) => {
+    if (a.isDefault && !b.isDefault) return -1;
+    if (!a.isDefault && b.isDefault) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  return {
+    categories: list.map((c) => c.name),
+    managedCategories: list,
+  };
+}
+
 interface InventoryState {
   products: InventoryProduct[];
   stats: InventoryStats | null;
@@ -93,7 +179,15 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       ]);
       const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
       const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
-      set({ products, stats, categories, managedCategories, inventoryHistory, isLoading: false });
+      const unified = unifyCategories(categories, managedCategories, products);
+      set({
+        products,
+        stats,
+        categories: unified.categories,
+        managedCategories: unified.managedCategories,
+        inventoryHistory,
+        isLoading: false,
+      });
     } catch (err) {
       console.error('Failed to load inventory:', err);
       set({ isLoading: false });
@@ -111,7 +205,14 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       ]);
       const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
       const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
-      set({ products, stats, categories, managedCategories, inventoryHistory });
+      const unified = unifyCategories(categories, managedCategories, products);
+      set({
+        products,
+        stats,
+        categories: unified.categories,
+        managedCategories: unified.managedCategories,
+        inventoryHistory,
+      });
     } catch (err) {
       console.error('Failed to reload inventory after sale:', err);
     }
@@ -127,7 +228,13 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       ]);
       const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
       const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
-      set({ products, stats, categories, managedCategories });
+      const unified = unifyCategories(categories, managedCategories, products);
+      set({
+        products,
+        stats,
+        categories: unified.categories,
+        managedCategories: unified.managedCategories,
+      });
     } catch (err) {
       console.error('Failed to reload inventory after purchase:', err);
     }
@@ -257,19 +364,28 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
         getProductCategories(),
         getAllManagedCategories(),
       ]);
-      set({ categories, managedCategories });
+      const unified = unifyCategories(categories, managedCategories, get().products);
+      set({ categories: unified.categories, managedCategories: unified.managedCategories });
     } catch (err) {
       console.error('Failed to load managed categories:', err);
     }
   },
 
   addCategory: async (name: string) => {
-    await addManagedCategory(name);
+    try {
+      await addManagedCategory(name);
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg !== 'CATEGORY_ALREADY_EXISTS') {
+        throw err;
+      }
+    }
     const [categories, managedCategories] = await Promise.all([
       getProductCategories(),
       getAllManagedCategories(),
     ]);
-    set({ categories, managedCategories });
+    const unified = unifyCategories(categories, managedCategories, get().products);
+    set({ categories: unified.categories, managedCategories: unified.managedCategories });
   },
 
   deleteCategory: async (name: string) => {
@@ -284,11 +400,12 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
     const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
     const { selectedCategory } = get();
+    const unified = unifyCategories(categories, managedCategories, products);
     set({
       products,
       stats,
-      categories,
-      managedCategories,
+      categories: unified.categories,
+      managedCategories: unified.managedCategories,
       inventoryHistory,
       ...(selectedCategory.trim().toLowerCase() === name.trim().toLowerCase() ? { selectedCategory: 'all' } : {}),
     });
@@ -306,11 +423,12 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
     const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
     const { selectedCategory } = get();
+    const unified = unifyCategories(categories, managedCategories, products);
     set({
       products,
       stats,
-      categories,
-      managedCategories,
+      categories: unified.categories,
+      managedCategories: unified.managedCategories,
       inventoryHistory,
       ...(selectedCategory.trim().toLowerCase() === oldName.trim().toLowerCase() ? { selectedCategory: newName.trim() } : {}),
     });

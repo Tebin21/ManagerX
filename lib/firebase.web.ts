@@ -356,7 +356,7 @@ export function getFirebaseFirestore(): Firestore {
 export const collection = (dbOrRef: any, ...pathSegments: string[]) => {
   try {
     const target = dbOrRef?.id ? dbOrRef : getFirebaseFirestore();
-    return fsCollection(target, ...pathSegments);
+    return (fsCollection as any)(target, ...pathSegments);
   } catch (e) {
     console.warn('[FirebaseWeb] collection call fallback:', e);
     return { id: pathSegments[pathSegments.length - 1] || 'col', path: pathSegments.join('/') } as any;
@@ -428,10 +428,10 @@ export const onSnapshot = (ref: any, callback?: any, errorCallback?: any) => {
   try {
     return fsOnSnapshot(
       ref,
-      (snap) => {
+      (snap: any) => {
         if (typeof callback === 'function') callback(snap);
       },
-      (err) => {
+      (err: any) => {
         console.warn('[FirebaseWeb] onSnapshot live update error:', err);
         if (typeof errorCallback === 'function') errorCallback(err);
       }

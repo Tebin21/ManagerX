@@ -368,15 +368,17 @@ export default function InventoryScreen() {
     try {
       await addCategory(name);
       setNewCatName('');
+      await loadManagedCategories();
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (msg === 'CATEGORY_ALREADY_EXISTS') {
         Alert.alert(t('inventory.manageCategoriesTitle'), t('inventory.duplicateCategory'));
+        await loadManagedCategories();
       } else {
         Alert.alert(t('common.error'), t('common.tryAgain'));
       }
     }
-  }, [newCatName, addCategory, t]);
+  }, [newCatName, addCategory, loadManagedCategories, t]);
 
   const handleDeleteCategory = useCallback(
     (cat: { name: string; productCount: number; isDefault: boolean }) => {
@@ -600,18 +602,31 @@ export default function InventoryScreen() {
     ];
 
     // Find the default category if defined in managedCategories
-    const defaultCatName = managedCategories.find((c) => c.isDefault)?.name;
+    const defaultCatName = managedCategories.find((c) => c.isDefault)?.name || 'گشتی';
+
+    // Deduplicate category names
+    const seenNames = new Set<string>();
+    const uniqueCategories: string[] = [];
+    categories.forEach((c) => {
+      const trimmed = c?.trim();
+      if (trimmed && !seenNames.has(trimmed.toLowerCase())) {
+        seenNames.add(trimmed.toLowerCase());
+        uniqueCategories.push(trimmed);
+      }
+    });
 
     // Ensure the default category ALWAYS comes first among categories (right after 'all')
-    const sortedCategories = [...categories].sort((a, b) => {
+    const sortedCategories = uniqueCategories.sort((a, b) => {
       const isADefault =
         (defaultCatName && a.trim().toLowerCase() === defaultCatName.trim().toLowerCase()) ||
+        a === 'گشتی' ||
         a === 'بنەرەت' ||
         a === 'بنەڕەت' ||
         a === 'General' ||
         a === 'افتراضي';
       const isBDefault =
         (defaultCatName && b.trim().toLowerCase() === defaultCatName.trim().toLowerCase()) ||
+        b === 'گشتی' ||
         b === 'بنەرەت' ||
         b === 'بنەڕەت' ||
         b === 'General' ||

@@ -1080,6 +1080,12 @@ export async function getProductCategories(): Promise<string[]> {
        FROM purchase_items
        WHERE category IS NOT NULL AND TRIM(category) != ''`
     );
+    await database.runAsync(
+      `INSERT OR IGNORE INTO categories (name, uuid, is_default, created_at, updated_at)
+       SELECT DISTINCT TRIM(category), lower(hex(randomblob(16))), 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+       FROM purchases
+       WHERE category IS NOT NULL AND TRIM(category) != ''`
+    );
   } catch (syncErr) {
     console.warn('[Categories] Auto-sync error in getProductCategories:', syncErr);
   }
@@ -1092,6 +1098,8 @@ export async function getProductCategories(): Promise<string[]> {
        SELECT DISTINCT TRIM(category) AS name, 0 AS is_default FROM products WHERE category IS NOT NULL AND TRIM(category) != ''
        UNION
        SELECT DISTINCT TRIM(category) AS name, 0 AS is_default FROM purchase_items WHERE category IS NOT NULL AND TRIM(category) != ''
+       UNION
+       SELECT DISTINCT TRIM(category) AS name, 0 AS is_default FROM purchases WHERE category IS NOT NULL AND TRIM(category) != ''
      ) c
      WHERE TRIM(c.name) != ''
      GROUP BY c.name
@@ -1102,7 +1110,7 @@ export async function getProductCategories(): Promise<string[]> {
 
 export async function getAllManagedCategories(): Promise<Array<{ name: string; productCount: number; isDefault: boolean }>> {
   const database = await getDatabase();
-  // Ensure all categories from products and purchase_items are populated into categories table
+  // Ensure all categories from products, purchase_items, and purchases are populated into categories table
   try {
     await database.runAsync(
       `INSERT OR IGNORE INTO categories (name, uuid, is_default, created_at, updated_at)
@@ -1114,6 +1122,12 @@ export async function getAllManagedCategories(): Promise<Array<{ name: string; p
       `INSERT OR IGNORE INTO categories (name, uuid, is_default, created_at, updated_at)
        SELECT DISTINCT TRIM(category), lower(hex(randomblob(16))), 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
        FROM purchase_items
+       WHERE category IS NOT NULL AND TRIM(category) != ''`
+    );
+    await database.runAsync(
+      `INSERT OR IGNORE INTO categories (name, uuid, is_default, created_at, updated_at)
+       SELECT DISTINCT TRIM(category), lower(hex(randomblob(16))), 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+       FROM purchases
        WHERE category IS NOT NULL AND TRIM(category) != ''`
     );
 
@@ -1193,6 +1207,8 @@ export async function getAllManagedCategories(): Promise<Array<{ name: string; p
        SELECT DISTINCT TRIM(category) AS name, 0 AS is_default FROM products WHERE category IS NOT NULL AND TRIM(category) != ''
        UNION
        SELECT DISTINCT TRIM(category) AS name, 0 AS is_default FROM purchase_items WHERE category IS NOT NULL AND TRIM(category) != ''
+       UNION
+       SELECT DISTINCT TRIM(category) AS name, 0 AS is_default FROM purchases WHERE category IS NOT NULL AND TRIM(category) != ''
      ) c
      LEFT JOIN products p ON LOWER(TRIM(p.category)) = LOWER(c.name)
      WHERE TRIM(c.name) != ''
@@ -1253,9 +1269,13 @@ export async function deleteManagedCategory(name: string): Promise<void> {
     [targetCategory, trimmed]
   );
 
-  // 2. Reassign purchase_items
+  // 2. Reassign purchase_items and purchases
   await database.runAsync(
     'UPDATE purchase_items SET category = ? WHERE LOWER(TRIM(category)) = LOWER(?)',
+    [targetCategory, trimmed]
+  );
+  await database.runAsync(
+    'UPDATE purchases SET category = ? WHERE LOWER(TRIM(category)) = LOWER(?)',
     [targetCategory, trimmed]
   );
 
@@ -1324,6 +1344,10 @@ export async function renameManagedCategory(oldName: string, newName: string): P
   );
   await database.runAsync(
     'UPDATE purchase_items SET category = ? WHERE category = ?',
+    [trimmed, oldName]
+  );
+  await database.runAsync(
+    'UPDATE purchases SET category = ? WHERE category = ?',
     [trimmed, oldName]
   );
   await database.runAsync(

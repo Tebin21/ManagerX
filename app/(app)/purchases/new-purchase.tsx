@@ -710,9 +710,9 @@ export default function NewPurchaseScreen() {
 
   const placeholderPrefix = isKuLanguage ? 'نموونە: ' : isArLanguage ? 'مثال: ' : 'e.g. ';
   const placeholderBuyIQD = `${placeholderPrefix}${sampleBuyIQDStr}`;
-  const placeholderBuyUSD = `${placeholderPrefix}${sampleBuyUSD}$`;
+  const placeholderBuyUSD = isKuLanguage ? `${placeholderPrefix}${sampleBuyUSD} دۆلار` : isArLanguage ? `${placeholderPrefix}${sampleBuyUSD}$` : `${placeholderPrefix}$${sampleBuyUSD}`;
   const placeholderSellIQD = `${placeholderPrefix}${sampleSellIQDStr}`;
-  const placeholderSellUSD = `${placeholderPrefix}${sampleSellUSD}$`;
+  const placeholderSellUSD = isKuLanguage ? `${placeholderPrefix}${sampleSellUSD} دۆلار` : isArLanguage ? `${placeholderPrefix}${sampleSellUSD}$` : `${placeholderPrefix}$${sampleSellUSD}`;
   const pricePlaceholderColor = isDark ? 'rgba(255, 255, 255, 0.45)' : '#94A3B8';
 
   // ─── Currency sync ──────────────────────────────────────────────────────────
@@ -1033,6 +1033,8 @@ export default function NewPurchaseScreen() {
         try {
           const { addManagedCategory } = await import('@/lib/sqlite');
           await addManagedCategory(category.trim());
+          const { useInventoryStore } = await import('@/store/inventoryStore');
+          await useInventoryStore.getState().loadManagedCategories();
         } catch { /* non-critical */ }
       }
 
@@ -1320,6 +1322,7 @@ export default function NewPurchaseScreen() {
       )}
 
       <AppTextInput
+        label={t('purchases.itemDescription')}
         value={itemDescription}
         onChangeText={setItemDescription}
         placeholder={t('purchases.itemDescriptionPlaceholder')}
@@ -2800,9 +2803,11 @@ export default function NewPurchaseScreen() {
             },
           ]}
         >
-          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue, lineHeight: inputHeight || 48 }]}>
-            IQD
-          </Text>
+          <View style={[styles.currencyBadgeWrap, { backgroundColor: isDark ? hexToRgba(colors.primary, 0.20) : hexToRgba(colors.primary, 0.12) }]}>
+            <Text style={[styles.currencyBadge, { color: colors.primary }]}>
+              IQD
+            </Text>
+          </View>
           <TextInput
             style={[
               styles.priceInput,
@@ -2810,9 +2815,10 @@ export default function NewPurchaseScreen() {
                 color: colors.black,
                 height: inputHeight || 48,
                 fontSize: Math.round((isTablet ? 16 : 14) * (uiScaleFactor || 1)),
-                textAlign: isRTL ? (!buyIQD ? 'right' : 'left') : 'left',
-                writingDirection: buyIQD ? 'ltr' : (isRTL ? 'rtl' : 'ltr'),
-                fontFamily: (!buyIQD && isKuLanguage) ? SETTINGS_KURDISH_FONT : undefined,
+                textAlign: isRTL ? 'right' : 'left',
+                paddingHorizontal: 14,
+                textAlignVertical: 'center',
+                fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT : undefined,
               },
               Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any),
             ]}
@@ -2846,9 +2852,11 @@ export default function NewPurchaseScreen() {
             },
           ]}
         >
-          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue, lineHeight: inputHeight || 48 }]}>
-            USD
-          </Text>
+          <View style={[styles.currencyBadgeWrap, { backgroundColor: isDark ? hexToRgba(colors.primary, 0.20) : hexToRgba(colors.primary, 0.12) }]}>
+            <Text style={[styles.currencyBadge, { color: colors.primary }]}>
+              USD
+            </Text>
+          </View>
           <TextInput
             style={[
               styles.priceInput,
@@ -2856,9 +2864,10 @@ export default function NewPurchaseScreen() {
                 color: colors.black,
                 height: inputHeight || 48,
                 fontSize: Math.round((isTablet ? 16 : 14) * (uiScaleFactor || 1)),
-                textAlign: isRTL ? (!buyUSD ? 'right' : 'left') : 'left',
-                writingDirection: buyUSD ? 'ltr' : (isRTL ? 'rtl' : 'ltr'),
-                fontFamily: (!buyUSD && isKuLanguage) ? SETTINGS_KURDISH_FONT : undefined,
+                textAlign: isRTL ? 'right' : 'left',
+                paddingHorizontal: 14,
+                textAlignVertical: 'center',
+                fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT : undefined,
               },
               Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any),
             ]}
@@ -2899,9 +2908,11 @@ export default function NewPurchaseScreen() {
             },
           ]}
         >
-          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue, lineHeight: inputHeight || 48 }]}>
-            IQD
-          </Text>
+          <View style={[styles.currencyBadgeWrap, { backgroundColor: isDark ? hexToRgba(colors.primary, 0.20) : hexToRgba(colors.primary, 0.12) }]}>
+            <Text style={[styles.currencyBadge, { color: colors.primary }]}>
+              IQD
+            </Text>
+          </View>
           <TextInput
             style={[
               styles.priceInput,
@@ -2909,9 +2920,10 @@ export default function NewPurchaseScreen() {
                 color: colors.black,
                 height: inputHeight || 48,
                 fontSize: Math.round((isTablet ? 16 : 14) * (uiScaleFactor || 1)),
-                textAlign: isRTL ? (!sellIQD ? 'right' : 'left') : 'left',
-                writingDirection: sellIQD ? 'ltr' : (isRTL ? 'rtl' : 'ltr'),
-                fontFamily: (!sellIQD && isKuLanguage) ? SETTINGS_KURDISH_FONT : undefined,
+                textAlign: isRTL ? 'right' : 'left',
+                paddingHorizontal: 14,
+                textAlignVertical: 'center',
+                fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT : undefined,
               },
               Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any),
             ]}
@@ -2945,9 +2957,11 @@ export default function NewPurchaseScreen() {
             },
           ]}
         >
-          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue, lineHeight: inputHeight || 48 }]}>
-            USD
-          </Text>
+          <View style={[styles.currencyBadgeWrap, { backgroundColor: isDark ? hexToRgba(colors.primary, 0.20) : hexToRgba(colors.primary, 0.12) }]}>
+            <Text style={[styles.currencyBadge, { color: colors.primary }]}>
+              USD
+            </Text>
+          </View>
           <TextInput
             style={[
               styles.priceInput,
@@ -2955,9 +2969,10 @@ export default function NewPurchaseScreen() {
                 color: colors.black,
                 height: inputHeight || 48,
                 fontSize: Math.round((isTablet ? 16 : 14) * (uiScaleFactor || 1)),
-                textAlign: isRTL ? (!sellUSD ? 'right' : 'left') : 'left',
-                writingDirection: sellUSD ? 'ltr' : (isRTL ? 'rtl' : 'ltr'),
-                fontFamily: (!sellUSD && isKuLanguage) ? SETTINGS_KURDISH_FONT : undefined,
+                textAlign: isRTL ? 'right' : 'left',
+                paddingHorizontal: 14,
+                textAlignVertical: 'center',
+                fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT : undefined,
               },
               Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any),
             ]}
@@ -3409,20 +3424,21 @@ const styles = StyleSheet.create({
     shadowRadius:  6,
     elevation:     0,
   },
-  currencyBadge: {
-    fontSize:          11,
-    fontWeight:        '700',
-    paddingHorizontal: 10,
+  currencyBadgeWrap: {
+    paddingHorizontal: 12,
     alignSelf:         'stretch',
-    textAlignVertical: 'center',
     justifyContent:    'center',
     alignItems:        'center',
-    textAlign:         'center',
+  },
+  currencyBadge: {
+    fontSize:   11,
+    fontWeight: '700',
+    textAlign:  'center',
   },
   priceInput: {
     flex: 1,
     height: 48,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     fontSize: 15,
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none' } as any) : {}),
   },

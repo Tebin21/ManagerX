@@ -43,6 +43,10 @@ export default function SalesScreen() {
   }, []);
 
   const { count, revenue } = useMemo(() => getTodayStats(sales), [sales]);
+  const iconBoxBg = useMemo(
+    () => (isDark ? hexToRgba(colors.primary, 0.20) : hexToRgba(colors.primary, 0.12)),
+    [colors.primary, isDark]
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -181,7 +185,7 @@ export default function SalesScreen() {
                     borderRadius: 18,
                     marginBottom: 12,
                   },
-                  { backgroundColor: colors.softBlue },
+                  { backgroundColor: iconBoxBg },
                 ]}
               >
                 <Ionicons
@@ -300,7 +304,7 @@ export default function SalesScreen() {
                       height: isTabletLandscape ? 64 : 56,
                       borderRadius: 18,
                     },
-                    { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.2)' : '#FEF9C3' },
+                    { backgroundColor: iconBoxBg },
                   ]}
                 >
                   <Ionicons
@@ -376,7 +380,7 @@ export default function SalesScreen() {
                       height: isTabletLandscape ? 64 : 56,
                       borderRadius: 18,
                     },
-                    { backgroundColor: colors.softBlue },
+                    { backgroundColor: iconBoxBg },
                   ]}
                 >
                   <Ionicons
@@ -452,7 +456,7 @@ export default function SalesScreen() {
                       height: isTabletLandscape ? 64 : 56,
                       borderRadius: 18,
                     },
-                    { backgroundColor: isDark ? hexToRgba(colors.primary, 0.15) : '#FEF3C7' },
+                    { backgroundColor: iconBoxBg },
                   ]}
                 >
                   <Ionicons

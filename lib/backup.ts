@@ -25,6 +25,17 @@ import { newUuid } from '@/lib/uuid';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type BackupScope =
+  | 'all'
+  | 'sales_customers'
+  | 'inventory'
+  | 'purchases_suppliers'
+  | 'dashboard_financial';
+
+export interface BackupOptions {
+  scope?: BackupScope;
+}
+
 export interface FroshiarBackup {
   meta: {
     /** Present + >= 2 on backups produced by this version of the app (uuid-bearing
@@ -34,6 +45,7 @@ export interface FroshiarBackup {
     backupDate: string;
     appVersion: string;
     platform:   string;
+    scope?:     BackupScope;
   };
   database: {
     businesses:        Record<string, unknown>[];
@@ -125,7 +137,7 @@ function resolveMediaUri(relOrAbs: unknown, baseDocDir: string | null | undefine
 /**
  * Reads all user-selected pictures/media from permanent app directories into Base64 strings.
  */
-async function collectMediaFiles(): Promise<Record<string, string>> {
+async function collectMediaFiles(allowedSubdirs?: readonly string[]): Promise<Record<string, string>> {
   const media: Record<string, string> = {};
   if (Platform.OS === 'web') return media;
   try {
@@ -133,7 +145,8 @@ async function collectMediaFiles(): Promise<Record<string, string>> {
     const baseDir = FileSystem.documentDirectory;
     if (!baseDir) return media;
 
-    for (const subdir of MEDIA_SUBDIRS) {
+    const subdirs = allowedSubdirs ?? MEDIA_SUBDIRS;
+    for (const subdir of subdirs) {
       const dirUri = `${baseDir}${subdir}/`;
       try {
         const info = await FileSystem.getInfoAsync(dirUri);
@@ -210,7 +223,8 @@ async function restoreMediaFiles(media: Record<string, string> | undefined): Pro
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 
-export async function generateBackupData(): Promise<FroshiarBackup> {
+export async function generateBackupData(options?: BackupOptions): Promise<FroshiarBackup> {
+  const scope: BackupScope = options?.scope ?? 'all';
   const db = await getDatabase();
   const settingsPlaceholders = SETTINGS_ALLOWLIST.map(() => '?').join(', ');
 
@@ -247,50 +261,105 @@ export async function generateBackupData(): Promise<FroshiarBackup> {
     };
     const b = getLocal('@froshiar_business_db');
     businesses = Array.isArray(b) ? b : b && typeof b === 'object' ? [b] : [];
-    categories = getLocal('@froshiar_db_categories');
-    products = getLocal('@froshiar_db_products');
-    inventory_history = getLocal('@froshiar_db_history');
-    customers = getLocal('@froshiar_db_customers');
-    sales = getLocal('@froshiar_db_sales');
-    debts = getLocal('@froshiar_db_debts');
-    purchases = getLocal('@froshiar_db_purchases');
-    purchase_debts = getLocal('@froshiar_db_purchase_debts');
-    suppliers = getLocal('@froshiar_db_suppliers');
     exchange_rates = getLocal('@froshiar_db_exchange_rates');
-    discarded_products = getLocal('@froshiar_db_discarded');
-    expenses = getLocal('@froshiar_db_expenses');
+
+    if (scope === 'all' || scope === 'inventory') {
+      categories = getLocal('@froshiar_db_categories');
+      products = getLocal('@froshiar_db_products');
+      inventory_history = getLocal('@froshiar_db_history');
+      discarded_products = getLocal('@froshiar_db_discarded');
+    }
+    if (scope === 'all' || scope === 'sales_customers') {
+      customers = getLocal('@froshiar_db_customers');
+      sales = getLocal('@froshiar_db_sales');
+      debts = getLocal('@froshiar_db_debts');
+      if (scope === 'sales_customers') {
+        products = getLocal('@froshiar_db_products');
+      }
+    }
+    if (scope === 'all' || scope === 'purchases_suppliers') {
+      purchases = getLocal('@froshiar_db_purchases');
+      purchase_debts = getLocal('@froshiar_db_purchase_debts');
+      suppliers = getLocal('@froshiar_db_suppliers');
+    }
+    if (scope === 'all' || scope === 'dashboard_financial') {
+      expenses = getLocal('@froshiar_db_expenses');
+    }
   } else {
-    [
-      businesses, settings, categories, products, inventory_history,
-      customers, sales, sale_items,
-      debts, invoice_counter, purchases, purchase_items, purchase_counter,
-      purchase_debts, purchase_audit_log, debt_payments, expenses, suppliers, exchange_rates,
-      discarded_products,
-    ] = await Promise.all([
+    // 1. Core global meta tables
+    [businesses, settings, exchange_rates] = await Promise.all([
       db.getAllAsync<Record<string, unknown>>('SELECT * FROM businesses'),
       db.getAllAsync<Record<string, unknown>>(
         `SELECT * FROM settings WHERE key IN (${settingsPlaceholders})`,
         [...SETTINGS_ALLOWLIST]
       ),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM categories'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM products'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM inventory_history'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM customers'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM sales'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM sale_items'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM debts'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM invoice_counter'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchases'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_items'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_counter'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_debts'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_audit_log'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM debt_payments'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM expenses'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM suppliers'),
       db.getAllAsync<Record<string, unknown>>('SELECT * FROM exchange_rates'),
-      db.getAllAsync<Record<string, unknown>>('SELECT * FROM discarded_products'),
     ]);
+
+    // 2. Scope-specific table queries
+    if (scope === 'all') {
+      [
+        categories, products, inventory_history,
+        customers, sales, sale_items,
+        debts, invoice_counter, purchases, purchase_items, purchase_counter,
+        purchase_debts, purchase_audit_log, debt_payments, expenses, suppliers,
+        discarded_products,
+      ] = await Promise.all([
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM categories'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM products'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM inventory_history'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM customers'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM sales'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM sale_items'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM debts'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM invoice_counter'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchases'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_items'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_counter'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_debts'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_audit_log'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM debt_payments'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM expenses'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM suppliers'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM discarded_products'),
+      ]);
+    } else if (scope === 'sales_customers') {
+      [
+        customers, sales, sale_items,
+        debts, invoice_counter, debt_payments, products,
+      ] = await Promise.all([
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM customers'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM sales'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM sale_items'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM debts'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM invoice_counter'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM debt_payments'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM products'),
+      ]);
+    } else if (scope === 'inventory') {
+      [
+        categories, products, inventory_history, discarded_products,
+      ] = await Promise.all([
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM categories'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM products'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM inventory_history'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM discarded_products'),
+      ]);
+    } else if (scope === 'purchases_suppliers') {
+      [
+        purchases, purchase_items, purchase_counter,
+        purchase_debts, purchase_audit_log, suppliers,
+      ] = await Promise.all([
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchases'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_items'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_counter'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_debts'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_audit_log'),
+        db.getAllAsync<Record<string, unknown>>('SELECT * FROM suppliers'),
+      ]);
+    } else if (scope === 'dashboard_financial') {
+      expenses = await db.getAllAsync<Record<string, unknown>>('SELECT * FROM expenses');
+    }
   }
 
   // Clean relative media URIs in DB records so they travel portably
@@ -324,6 +393,12 @@ export async function generateBackupData(): Promise<FroshiarBackup> {
     image_uri: normalizeMediaUri(row.image_uri),
   }));
 
+  let allowedMediaSubdirs: readonly string[] | undefined;
+  if (scope === 'sales_customers') allowedMediaSubdirs = ['logo_images'];
+  else if (scope === 'inventory') allowedMediaSubdirs = ['product_images', 'saved_presets'];
+  else if (scope === 'purchases_suppliers') allowedMediaSubdirs = ['supplier_logos'];
+  else if (scope === 'dashboard_financial') allowedMediaSubdirs = ['dashboard_banners', 'header_backgrounds', 'header_videos'];
+
   const [
     storedBusinessRaw,
     storedSettingsRaw,
@@ -341,7 +416,7 @@ export async function generateBackupData(): Promise<FroshiarBackup> {
     AsyncStorage.getItem('@froshiar_business_card_custom_banners_v2'),
     AsyncStorage.getItem('@froshiar_dashboard_banner_video_v1'),
     AsyncStorage.getItem('@froshiar_business_card_video_v1'),
-    collectMediaFiles(),
+    collectMediaFiles(allowedMediaSubdirs),
   ]);
 
   const storedBusiness = parseZustandState(storedBusinessRaw);
@@ -354,6 +429,7 @@ export async function generateBackupData(): Promise<FroshiarBackup> {
       backupDate: new Date().toISOString(),
       appVersion: '1.0.1',
       platform:   Platform.OS,
+      scope,
     },
     database: {
       businesses: businessesCleaned,
@@ -427,10 +503,18 @@ export async function generateBackupData(): Promise<FroshiarBackup> {
   return backup;
 }
 
-export async function exportBackup(): Promise<string> {
-  const backup = await generateBackupData();
+export async function exportBackup(options?: BackupOptions): Promise<string> {
+  const scope = options?.scope ?? 'all';
+  const backup = await generateBackupData(options);
   const dateStr  = new Date().toISOString().split('T')[0];
-  const fileName = `Froshiar_Backup_${dateStr}.json`;
+
+  let scopeSuffix = 'All';
+  if (scope === 'sales_customers') scopeSuffix = 'Sales_Customers';
+  else if (scope === 'inventory') scopeSuffix = 'Inventory';
+  else if (scope === 'purchases_suppliers') scopeSuffix = 'Purchases_Suppliers';
+  else if (scope === 'dashboard_financial') scopeSuffix = 'Dashboard_Financial';
+
+  const fileName = `Froshiar_Backup_${scopeSuffix}_${dateStr}.json`;
 
   if (Platform.OS === 'web') {
     const jsonStr = JSON.stringify(backup, null, 2);
@@ -849,11 +933,26 @@ export async function performRestore(
     start('products');
     report('products', await mergeProducts(db, database.products ?? [], purchasesRemap, productsRemap, warnings, baseDocDir));
 
+    const localPurchaseIds = new Set<number>();
+    try {
+      const existingPurchases = await db.getAllAsync<{ id: number }>('SELECT id FROM purchases');
+      for (const ep of existingPurchases) localPurchaseIds.add(ep.id);
+    } catch {}
+
+    const localProductIds = new Set<number>();
+    try {
+      const existingProds = await db.getAllAsync<{ id: number }>('SELECT id FROM products');
+      for (const ep of existingProds) localProductIds.add(ep.id);
+    } catch {}
+
     start('purchase_items');
     report('purchase_items', await mergeSimpleTable(db, 'purchase_items', database.purchase_items ?? [], {
       policy: 'immutable',
       beforeWrite: (row) => {
-        const mapped = purchasesRemap.get(row.purchase_id as number);
+        let mapped = purchasesRemap.get(row.purchase_id as number);
+        if (mapped == null && row.purchase_id != null && localPurchaseIds.has(row.purchase_id as number)) {
+          mapped = row.purchase_id as number;
+        }
         if (mapped == null) return false;
         row.purchase_id = mapped;
         return true;
@@ -864,7 +963,9 @@ export async function performRestore(
     report('purchase_debts', await mergeSimpleTable(db, 'purchase_debts', database.purchase_debts ?? [], {
       policy: 'immutable',
       beforeWrite: (row) => {
-        if (row.purchase_id != null) row.purchase_id = purchasesRemap.get(row.purchase_id as number) ?? null;
+        if (row.purchase_id != null) {
+          row.purchase_id = purchasesRemap.get(row.purchase_id as number) ?? (localPurchaseIds.has(row.purchase_id as number) ? row.purchase_id : null);
+        }
         return true;
       },
     }, purchaseDebtsRemap, warnings));
@@ -873,7 +974,10 @@ export async function performRestore(
     report('purchase_audit_log', await mergeSimpleTable(db, 'purchase_audit_log', database.purchase_audit_log ?? [], {
       policy: 'immutable',
       beforeWrite: (row) => {
-        const mapped = purchasesRemap.get(row.purchase_id as number);
+        let mapped = purchasesRemap.get(row.purchase_id as number);
+        if (mapped == null && row.purchase_id != null && localPurchaseIds.has(row.purchase_id as number)) {
+          mapped = row.purchase_id as number;
+        }
         if (mapped == null) return false;
         row.purchase_id = mapped;
         return true;
@@ -885,10 +989,15 @@ export async function performRestore(
       naturalKey: (row) => ({ where: 'product_id = ?', params: [row.product_id] }),
       policy: 'immutable',
       beforeWrite: (row) => {
-        const mappedProduct = productsRemap.get(row.product_id as number);
+        let mappedProduct = productsRemap.get(row.product_id as number);
+        if (mappedProduct == null && row.product_id != null && localProductIds.has(row.product_id as number)) {
+          mappedProduct = row.product_id as number;
+        }
         if (mappedProduct == null) return false;
         row.product_id = mappedProduct;
-        if (row.purchase_id != null) row.purchase_id = purchasesRemap.get(row.purchase_id as number) ?? null;
+        if (row.purchase_id != null) {
+          row.purchase_id = purchasesRemap.get(row.purchase_id as number) ?? (localPurchaseIds.has(row.purchase_id as number) ? row.purchase_id : null);
+        }
         if (row.image_uri) row.image_uri = resolveMediaUri(row.image_uri, baseDocDir);
         return true;
       },
@@ -911,7 +1020,10 @@ export async function performRestore(
         const mappedSale = salesRemap.get(row.sale_id as number);
         if (mappedSale == null) return false;
         row.sale_id = mappedSale;
-        const mappedProduct = productsRemap.get(row.product_id as number);
+        let mappedProduct = productsRemap.get(row.product_id as number);
+        if (mappedProduct == null && row.product_id != null && localProductIds.has(row.product_id as number)) {
+          mappedProduct = row.product_id as number;
+        }
         if (mappedProduct == null) return false;
         row.product_id = mappedProduct;
         return true;

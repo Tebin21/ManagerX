@@ -58,6 +58,17 @@ export function DashboardHeroSlider() {
   const slideTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [containerWidth, setContainerWidth] = useState(Dimensions.get('window').width - 32);
 
+  const bannerHeight = useMemo(() => {
+    // Large desktop screens (Mac/Windows widescreen)
+    if (containerWidth >= 1200) return 260;
+    // Desktop & Tablet Landscape
+    if (containerWidth >= 900) return 230;
+    // Tablet Portrait
+    if (containerWidth >= 600) return 195;
+    // Mobile phones
+    return 150;
+  }, [containerWidth]);
+
   const defaultBannerSource = useMemo(() => {
     return getResponsiveDefaultBanner(remoteBannerConfig, {
       isTablet,
@@ -202,7 +213,14 @@ export function DashboardHeroSlider() {
       <TouchableOpacity
         activeOpacity={0.96}
         onLongPress={handleOpenManager}
-        style={[styles.sliderContainer, { backgroundColor: isDark ? colors.gray100 : colors.gray200 }]}
+        style={[
+          styles.sliderContainer,
+          {
+            height: bannerHeight,
+            backgroundColor: isDark ? colors.gray100 : colors.gray200,
+            borderRadius: containerWidth >= 900 ? 24 : 20,
+          },
+        ]}
       >
         <FlatList
           ref={flatListRef}
@@ -218,8 +236,8 @@ export function DashboardHeroSlider() {
             index,
           })}
           renderItem={({ item }) => (
-            <View style={[styles.slideItem, { width: containerWidth }]}>
-              <Image source={item.source} style={styles.slideImage} resizeMode="cover" />
+            <View style={[styles.slideItem, { width: containerWidth, height: bannerHeight }]}>
+              <Image source={item.source} style={[styles.slideImage, { height: bannerHeight }]} resizeMode="cover" />
               <LinearGradient
                 colors={['transparent', 'rgba(0,0,0,0.42)']}
                 style={StyleSheet.absoluteFill}

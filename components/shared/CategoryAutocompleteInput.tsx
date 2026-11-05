@@ -15,6 +15,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
+import { useResponsive } from '@/hooks/useResponsive';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
@@ -40,6 +41,7 @@ export function CategoryAutocompleteInput({
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { colors } = useAppTheme();
   const { textAlign } = useRTL();
+  const { isTablet, inputHeight, uiScaleFactor } = useResponsive();
   const scrollIntoView = useKeyboardAwareFocus();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
@@ -69,7 +71,7 @@ export function CategoryAutocompleteInput({
   return (
     <View style={styles.container}>
       {label ? (
-        <Text style={[styles.label, { color: colors.gray600, textAlign }]}>{label}</Text>
+        <Text style={[styles.label, { color: colors.gray600, textAlign, fontSize: Math.round((isTablet ? 15 : 13) * uiScaleFactor * 10) / 10 }]}>{label}</Text>
       ) : null}
 
       <MotiView
@@ -80,13 +82,25 @@ export function CategoryAutocompleteInput({
         transition={{ type: 'timing', duration: 200 }}
         style={[
           styles.inputWrap,
-          { borderColor: colors.gray200, backgroundColor: colors.gray50, shadowColor: colors.primary },
+          {
+            minHeight: inputHeight || 48,
+            borderRadius: Math.round((isTablet ? 16 : 12) * uiScaleFactor),
+            borderColor: colors.gray200,
+            backgroundColor: colors.gray50,
+            shadowColor: colors.primary,
+          },
         ]}
       >
         <TextInput
           style={[
             styles.input,
-            { color: colors.black, textAlign },
+            {
+              height: inputHeight || 48,
+              fontSize: Math.round((isTablet ? 17 : 15) * uiScaleFactor * 10) / 10,
+              color: colors.black,
+              textAlign,
+              textAlignVertical: 'center',
+            },
             applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value, placeholder }), {}),
             inputStyle,
           ]}
