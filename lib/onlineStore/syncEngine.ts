@@ -50,16 +50,24 @@ async function ensureRemoteImage(item: PendingSyncItem, slug: string, apiKey: st
   const isLocalUri = !!p?.imageUri && LOCAL_URI_PATTERN.test(p.imageUri);
   if (!isLocalUri) return true;
 
+  const { resolveImageUri } = await import('@/lib/imageStorage');
+  const targetUri = resolveImageUri(p.imageUri) || p.imageUri!;
+
   // If already uploaded under the active slug, nothing to do
   const hasValidSlugUrl = !!p.imageRemoteUrl && p.imageRemoteUrl.includes(`/uploads/${slug}/`);
   if (hasValidSlugUrl) return true;
 
   try {
-    const { url } = await uploadStoreImage(slug, apiKey, p.imageUri!);
+    const { url } = await uploadStoreImage(slug, apiKey, targetUri);
     await setProductImageRemoteUrl(item.productId, url);
     p.imageRemoteUrl = url; // mutate in place so this sync round already reflects it
     return true;
   } catch (err) {
+    // If the local file is missing on device, skip trying to upload it without failing store credentials
+    if (err instanceof OnlineStoreApiError && err.message.includes('Image file not found')) {
+      if (__DEV__) console.warn('[onlineStore] skipping missing local image for product:', item.productId);
+      return true;
+    }
     // A 404/401 means the store credential is gone or invalid — propagate so
     // processQueue()'s outer catch can clear the stale registration and re-register.
     if (err instanceof OnlineStoreApiError && (err.status === 404 || err.status === 401)) throw err;
@@ -99,13 +107,19 @@ function toSyncChange(item: PendingSyncItem): SyncChange | null {
 // which counts as something new to push even if the dirty flag wasn't set.
 async function ensureRemoteLogo(slug: string, apiKey: string): Promise<[string | null, boolean]> {
   const { useBusinessStore } = await import('@/store/businessStore');
-  const logoUri = useBusinessStore.getState().logoUri;
-  if (!logoUri) return [null, false];
-  if (!LOCAL_URI_PATTERN.test(logoUri)) return [logoUri, false]; // already a remote URL
+  const { resolveImageUri } = await import('@/lib/imageStorage');
+  const rawLogoUri = useBusinessStore.getState().logoUri;
+  if (!rawLogoUri) return [null, false];
+  if (!LOCAL_URI_PATTERN.test(rawLogoUri)) return [rawLogoUri, false]; // already a remote URL
+
+  const logoUri = resolveImageUri(rawLogoUri) || rawLogoUri;
+  if (logoUri !== rawLogoUri) {
+    useBusinessStore.getState().updateLogo(logoUri);
+  }
 
   const { remoteUrl, uploadedFromUri } = await getLogoUploadState();
   const hasValidSlugUrl = !!remoteUrl && remoteUrl.includes(`/uploads/${slug}/`);
-  if (hasValidSlugUrl && uploadedFromUri === logoUri) return [remoteUrl, false];
+  if (hasValidSlugUrl && (uploadedFromUri === logoUri || uploadedFromUri === rawLogoUri)) return [remoteUrl, false];
 
   try {
     const { url } = await uploadStoreImage(slug, apiKey, logoUri);

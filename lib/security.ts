@@ -8,6 +8,8 @@
  * 4. Identifier validation for dynamic SQLite queries.
  */
 
+import { Platform } from 'react-native';
+
 const SAFE_IMAGE_URI_REGEX =
   /^(?:https?:\/\/|file:\/\/|data:image\/(?:png|jpeg|jpg|webp|gif|svg\+xml);base64,[A-Za-z0-9+/=]+|content:\/\/)/i;
 
@@ -95,7 +97,6 @@ const ROOT_INDICATOR_PATHS = [
  */
 export async function isDeviceRootedAsync(): Promise<boolean> {
   try {
-    const { Platform } = await import('react-native');
     if (Platform.OS === 'web') return false;
     const FileSystem = await import('expo-file-system');
     for (const path of ROOT_INDICATOR_PATHS) {

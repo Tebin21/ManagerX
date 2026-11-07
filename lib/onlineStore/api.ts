@@ -1,3 +1,6 @@
+import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import { resolveImageUri } from '@/lib/imageStorage';
 import { getOnlineStoreSubscriptionHeaders } from '@/lib/onlineStoreSubscription/subscription';
 
 // Thin REST client for the Online Store backend (see online-store/server). Frontend
@@ -190,16 +193,33 @@ export async function uploadStoreImage(
   localUri: string,
   timeoutMs = 12000
 ): Promise<{ url: string }> {
-  const ext = (localUri.split('?')[0].split('.').pop() || 'jpg').toLowerCase();
+  const resolvedUri = resolveImageUri(localUri) || localUri;
+
+  // Verify file exists on disk BEFORE passing to FormData.
+  // On iOS, if RCTHTTPFormDataHelper tries to read a non-existent file, it triggers a fatal native error.
+  if (Platform.OS !== 'web' && (/^file:\/\//i.test(resolvedUri) || resolvedUri.startsWith('/'))) {
+    try {
+      const info = await FileSystem.getInfoAsync(resolvedUri);
+      if (!info || !info.exists) {
+        if (__DEV__) console.warn(`[onlineStore] Local image file does not exist on disk: ${resolvedUri}`);
+        throw new OnlineStoreApiError(`Image file not found on device: ${resolvedUri}`, 404);
+      }
+    } catch (e) {
+      if (e instanceof OnlineStoreApiError) throw e;
+      if (__DEV__) console.warn('[onlineStore] Failed to check file existence:', e);
+    }
+  }
+
+  const ext = (resolvedUri.split('?')[0].split('.').pop() || 'jpg').toLowerCase();
   const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
   const form = new FormData();
-  form.append('image', { uri: localUri, name: `upload.${ext}`, type: mime } as unknown as Blob);
+  form.append('image', { uri: resolvedUri, name: `upload.${ext}`, type: mime } as unknown as Blob);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    if (__DEV__) console.log(`[onlineStore] → POST /api/stores/${slug}/images (${localUri})`);
+    if (__DEV__) console.log(`[onlineStore] → POST /api/stores/${slug}/images (${resolvedUri})`);
     const res = await fetch(`${STORE_API_BASE_URL}/api/stores/${slug}/images`, {
       method: 'POST',
       headers: { ...authHeaders(apiKey), ...(await subscriptionHeaders()) },
