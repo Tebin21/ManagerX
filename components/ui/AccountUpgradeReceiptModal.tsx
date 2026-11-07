@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   View,
@@ -48,7 +48,7 @@ const TRANSLATIONS: Record<ModalLang, {
     screenshotBannerText: 'دەتوانن سکرینی ئەم زانیارییە بکەن',
     screenshotBannerSub: 'بۆ ئەوەی وەک بەڵگە و وەسڵی فەرمی لای خۆتان بمێنێتەوە',
     timerCounting: 'دوگمەی تێگەیشتم چالاک دەبێت دوای:',
-    timerReady: 'کاتی ٢٥ چرکە تەواو بوو • تکایە دوگمەی خوارەوە دابگرە',
+    timerReady: 'مۆڵەتی بەشداریکردن پشتڕاستکراوەیە • دەتوانن سکرینی بکەن',
     receiptTitle: 'وەسڵی بەشداریکردن',
     receiptSubtitle: 'پیرۆزە! پاکێجەکەت بە سەرکەوتوویی کارا کرا',
     customerName: 'ناوی کڕیار / مارکێت:',
@@ -69,7 +69,7 @@ const TRANSLATIONS: Record<ModalLang, {
     screenshotBannerText: 'يمكنك أخذ لقطة شاشة لهذه المعلومات',
     screenshotBannerSub: 'للاحتفاظ بها كإثبات رسمي ووصل اشتراك لديك',
     timerCounting: 'سيتم تفعيل زر التأكيد بعد:',
-    timerReady: 'اكتملت مدة ٢٥ ثانية • يرجى الضغط على الزر أدناه',
+    timerReady: 'تم تأكيد ترخيص الاشتراك • يمكنك الاحتفاظ بلقطة الشاشة',
     receiptTitle: 'إيصال الاشتراك الرسمي',
     receiptSubtitle: 'مبروك! تم تفعيل باقتك بنجاح',
     customerName: 'اسم العميل / المتجر:',
@@ -90,7 +90,7 @@ const TRANSLATIONS: Record<ModalLang, {
     screenshotBannerText: 'You can screenshot this information',
     screenshotBannerSub: 'Keep this as your official subscription proof and receipt',
     timerCounting: 'Dismiss button unlocks in:',
-    timerReady: '25 seconds completed • Please press the button below',
+    timerReady: 'Subscription license verified • You can take a screenshot',
     receiptTitle: 'Official Subscription Receipt',
     receiptSubtitle: 'Congratulations! Your package is successfully activated',
     customerName: 'Customer / Store Name:',
@@ -116,22 +116,65 @@ export function AccountUpgradeReceiptModal() {
   const [selectedLang, setSelectedLang] = useState<ModalLang>(
     appLang === 'en' ? 'en' : 'ku'
   );
-  const [countdown, setCountdown] = useState(25);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const receipt = currentUserAccount?.upgradeReceipt || null;
+  const receiptId = receipt?.receiptId?.trim() || '';
+  const accountEmail = (currentUserAccount?.email || receipt?.email || '').trim().toLowerCase();
+
+  // Helper to mark this receipt as seen across multiple persistent keys
+  const markReceiptSeen = async () => {
+    if (!receiptId) return;
+    try {
+      const tasks: Promise<any>[] = [
+        AsyncStorage.setItem(`@seen_upgrade_receipt_${receiptId}`, 'true'),
+        AsyncStorage.setItem(`@seen_upgrade_receipt_shown_${receiptId}`, 'true'),
+      ];
+      if (accountEmail) {
+        tasks.push(
+          AsyncStorage.setItem(`@last_seen_upgrade_receipt_${accountEmail}`, receiptId),
+          AsyncStorage.setItem(`@seen_upgrade_receipt_user_${accountEmail}_${receiptId}`, 'true')
+        );
+      }
+      await Promise.all(tasks);
+    } catch (err) {
+      console.warn('[UpgradeReceiptModal] Mark seen error:', err);
+    }
+  };
 
   useEffect(() => {
-    if (!receipt || !receipt.receiptId) return;
+    if (!receipt || !receiptId) return;
 
     let isMounted = true;
     const checkSeen = async () => {
       try {
-        const seen = await AsyncStorage.getItem(`@seen_upgrade_receipt_${receipt.receiptId}`);
-        if (!seen && isMounted) {
+        const seenStorageKey = `@seen_upgrade_receipt_${receiptId}`;
+        const lastSeenAccountKey = `@last_seen_upgrade_receipt_${accountEmail}`;
+
+        const [seen, lastSeenForAccount] = await Promise.all([
+          AsyncStorage.getItem(seenStorageKey),
+          accountEmail ? AsyncStorage.getItem(lastSeenAccountKey) : null,
+        ]);
+
+        // Already seen or acknowledged for this receipt ID or account
+        if (seen === 'true' || (lastSeenForAccount && lastSeenForAccount === receiptId)) {
+          return;
+        }
+
+        // If the upgrade is older than 14 days, don't suddenly pop up if the app wasn't opened for a long time
+        if (receipt.upgradedAt || receipt.startDate) {
+          const upgradeTime = new Date(receipt.upgradedAt || receipt.startDate).getTime();
+          const fourteenDaysAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
+          if (!isNaN(upgradeTime) && upgradeTime < fourteenDaysAgo) {
+            await markReceiptSeen();
+            return;
+          }
+        }
+
+        if (isMounted) {
+          // Immediately mark as seen so closing/killing the app never triggers repeated popups
+          await markReceiptSeen();
           setVisible(true);
           setStep('lang');
-          setCountdown(25);
           try {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
           } catch {}
@@ -146,52 +189,31 @@ export function AccountUpgradeReceiptModal() {
     return () => {
       isMounted = false;
     };
-  }, [receipt?.receiptId]);
-
-  // Start the 25-second countdown ONLY once the language has been chosen (step === 'receipt')
-  useEffect(() => {
-    if (!visible || step !== 'receipt' || !receipt?.receiptId) return;
-
-    timerRef.current = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          if (timerRef.current) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-          }
-          // Do NOT auto-dismiss! User must explicitly tap 'تێگەیشتم و تەواو'
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, [visible, step, receipt?.receiptId]);
+  }, [receiptId, accountEmail]);
 
   const handleSelectLanguage = (lang: ModalLang) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     } catch {}
     setSelectedLang(lang);
-    setCountdown(25);
     setStep('receipt');
+    markReceiptSeen();
+  };
+
+  const handleClose = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      await markReceiptSeen();
+    } catch {}
+    setVisible(false);
   };
 
   const handleDismiss = async () => {
-    if (countdown > 0) return;
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      if (receipt?.receiptId) {
-        await AsyncStorage.setItem(`@seen_upgrade_receipt_${receipt.receiptId}`, 'true');
-      }
+      await markReceiptSeen();
     } catch (err) {
-      console.warn('[UpgradeReceiptModal] Save seen error:', err);
+      console.warn('[UpgradeReceiptModal] Dismiss error:', err);
     }
     setVisible(false);
   };
@@ -244,14 +266,22 @@ export function AccountUpgradeReceiptModal() {
       transparent
       visible={visible}
       animationType="fade"
-      onRequestClose={() => {
-        // Non-dismissible by back button during 25 seconds
-      }}
+      onRequestClose={handleClose}
       statusBarTranslucent
       supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
     >
       <View style={styles.overlay}>
         <View style={styles.containerCard}>
+          {/* Top Close Button (X) */}
+          <TouchableOpacity
+            style={[styles.closeBtn, isRtl ? styles.closeBtnRtl : styles.closeBtnLtr]}
+            onPress={handleClose}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="close" size={20} color="#94A3B8" />
+          </TouchableOpacity>
+
           {step === 'lang' ? (
             /* ─── STEP 1: LANGUAGE SELECTION ─── */
             <View style={styles.langPickerWrapper}>
@@ -339,13 +369,11 @@ export function AccountUpgradeReceiptModal() {
                 </View>
               </View>
 
-              {/* Countdown / Status Strip */}
-              <View style={[styles.timerStrip, countdown === 0 && styles.timerStripReady, isRtl && styles.rowRtl]}>
-                <View style={[styles.timerPulseDot, countdown === 0 && styles.timerPulseDotReady]} />
-                <Text style={[styles.timerText, countdown === 0 && styles.timerTextReady]}>
-                  {countdown > 0
-                    ? `${labels.timerCounting} ${countdown} ${labels.sec}`
-                    : labels.timerReady}
+              {/* Status Verification Strip */}
+              <View style={[styles.timerStrip, styles.timerStripReady, isRtl && styles.rowRtl]}>
+                <View style={[styles.timerPulseDot, styles.timerPulseDotReady]} />
+                <Text style={[styles.timerText, styles.timerTextReady]}>
+                  {labels.timerReady}
                 </Text>
               </View>
 
@@ -490,32 +518,18 @@ export function AccountUpgradeReceiptModal() {
                 </View>
               </ScrollView>
 
-              {/* ─── PINNED BOTTOM ACTION BUTTON (سانیە و دەق بە شێوازی پاک و بێ تکەلەبوون) ─── */}
+              {/* ─── PINNED BOTTOM ACTION BUTTON ─── */}
               <View style={styles.bottomActionContainer}>
-                {countdown > 0 ? (
-                  <View style={[styles.dismissBtn, styles.dismissBtnDisabled, isRtl && styles.rowRtl]}>
-                    <View style={styles.countdownPill}>
-                      <Ionicons name="time-outline" size={14} color="#D4AF37" style={{ marginHorizontal: 2 }} />
-                      <Text style={styles.countdownPillText}>
-                        {countdown} {labels.sec}
-                      </Text>
-                    </View>
-                    <Text style={styles.dismissBtnTextDisabled}>
-                      {labels.dismiss}
-                    </Text>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={[styles.dismissBtn, styles.dismissBtnActive, isRtl && styles.rowRtl]}
-                    onPress={handleDismiss}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="checkmark-circle" size={22} color="#0F172A" />
-                    <Text style={styles.dismissBtnTextActive}>
-                      {labels.dismiss}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                  style={[styles.dismissBtn, styles.dismissBtnActive, isRtl && styles.rowRtl]}
+                  onPress={handleDismiss}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="checkmark-circle" size={22} color="#0F172A" />
+                  <Text style={styles.dismissBtnTextActive}>
+                    {labels.dismiss}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </>
           )}
@@ -546,6 +560,26 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.28,
     shadowRadius: 18,
     elevation: 10,
+    position: 'relative',
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: 14,
+    zIndex: 30,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeBtnLtr: {
+    right: 14,
+  },
+  closeBtnRtl: {
+    left: 14,
   },
   rowRtl: {
     flexDirection: 'row-reverse',
