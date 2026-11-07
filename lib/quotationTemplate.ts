@@ -575,11 +575,11 @@ export function buildQuotationHTML(
       ${quotationSettings.showDate ? `
       <div class="doc-meta-item">
         <span class="meta-lbl">${isAr ? ku('التاريخ:') : isKu ? ku('بەروار:') : 'Date:'}</span>
-        <b class="en-num" dir="ltr">${escHtml(quotation.date)}</b>
+        <b class="en-num" dir="ltr">${escHtml(formatDate(quotation.date || quotation.createdAt))}</b>
       </div>
       <div class="doc-meta-item">
         <span class="meta-lbl">${isAr ? ku('الوقت:') : isKu ? ku('کات:') : 'Time:'}</span>
-        <b class="en-num" dir="ltr">${escHtml(formatTime(quotation.time))}</b>
+        <b class="en-num" dir="ltr">${escHtml(formatTime(quotation.time || quotation.createdAt))}</b>
       </div>` : ''}
       ${quotation.printCount && quotation.printCount > 0 ? `
       <div class="doc-meta-item">

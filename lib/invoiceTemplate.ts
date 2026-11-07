@@ -527,7 +527,10 @@ export function buildInvoiceHTML(
     </tr>
   `).join('') : `<tr><td colspan="7" class="empty-row">${ku(t('noItems'))}</td></tr>`;
 
-  const dateTimeValue = sale.date ?? sale.createdAt;
+  const saleDate = sale.date || sale.createdAt;
+  const saleTime = (sale.date && sale.date.includes('T') ? sale.date : null) || sale.createdAt;
+  const dateFormatted = formatDate(saleDate);
+  const timeFormatted = formatTime(saleTime);
 
   const blockTextStyle = isKurdish ? `direction:rtl;text-align:${kuAlign};white-space:pre-wrap;` : '';
 
@@ -635,12 +638,13 @@ export function buildInvoiceHTML(
       ${salesSettings.showDate ? `
       <div class="inv-meta-row">
         <span class="row-label">${ku(t('date') + ':')}</span>
-        <span class="row-value row-value-ltr">${escHtml(formatDate(dateTimeValue))}</span>
+        <span class="row-value row-value-ltr">${escHtml(dateFormatted)}</span>
       </div>
+      ${timeFormatted ? `
       <div class="inv-meta-row">
         <span class="row-label">${ku(t('time') + ':')}</span>
-        <span class="row-value row-value-ltr">${escHtml(formatTime(dateTimeValue))}</span>
-      </div>` : ''}
+        <span class="row-value row-value-ltr">${escHtml(timeFormatted)}</span>
+      </div>` : ''}` : ''}
       ${salesSettings.showPaymentMethod ? `
       <div class="inv-status-row">
         <span class="inv-meta-line">${ku(t('status') + ':')}</span>
@@ -1285,7 +1289,10 @@ export function buildPurchaseInvoiceHTML(
       </div>
     </div>` : '';
 
-  const purchaseDateTime = purchase.date ?? purchase.createdAt;
+  const purchaseDate = purchase.date || purchase.createdAt;
+  const purchaseTime = purchase.createdAt || (purchase.date && purchase.date.includes('T') ? purchase.date : '');
+  const purchaseDateFormatted = formatDate(purchaseDate);
+  const purchaseTimeFormatted = formatTime(purchaseTime);
 
   const defaultPolicy = isPurchaseAr
     ? 'تم استلام كافة المواد وفقاً لفاتورة المورد الرسمية وتم إدخالها إلى نظام المخزن.'
@@ -1333,12 +1340,13 @@ export function buildPurchaseInvoiceHTML(
       ${purchaseSettings.showDate ? `
       <div class="inv-meta-row">
         <span class="row-label">${ku(isPurchaseAr ? 'التاريخ:' : isPurchaseKu ? 'بەروار:' : 'Date:')}</span>
-        <span class="row-value row-value-ltr">${escHtml(formatDate(purchaseDateTime))}</span>
+        <span class="row-value row-value-ltr">${escHtml(purchaseDateFormatted)}</span>
       </div>
+      ${purchaseTimeFormatted ? `
       <div class="inv-meta-row">
         <span class="row-label">${ku(isPurchaseAr ? 'الوقت:' : isPurchaseKu ? 'کات:' : 'Time:')}</span>
-        <span class="row-value row-value-ltr">${escHtml(formatTime(purchaseDateTime))}</span>
-      </div>` : ''}
+        <span class="row-value row-value-ltr">${escHtml(purchaseTimeFormatted)}</span>
+      </div>` : ''}` : ''}
       ${purchaseSettings.showPaymentMethod ? `
       <div class="inv-status-row">
         ${statusBadge}

@@ -176,16 +176,27 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
       gap: 6px;
       margin-bottom: 2.5px;
       font-size: ${baseFontSizePx - 0.5}px;
+      line-height: 1.35;
     }
     .info-label {
       color: #333333;
       font-weight: 700;
       white-space: nowrap;
+      flex-shrink: 0;
     }
     .info-value {
       color: #000000;
       font-weight: 700;
       word-break: break-word;
+    }
+    .info-date, .info-value.info-date {
+      direction: ltr !important;
+      unicode-bidi: embed !important;
+      white-space: nowrap !important;
+      word-break: normal !important;
+      display: inline-block;
+      font-variant-numeric: tabular-nums;
+      font-size: ${width === '58mm' ? '10px' : `${baseFontSizePx - 0.5}px`};
     }
 
     /* ── Items Table ── */
@@ -375,7 +386,8 @@ export function buildThermalReceiptHTML(
     isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
 
   const items = sale.items ?? [];
-  const dateTimeValue = sale.date ?? sale.createdAt;
+  const rawDate = sale.date || sale.createdAt;
+  const rawTime = (sale.date && sale.date.includes('T') ? sale.date : null) || sale.createdAt;
   const paymentStatus = getPaymentStatus(sale);
 
   // ── Header Section ──
@@ -393,8 +405,9 @@ export function buildThermalReceiptHTML(
       ? escHtml(sale.customerPhone)
       : '';
   const invoiceNum = settings.showInvoiceNumber ? escHtml(sale.invoiceNumber) : '';
-  const dateFormatted = settings.showDate ? formatDate(dateTimeValue) : '';
-  const timeFormatted = settings.showDate ? formatTime(dateTimeValue) : '';
+  const dateFormatted = settings.showDate ? formatDate(rawDate) : '';
+  const timeFormatted = settings.showDate ? formatTime(rawTime) : '';
+  const fullDateTime = [dateFormatted, timeFormatted].filter(Boolean).join(' ');
 
   // ── Items Rendering ──
   let itemsHTML = '';
@@ -569,10 +582,10 @@ export function buildThermalReceiptHTML(
         <span class="info-label">${ku(isAr ? 'رقم الإيصال:' : isKu ? 'پسوولە:' : 'Receipt #:')}</span>
         <span class="info-value">#${invoiceNum}</span>
       </div>` : ''}
-      ${dateFormatted ? `
+      ${fullDateTime ? `
       <div class="info-row">
         <span class="info-label">${ku(isAr ? 'التاريخ:' : isKu ? 'بەروار:' : 'Date:')}</span>
-        <span class="info-value">${dateFormatted} ${timeFormatted}</span>
+        <span class="info-value info-date" dir="ltr">${fullDateTime}</span>
       </div>` : ''}
       ${customerName ? `
       <div class="info-row">
@@ -666,6 +679,8 @@ export function buildThermalPurchaseReceiptHTML(
   purchase: {
     purchaseNumber?: string;
     date?: string;
+    time?: string;
+    createdAt?: string;
     supplierName?: string | null;
     supplierPhone?: string | null;
     totalIQD: number;
@@ -695,9 +710,11 @@ export function buildThermalPurchaseReceiptHTML(
   const fmtRow = (val: number) =>
     isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
 
-  const dateTimeValue = purchase.date || new Date().toISOString();
-  const dateFormatted = settings.showDate ? formatDate(dateTimeValue) : '';
-  const timeFormatted = settings.showDate ? formatTime(dateTimeValue) : '';
+  const rawDate = purchase.date || purchase.createdAt || new Date().toISOString();
+  const rawTime = purchase.time || purchase.createdAt || (purchase.date && purchase.date.includes('T') ? purchase.date : '') || new Date().toISOString();
+  const dateFormatted = settings.showDate ? formatDate(rawDate) : '';
+  const timeFormatted = settings.showDate ? formatTime(rawTime) : '';
+  const fullDateTime = [dateFormatted, timeFormatted].filter(Boolean).join(' ');
 
   const storeName = escHtml(business.name || 'Froshiar Store');
   const storePhone = settings.showBusinessPhone && business.phone ? escHtml(business.phone) : '';
@@ -806,7 +823,7 @@ export function buildThermalPurchaseReceiptHTML(
 
     <div class="info-section">
       ${billNum ? `<div class="info-row"><span class="info-label">${ku(isPurchaseAr ? 'رقم وصل الشراء:' : isPurchaseKu ? 'وەسڵی کڕین:' : 'Bill #:')}</span><span class="info-value">#${billNum}</span></div>` : ''}
-      ${dateFormatted ? `<div class="info-row"><span class="info-label">${ku(isPurchaseAr ? 'التاريخ:' : isPurchaseKu ? 'بەروار:' : 'Date:')}</span><span class="info-value">${dateFormatted} ${timeFormatted}</span></div>` : ''}
+      ${fullDateTime ? `<div class="info-row"><span class="info-label">${ku(isPurchaseAr ? 'التاريخ:' : isPurchaseKu ? 'بەروار:' : 'Date:')}</span><span class="info-value info-date" dir="ltr">${fullDateTime}</span></div>` : ''}
       ${supplierName ? `<div class="info-row"><span class="info-label">${ku(isPurchaseAr ? 'المورد:' : isPurchaseKu ? 'دابینکەر:' : 'Supplier:')}</span><span class="info-value">${supplierName}</span></div>` : ''}
       ${supplierPhone ? `<div class="info-row"><span class="info-label">${ku(isPurchaseAr ? 'الهاتف:' : isPurchaseKu ? 'مۆبایل:' : 'Phone:')}</span><span class="info-value">${supplierPhone}</span></div>` : ''}
     </div>
@@ -887,7 +904,10 @@ export function buildThermalInventoryReceiptHTML(
   const totalQty = items.reduce((acc, it) => acc + (it.quantity || 0), 0);
   const totalVal = items.reduce((acc, it) => acc + (it.quantity || 0) * (it.buyPrice || it.sellingPrice || 0), 0);
 
-  const dateFormatted = settings.showDate ? formatDate(new Date().toISOString()) : '';
+  const nowIso = new Date().toISOString();
+  const dateFormatted = settings.showDate ? formatDate(nowIso) : '';
+  const timeFormatted = settings.showDate ? formatTime(nowIso) : '';
+  const fullDateTime = [dateFormatted, timeFormatted].filter(Boolean).join(' ');
   const storeName = escHtml(business.name || 'Froshiar Store');
 
   let rowsHTML = '';
@@ -957,7 +977,7 @@ export function buildThermalInventoryReceiptHTML(
     <div class="receipt-header">
       <div class="biz-name">${storeName}</div>
       <div class="biz-type-badge">${ku(resolvedReportTitle)}</div>
-      ${dateFormatted ? `<div class="biz-contact">${ku(isInvAr ? 'التاريخ:' : isInvKu ? 'بەروار:' : 'Date:')} ${dateFormatted}</div>` : ''}
+      ${fullDateTime ? `<div class="biz-contact"><span dir="rtl">${ku(isInvAr ? 'التاريخ:' : isInvKu ? 'بەروار:' : 'Date:')}</span> <span class="info-date" dir="ltr">${fullDateTime}</span></div>` : ''}
     </div>
     <div class="divider-dashed"></div>
 
@@ -1014,7 +1034,8 @@ export function buildThermalQuotationReceiptHTML(
     isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
 
   const items = quotation.items ?? [];
-  const dateTimeValue = quotation.date ? `${quotation.date} ${quotation.time || ''}` : quotation.createdAt;
+  const rawDate = quotation.date || quotation.createdAt;
+  const rawTime = quotation.time || quotation.createdAt;
 
   // Header Section
   const storeName = escHtml(business.name || 'Froshiar Store');
@@ -1025,8 +1046,9 @@ export function buildThermalQuotationReceiptHTML(
   const customerName = quotation.customerName && quotation.customerName.trim() ? escHtml(quotation.customerName) : '';
   const customerPhone = quotation.customerPhone && quotation.customerPhone.trim() ? escHtml(quotation.customerPhone) : '';
   const quotationNum = quotation.quotationNumber ? escHtml(quotation.quotationNumber) : '';
-  const dateFormatted = formatDate(dateTimeValue);
-  const timeFormatted = formatTime(dateTimeValue);
+  const dateFormatted = formatDate(rawDate);
+  const timeFormatted = formatTime(rawTime);
+  const fullDateTime = [dateFormatted, timeFormatted].filter(Boolean).join(' ');
 
   // Items Rendering
   let itemsHTML = '';
@@ -1136,7 +1158,7 @@ export function buildThermalQuotationReceiptHTML(
 
     <div class="info-section">
       ${quotationNum ? `<div class="info-row"><span class="info-label">${ku(isAr ? 'رقم العرض:' : isKu ? 'ژ. وەسڵ:' : 'Quote #:')}</span><span class="info-value">#${quotationNum}</span></div>` : ''}
-      <div class="info-row"><span class="info-label">${ku(isAr ? 'التاريخ:' : isKu ? 'بەروار:' : 'Date:')}</span><span class="info-value">${dateFormatted} ${timeFormatted}</span></div>
+      ${fullDateTime ? `<div class="info-row"><span class="info-label">${ku(isAr ? 'التاريخ:' : isKu ? 'بەروار:' : 'Date:')}</span><span class="info-value info-date" dir="ltr">${fullDateTime}</span></div>` : ''}
       ${customerName ? `<div class="info-row"><span class="info-label">${ku(isAr ? 'العميل:' : isKu ? 'کڕیار:' : 'Customer:')}</span><span class="info-value">${customerName}</span></div>` : ''}
       ${customerPhone ? `<div class="info-row"><span class="info-label">${ku(isAr ? 'الهاتف:' : isKu ? 'مۆبایل:' : 'Phone:')}</span><span class="info-value">${customerPhone}</span></div>` : ''}
     </div>

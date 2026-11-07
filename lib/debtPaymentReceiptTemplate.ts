@@ -226,7 +226,7 @@ export function buildDebtPaymentA4HTML(
         <td class="doc-meta-td">
           <div class="doc-title">${escHtml(docTitle)}</div>
           <div class="doc-number">${escHtml(receipt.paymentNumber)}</div>
-          <div class="doc-date-time">${dateStr} · ${timeStr}</div>
+          <div class="doc-date-time" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">${dateStr}${timeStr ? ` · ${timeStr}` : ''}</div>
           <div><span class="status-pill">${escHtml(statusLabel)}</span></div>
         </td>
       </tr>
@@ -441,7 +441,7 @@ export function buildDebtPaymentThermalHTML(
   </div>
   <div class="row">
     <span class="row-label">ڕێکەوت و کات:</span>
-    <span class="row-value font-mono">${dateStr} ${timeStr}</span>
+    <span class="row-value font-mono" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">${[dateStr, timeStr].filter(Boolean).join(' ')}</span>
   </div>
 
   <div class="divider"></div>

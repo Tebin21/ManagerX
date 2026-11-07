@@ -239,10 +239,21 @@ export function toDateOnly(v: string | Date): string {
   return `${year}-${month}-${day}`;
 }
 
-export function formatDate(v: string | Date): string {
-  return parseDateSafe(v).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  });
+export function formatDate(v: string | Date | null | undefined): string {
+  if (!v) return '';
+  if (typeof v === 'string') {
+    const clean = toEnglishDigits(v).trim();
+    const m = clean.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+    if (m) {
+      const [, y, mo, d] = m;
+      return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+  }
+  const d = parseDateSafe(v);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function normalizeTimeToAmPm(t: string | null | undefined): string {
@@ -270,7 +281,16 @@ export function normalizeTimeToAmPm(t: string | null | undefined): string {
 export function formatTime(v: string | Date | null | undefined): string {
   if (!v) return '';
   if (typeof v === 'string') {
-    const trimmed = v.trim();
+    const trimmed = toEnglishDigits(v).trim();
+    // If string is strictly a date without time (e.g. "2026-11-08"), there is no time to format
+    if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(trimmed)) {
+      return '';
+    }
+    // If string has a time portion like "2026-11-07 1:29 AM", extract ONLY the time!
+    const timeMatch = trimmed.match(/\b(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AP]M|ب\.?ن|پ\.?ن|د\.?ن|نیوەڕۆ|ص|م)?)\b/i);
+    if (timeMatch && timeMatch[1]) {
+      return normalizeTimeToAmPm(timeMatch[1]);
+    }
     if (
       /AM|PM|ب\s*\.?\s*ن|پ\s*\.?\s*ن|د\s*\.?\s*ن|نیوەڕۆ|ص|م/i.test(trimmed) ||
       /^\d{1,2}:\d{2}(?::\d{2})?$/.test(trimmed)

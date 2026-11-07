@@ -407,7 +407,7 @@ export function buildFullInventoryReportHTML(
   const kuAlign = isKurdish ? 'right' : 'left';
   const numAlign = isKurdish ? 'left' : 'right';
   const now = new Date();
-  const dateStr = isKurdish ? formatDateShort(now) : fmtDate(now);
+  const dateStr = fmtDate(now);
   const timeStr = fmtTime(now);
   const reportId = genReportId('INV');
   const totalQuantity = products.reduce((s, p) => s + p.quantity, 0);
@@ -555,7 +555,7 @@ export function buildLowStockReportHTML(
   const dir = isKurdish ? 'rtl' : 'ltr';
   const kuAlign = isKurdish ? 'right' : 'left';
   const now = new Date();
-  const dateStr = isKurdish ? formatDateShort(now) : fmtDate(now);
+  const dateStr = fmtDate(now);
   const timeStr = fmtTime(now);
   const reportId = genReportId('LSK');
 
@@ -638,7 +638,7 @@ export function buildOutOfStockReportHTML(
   const dir = isKurdish ? 'rtl' : 'ltr';
   const kuAlign = isKurdish ? 'right' : 'left';
   const now = new Date();
-  const dateStr = isKurdish ? formatDateShort(now) : fmtDate(now);
+  const dateStr = fmtDate(now);
   const timeStr = fmtTime(now);
   const reportId = genReportId('OOS');
 
@@ -722,7 +722,7 @@ export function buildCategoryReportHTML(
   const kuAlign = isKurdish ? 'right' : 'left';
   const numAlign = isKurdish ? 'left' : 'right';
   const now = new Date();
-  const dateStr = isKurdish ? formatDateShort(now) : fmtDate(now);
+  const dateStr = fmtDate(now);
   const timeStr = fmtTime(now);
   const reportId = genReportId('CAT');
   const categoryNameSafe = escHtml(categoryName);
