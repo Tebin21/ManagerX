@@ -45,7 +45,8 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { shareQuotationInvoice } from '@/lib/generateInvoice';
+import { shareQuotationInvoice, directPrintQuotationInvoice } from '@/lib/generateInvoice';
+import type { CheckoutMode } from '@/components/shared/CheckoutActionGrid';
 import { PrintFormatPickerModal } from '@/components/shared/PrintFormatPickerModal';
 import {
   getOrCreateCustomerAccount,
@@ -106,6 +107,48 @@ export default function SalesQuotationScreen() {
   const [globalDiscountValue, setGlobalDiscountValue] = useState<number>(0);
   const [isDiscountExpanded, setIsDiscountExpanded] = useState<boolean>(false);
   const [showCurrencyOptions, setShowCurrencyOptions] = useState<boolean>(false);
+  const [showReceiptTypeOptions, setShowReceiptTypeOptions] = useState<boolean>(false);
+
+  const savedQuotationPaperSize = useSettingsStore((s) => s.quotationPaperSizePreference);
+  const defaultCheckoutMode: CheckoutMode =
+    savedQuotationPaperSize === 'A4'
+      ? 'print'
+      : savedQuotationPaperSize === '58mm'
+      ? 'print58'
+      : savedQuotationPaperSize === '110mm'
+      ? 'print110'
+      : savedQuotationPaperSize === '80mm'
+      ? 'print80'
+      : 'normal';
+
+  const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>(defaultCheckoutMode);
+
+  const toggleReceiptTypeOptions = useCallback(() => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    } catch {}
+    try {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    } catch {}
+    setShowReceiptTypeOptions((prev) => !prev);
+  }, []);
+
+  const getReceiptTypeBadgeLabel = useCallback(() => {
+    switch (checkoutMode) {
+      case 'normal':
+        return isKuLanguage ? 'ئاسایی' : 'Normal';
+      case 'print':
+        return isKuLanguage ? 'پرینت A4' : 'A4 Print';
+      case 'print80':
+        return '80mm';
+      case 'print58':
+        return '58mm';
+      case 'print110':
+        return '110mm';
+      default:
+        return isKuLanguage ? 'ئاسایی' : 'Normal';
+    }
+  }, [checkoutMode, isKuLanguage]);
 
   const toggleCurrencyOptions = useCallback(() => {
     try {
@@ -522,12 +565,38 @@ export default function SalesQuotationScreen() {
       addQuotation(newQuote);
       setGeneratedQuotation(newQuote);
 
+      // If user selected a print mode, trigger direct print in background
+      if (checkoutMode === 'print' || checkoutMode === 'print80' || checkoutMode === 'print58' || checkoutMode === 'print110') {
+        const paperSize: ReceiptPaperSize =
+          checkoutMode === 'print' ? 'A4' :
+          checkoutMode === 'print58' ? '58mm' :
+          checkoutMode === 'print110' ? '110mm' : '80mm';
+
+        // Fire direct print without blocking
+        directPrintQuotationInvoice(
+          newQuote,
+          {
+            name: business.name,
+            phone: business.phone,
+            address: business.address,
+            logoUri: business.logoUri,
+          },
+          newQuote.currencyMode || currencyMode || 'both',
+          paperSize
+        ).catch((printErr) => {
+          console.error('[Quotation] Direct print error:', printErr);
+        });
+
+        useQuotationStore.getState().incrementPrintCount(newQuote.id);
+      }
+
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } catch {}
 
-      // 4. Advance to Step 3 (Official Quotation Invoice View)
-      setStep(3);
+      // Reset form and go back directly to the sales section first screen
+      handleResetForNewQuote();
+      router.replace('/(app)/sales');
     } catch (err) {
       console.error('[Quotation] Generate error:', err);
       Alert.alert('Error', isKuLanguage ? 'نەتوانرا عەرزەکە دروست بکرێت.' : 'Could not generate quotation.');
@@ -1708,6 +1777,280 @@ export default function SalesQuotationScreen() {
       </View>
     );
 
+    // 5b. Receipt Format / Design Type Selector (جۆرەکانی وەسڵ)
+    const renderReceiptTypeSelector = () => {
+      const receiptTypeOptions: Array<{
+        id: CheckoutMode;
+        titleKu: string;
+        titleEn: string;
+        subKu: string;
+        subEn: string;
+        icon: keyof typeof Ionicons.glyphMap;
+        badge?: string;
+      }> = [
+        {
+          id: 'normal',
+          titleKu: 'ئاسایی',
+          titleEn: 'Normal',
+          subKu: 'عەرز و پاشەکەوتکردن',
+          subEn: 'Save Quotation Only',
+          icon: 'flash-outline',
+        },
+        {
+          id: 'print',
+          titleKu: 'پرینت A4',
+          titleEn: 'A4 Print',
+          subKu: 'پەڕەی فەرمی A4 • خشتەی تەواو',
+          subEn: 'A4 Full Sheet',
+          icon: 'document-text-outline',
+          badge: 'A4',
+        },
+        {
+          id: 'print80',
+          titleKu: '80mm',
+          titleEn: '80mm',
+          subKu: '8.0 سم • ستاندارد',
+          subEn: '8.0 cm Standard POS',
+          icon: 'receipt-outline',
+          badge: '8.0 cm',
+        },
+        {
+          id: 'print58',
+          titleKu: '58mm',
+          titleEn: '58mm',
+          subKu: '5.8 سم • وەسڵی بچووک',
+          subEn: '5.8 cm Compact POS',
+          icon: 'receipt-outline',
+          badge: '5.8 cm',
+        },
+        {
+          id: 'print110',
+          titleKu: '110mm',
+          titleEn: '110mm',
+          subKu: '11.0 سم • وەسڵی پان',
+          subEn: '11.0 cm Wide Thermal',
+          icon: 'receipt-outline',
+          badge: '11.0 cm',
+        },
+      ];
+
+      return (
+        <View style={[styles.currencyToggleContainer, isTablet && { marginTop: 14 }]}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={toggleReceiptTypeOptions}
+            style={[
+              styles.currencyTriggerBtn,
+              isTablet && { paddingVertical: 15, paddingHorizontal: 16, borderRadius: 14 },
+              {
+                backgroundColor: isDark ? '#131D31' : colors.white,
+                borderColor: showReceiptTypeOptions ? '#2563EB' : (isDark ? '#1F2E4D' : colors.gray200),
+                borderWidth: 1,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              },
+            ]}
+          >
+            {/* Label + Icon */}
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 12 : 10, flex: 1 }}>
+              <View
+                style={[
+                  styles.currencyTriggerIconBox,
+                  isTablet && { width: 40, height: 40, borderRadius: 10 },
+                  { backgroundColor: isDark ? '#1E2D4A' : '#FEF3C7' },
+                ]}
+              >
+                <Ionicons name="receipt-outline" size={isTablet ? 22 : 18} color={isDark ? '#3B82F6' : colors.primary} />
+              </View>
+              <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                <Text
+                  style={[
+                    styles.currencyTriggerTitle,
+                    isTablet && { fontSize: 15.5 },
+                    {
+                      color: colors.black,
+                      fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                    },
+                  ]}
+                >
+                  {isKuLanguage ? 'جۆرەکانی وەسڵ:' : 'Receipt Types / Format:'}
+                </Text>
+                <Text style={{ fontSize: isTablet ? 12.5 : 11, color: colors.gray400, marginTop: 1 }}>
+                  {isKuLanguage ? 'دەست بنێ بۆ دیاریکردن یان گۆڕین' : 'Tap to select or change format'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Currently Active Badge + Chevron */}
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 8 : 6 }}>
+              <View
+                style={[
+                  styles.currencyActiveBadge,
+                  isTablet && { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 9 },
+                  {
+                    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#FEF9C3',
+                    borderColor: isDark ? '#2563EB' : colors.primary,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.currencyActiveBadgeText,
+                    isTablet && { fontSize: 13.5 },
+                    {
+                      color: isDark ? '#60A5FA' : colors.primary,
+                      fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                    },
+                  ]}
+                >
+                  {getReceiptTypeBadgeLabel()}
+                </Text>
+              </View>
+
+              <Ionicons
+                name={showReceiptTypeOptions ? 'chevron-up' : 'chevron-down'}
+                size={isTablet ? 18 : 16}
+                color={colors.gray400}
+              />
+            </View>
+          </TouchableOpacity>
+
+          {/* Expanded Receipt Type Options */}
+          {showReceiptTypeOptions && (
+            <MotiView
+              from={{ opacity: 0, translateY: -6 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 180 }}
+              style={[
+                styles.currencyExpandedCard,
+                isTablet && { padding: 14, borderRadius: 14 },
+                {
+                  backgroundColor: isDark ? '#131D31' : colors.white,
+                  borderColor: '#2563EB',
+                  borderWidth: 1.5,
+                },
+              ]}
+            >
+              <View style={{ gap: 8 }}>
+                {receiptTypeOptions.map((opt) => {
+                  const active = checkoutMode === opt.id;
+                  return (
+                    <TouchableOpacity
+                      key={opt.id}
+                      activeOpacity={0.75}
+                      style={[
+                        {
+                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          paddingVertical: isTablet ? 12 : 10,
+                          paddingHorizontal: isTablet ? 14 : 12,
+                          borderRadius: 12,
+                          backgroundColor: active
+                            ? (isDark ? 'rgba(37, 99, 235, 0.25)' : 'rgba(212, 175, 55, 0.15)')
+                            : (isDark ? '#172338' : colors.gray50),
+                          borderWidth: 1.5,
+                          borderColor: active
+                            ? (isDark ? '#2563EB' : colors.primary)
+                            : (isDark ? '#203152' : colors.gray200),
+                        },
+                      ]}
+                      onPress={() => {
+                        try {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                        } catch {}
+                        setCheckoutMode(opt.id);
+                        if (opt.id === 'print') {
+                          useSettingsStore.getState().setQuotationPaperSizePreference('A4');
+                        } else if (opt.id === 'print80') {
+                          useSettingsStore.getState().setQuotationPaperSizePreference('80mm');
+                        } else if (opt.id === 'print58') {
+                          useSettingsStore.getState().setQuotationPaperSizePreference('58mm');
+                        } else if (opt.id === 'print110') {
+                          useSettingsStore.getState().setQuotationPaperSizePreference('110mm');
+                        }
+                      }}
+                    >
+                      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                        <View
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 10,
+                            backgroundColor: active
+                              ? (isDark ? '#2563EB' : colors.primary)
+                              : (isDark ? '#203152' : colors.gray200),
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Ionicons
+                            name={opt.icon}
+                            size={18}
+                            color={active ? '#FFFFFF' : (isDark ? colors.gray300 : colors.gray600)}
+                          />
+                        </View>
+                        <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start', flex: 1 }}>
+                          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                            <Text
+                              style={{
+                                fontSize: isTablet ? 14.5 : 13.5,
+                                color: active ? (isDark ? '#60A5FA' : colors.primary) : colors.black,
+                                fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                              }}
+                            >
+                              {isKuLanguage ? opt.titleKu : opt.titleEn}
+                            </Text>
+                            {opt.badge ? (
+                              <View
+                                style={{
+                                  paddingHorizontal: 6,
+                                  paddingVertical: 1,
+                                  borderRadius: 6,
+                                  backgroundColor: active
+                                    ? (isDark ? '#2563EB' : colors.primary)
+                                    : (isDark ? 'rgba(255,255,255,0.08)' : colors.gray200),
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    color: active ? '#FFFFFF' : colors.gray500,
+                                    fontWeight: '700',
+                                  }}
+                                >
+                                  {opt.badge}
+                                </Text>
+                              </View>
+                            ) : null}
+                          </View>
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              color: colors.gray400,
+                              marginTop: 1,
+                              fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
+                            }}
+                          >
+                            {isKuLanguage ? opt.subKu : opt.subEn}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Ionicons
+                        name={active ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={20}
+                        color={active ? (isDark ? '#60A5FA' : colors.primary) : colors.gray400}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </MotiView>
+          )}
+        </View>
+      );
+    };
+
     // 6. Generate Button
     const renderGenerateButton = () => (
       <View style={{ marginTop: isTablet ? 14 : 10, marginBottom: Math.max(insets.bottom, 16) + 24 }}>
@@ -1725,7 +2068,7 @@ export default function SalesQuotationScreen() {
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
             <Text style={[styles.primaryActionBtnText, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-              {isKuLanguage ? 'دروستکردن و بینینی وەسڵی عەرز' : 'Generate & Preview Quotation'}
+              {isKuLanguage ? 'دروستکردنی وەسڵی عەرز' : 'Create Quotation'}
             </Text>
           )}
         </TouchableOpacity>
@@ -1777,6 +2120,7 @@ export default function SalesQuotationScreen() {
                 {renderClientInfoCard()}
                 {renderTermsCard()}
                 {renderCurrencySelector()}
+                {renderReceiptTypeSelector()}
                 {renderGenerateButton()}
               </View>
             </View>
@@ -1788,6 +2132,7 @@ export default function SalesQuotationScreen() {
               {renderClientInfoCard()}
               {renderTermsCard()}
               {renderCurrencySelector()}
+              {renderReceiptTypeSelector()}
               {renderGenerateButton()}
             </View>
           )}
