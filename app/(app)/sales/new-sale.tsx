@@ -144,7 +144,7 @@ export default function NewSaleScreen() {
   const mobileCardWidth = Math.min(screenWidth - 44, 380);
 
   const onCartScroll = (e: any) => {
-    const offsetX = e.nativeEvent?.contentOffset?.x ?? 0;
+    const offsetX = Math.abs(e.nativeEvent?.contentOffset?.x ?? 0);
     const itemFullWidth = mobileCardWidth + 10;
     const index = Math.round(offsetX / itemFullWidth);
     const clamped = Math.max(0, Math.min(index, cart.items.length - 1));
@@ -909,83 +909,139 @@ export default function NewSaleScreen() {
             </View>
           ) : (
             <View style={styles.cartCarouselContainer}>
-              {/* Micro Indicator Bar above cards */}
-              <View style={[styles.mobileSwipeIndicatorRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                {/* Counter & Micro Dots */}
-                <View style={[styles.mobileSwipeCounterWrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <Text style={[styles.mobileSwipeCounterText, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+              {/* Prominent Fixed Top Navigation Bar for Cart Items */}
+              <View
+                style={[
+                  styles.cartNavHeader,
+                  {
+                    backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                    borderColor: isDark ? '#334155' : colors.gray200,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                ]}
+              >
+                {/* Previous Item Button (Right in RTL, Left in LTR) */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  disabled={activeCartIndex === 0}
+                  onPress={() => scrollToCartIndex(activeCartIndex - 1)}
+                  style={[
+                    styles.cartNavBtn,
+                    {
+                      opacity: activeCartIndex === 0 ? 0.35 : 1,
+                      backgroundColor: activeCartIndex === 0
+                        ? 'transparent'
+                        : (isDark ? 'rgba(255,255,255,0.06)' : colors.gray100),
+                      borderColor: activeCartIndex === 0
+                        ? (isDark ? 'rgba(255,255,255,0.08)' : colors.gray200)
+                        : (isDark ? '#475569' : colors.gray300),
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name={isRTL ? "chevron-forward" : "chevron-back"}
+                    size={18}
+                    color={activeCartIndex === 0 ? colors.gray400 : colors.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.cartNavBtnText,
+                      { color: activeCartIndex === 0 ? colors.gray400 : (isDark ? '#F8FAFC' : '#0F172A') },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
+                    {isKuLanguage ? 'پێشوو' : 'Prev'}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Center: Counter & Interactive Dots */}
+                <View style={styles.cartNavCenter}>
+                  <Text
+                    style={[
+                      styles.cartNavCounterText,
+                      { color: isDark ? '#F1F5F9' : '#0F172A' },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
                     {isKuLanguage
                       ? `کاڵای ${activeCartIndex + 1} لە ${cart.items.length}`
                       : `Item ${activeCartIndex + 1} of ${cart.items.length}`}
                   </Text>
                   <View style={[styles.microDotsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                     {cart.items.map((_, i) => (
-                      <View
+                      <TouchableOpacity
                         key={i}
-                        style={[
-                          styles.microDot,
-                          i === activeCartIndex
-                            ? [styles.microDotActive, { backgroundColor: colors.primary }]
-                            : [styles.microDotInactive, { backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : colors.gray300 }],
-                        ]}
-                      />
+                        activeOpacity={0.7}
+                        onPress={() => scrollToCartIndex(i)}
+                        hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                      >
+                        <View
+                          style={[
+                            styles.microDot,
+                            i === activeCartIndex
+                              ? [styles.microDotActive, { backgroundColor: colors.primary }]
+                              : [styles.microDotInactive, { backgroundColor: isDark ? 'rgba(255,255,255,0.25)' : colors.gray300 }],
+                          ]}
+                        />
+                      </TouchableOpacity>
                     ))}
                   </View>
                 </View>
 
-                {/* Very Small Swipe-Left Micro Hint ("هێمایەکی بچووک بچووک کە ئاماژە بێت بۆ لێفت ساید کردن") */}
-                {activeCartIndex < cart.items.length - 1 ? (
-                  <TouchableOpacity
-                    activeOpacity={0.75}
-                    onPress={() => scrollToCartIndex(activeCartIndex + 1)}
+                {/* Next Item Button (Left in RTL, Right in LTR) */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (activeCartIndex < cart.items.length - 1) {
+                      scrollToCartIndex(activeCartIndex + 1);
+                    } else {
+                      scrollToCartIndex(0);
+                    }
+                  }}
+                  style={[
+                    styles.cartNavBtn,
+                    {
+                      backgroundColor: activeCartIndex < cart.items.length - 1
+                        ? (isDark ? hexToRgba(colors.primary, 0.22) : hexToRgba(colors.primary, 0.14))
+                        : (isDark ? 'rgba(255,255,255,0.06)' : colors.gray100),
+                      borderColor: activeCartIndex < cart.items.length - 1
+                        ? colors.primary
+                        : (isDark ? '#475569' : colors.gray300),
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text
                     style={[
-                      styles.microSwipeHintPill,
+                      styles.cartNavBtnText,
                       {
-                        backgroundColor: isDark ? hexToRgba(colors.primary, 0.15) : hexToRgba(colors.primary, 0.1),
-                        borderColor: isDark ? hexToRgba(colors.primary, 0.32) : hexToRgba(colors.primary, 0.28),
-                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                        color: activeCartIndex < cart.items.length - 1
+                          ? colors.primary
+                          : (isDark ? '#94A3B8' : colors.gray500),
                       },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    <Ionicons name="arrow-back" size={11} color={colors.primary} />
-                    <Text
-                      style={[
-                        styles.microSwipeHintText,
-                        { color: colors.primary },
-                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                      ]}
-                    >
-                      {isKuLanguage ? 'خلیسکاندن بۆ لای چەپ' : 'Swipe left'}
-                    </Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    activeOpacity={0.75}
-                    onPress={() => scrollToCartIndex(0)}
-                    style={[
-                      styles.microSwipeHintPill,
-                      {
-                        backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : colors.gray100,
-                        borderColor: isDark ? 'rgba(255,255,255,0.12)' : colors.gray200,
-                        flexDirection: isRTL ? 'row-reverse' : 'row',
-                      },
-                    ]}
-                  >
-                    <Ionicons name="arrow-forward" size={11} color={colors.gray500} />
-                    <Text
-                      style={[
-                        styles.microSwipeHintText,
-                        { color: colors.gray500 },
-                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                      ]}
-                    >
-                      {isKuLanguage ? 'گەڕانەوە بۆ سەرەتا' : 'Back to first'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                    {activeCartIndex < cart.items.length - 1
+                      ? (isKuLanguage ? 'دواتر' : 'Next')
+                      : (isKuLanguage ? 'سەرەتا' : 'First')}
+                  </Text>
+                  <Ionicons
+                    name={
+                      activeCartIndex < cart.items.length - 1
+                        ? (isRTL ? "chevron-back" : "chevron-forward")
+                        : "refresh-outline"
+                    }
+                    size={18}
+                    color={activeCartIndex < cart.items.length - 1 ? colors.primary : colors.gray500}
+                  />
+                </TouchableOpacity>
               </View>
 
-              {/* Smooth Horizontal Snapping ScrollView with Peek */}
+              {/* Fast & Smooth Horizontal Snapping ScrollView with Peek */}
               <View style={styles.carouselWrapper}>
                 <ScrollView
                   ref={cartScrollRef}
@@ -993,10 +1049,18 @@ export default function NewSaleScreen() {
                   showsHorizontalScrollIndicator={false}
                   nestedScrollEnabled={true}
                   directionalLockEnabled={true}
+                  canCancelContentTouches={false}
                   keyboardShouldPersistTaps="handled"
                   snapToInterval={mobileCardWidth + 10}
                   snapToAlignment="start"
                   decelerationRate="fast"
+                  disableIntervalMomentum={true}
+                  overScrollMode="never"
+                  bounces={true}
+                  scrollEventThrottle={16}
+                  onScroll={onCartScroll}
+                  onMomentumScrollEnd={onCartScroll}
+                  onScrollEndDrag={onCartScroll}
                   style={[
                     styles.cartMobileScroll,
                     isRTL ? { transform: [{ scaleX: -1 }] } : undefined,
@@ -1005,8 +1069,6 @@ export default function NewSaleScreen() {
                     styles.cartMobileScrollContent,
                     { gap: 10, paddingEnd: 12 },
                   ]}
-                  onScroll={onCartScroll}
-                  scrollEventThrottle={16}
                 >
                   {cart.items.map((item) => (
                     <View
@@ -1030,39 +1092,39 @@ export default function NewSaleScreen() {
                   ))}
                 </ScrollView>
 
-                {/* Left Micro Cue Chevron (when there are more items to the left) */}
-                {activeCartIndex < cart.items.length - 1 && (
+                {/* Left Side Large Cue Button (Next in RTL, Prev in LTR) */}
+                {((isRTL && activeCartIndex < cart.items.length - 1) || (!isRTL && activeCartIndex > 0)) && (
                   <TouchableOpacity
                     activeOpacity={0.8}
-                    onPress={() => scrollToCartIndex(activeCartIndex + 1)}
+                    onPress={() => scrollToCartIndex(isRTL ? activeCartIndex + 1 : activeCartIndex - 1)}
                     style={[
                       styles.sideMicroChevronLeft,
                       {
-                        backgroundColor: isDark ? 'rgba(30, 41, 59, 0.94)' : 'rgba(255, 255, 255, 0.94)',
-                        borderColor: isDark ? 'rgba(255,255,255,0.18)' : colors.gray200,
+                        backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                        borderColor: colors.primary,
                       },
                     ]}
-                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
                   >
-                    <Ionicons name="chevron-back" size={12} color={colors.primary} />
+                    <Ionicons name="chevron-back" size={20} color={colors.primary} />
                   </TouchableOpacity>
                 )}
 
-                {/* Right Micro Cue Chevron (when on card > 0, to slide back) */}
-                {activeCartIndex > 0 && (
+                {/* Right Side Large Cue Button (Prev in RTL, Next in LTR) */}
+                {((isRTL && activeCartIndex > 0) || (!isRTL && activeCartIndex < cart.items.length - 1)) && (
                   <TouchableOpacity
                     activeOpacity={0.8}
-                    onPress={() => scrollToCartIndex(activeCartIndex - 1)}
+                    onPress={() => scrollToCartIndex(isRTL ? activeCartIndex - 1 : activeCartIndex + 1)}
                     style={[
                       styles.sideMicroChevronRight,
                       {
-                        backgroundColor: isDark ? 'rgba(30, 41, 59, 0.94)' : 'rgba(255, 255, 255, 0.94)',
-                        borderColor: isDark ? 'rgba(255,255,255,0.18)' : colors.gray200,
+                        backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                        borderColor: colors.primary,
                       },
                     ]}
-                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
                   >
-                    <Ionicons name="chevron-forward" size={12} color={colors.primary} />
+                    <Ionicons name="chevron-forward" size={20} color={colors.primary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -1831,82 +1893,89 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     paddingVertical: 2,
   },
-  mobileSwipeIndicatorRow: {
+  cartNavHeader: {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
-    paddingHorizontal: 2,
-  },
-  mobileSwipeCounterWrap: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  mobileSwipeCounterText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  microDotsRow: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  microDot: {
-    height: 4,
-    borderRadius: 2,
-  },
-  microDotActive: {
-    width: 12,
-  },
-  microDotInactive: {
-    width: 4,
-  },
-  microSwipeHintPill: {
-    alignItems: 'center',
-    gap: 4,
+    marginBottom: 10,
     paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
     borderWidth: 1,
   },
-  microSwipeHintText: {
-    fontSize: 10.5,
+  cartNavBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    minHeight: 38,
+  },
+  cartNavBtnText: {
+    fontSize: 12.5,
     fontWeight: '700',
     includeFontPadding: false,
   },
-  sideMicroChevronLeft: {
-    position: 'absolute',
-    left: -4,
-    top: '42%',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1,
+  cartNavCenter: {
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
+    gap: 4,
+  },
+  cartNavCounterText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    includeFontPadding: false,
+  },
+  microDotsRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  microDot: {
+    height: 5,
+    borderRadius: 2.5,
+  },
+  microDotActive: {
+    width: 16,
+  },
+  microDotInactive: {
+    width: 6,
+  },
+  sideMicroChevronLeft: {
+    position: 'absolute',
+    left: -8,
+    top: '44%',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 5,
+    elevation: 6,
   },
   sideMicroChevronRight: {
     position: 'absolute',
-    right: -4,
-    top: '42%',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1,
+    right: -8,
+    top: '44%',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
+    zIndex: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 5,
+    elevation: 6,
   },
   listContent:   { padding: 16, paddingBottom: 100 },
   empty:         { paddingTop: 60, alignItems: 'center', padding: 20 },
