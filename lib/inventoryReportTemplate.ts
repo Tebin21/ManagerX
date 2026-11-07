@@ -133,16 +133,24 @@ export function buildInventoryReportHTML(
 <title>${isKurdish ? escHtml(t('title')) : 'Inventory Report'}</title>
 <style>
   ${KURDISH_FONT_FACE}
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: ${isKurdish ? "'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" : "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif"};
+  }
   body {
     direction: ${dir};
     text-align: ${isKurdish ? 'right' : 'left'};
-    font-family: ${isKurdish ? "'Bahij Janna', 'Inter', sans-serif" : "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif"};
+    font-family: ${isKurdish ? "'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" : "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif"};
     font-weight: ${isKurdish ? 400 : 'normal'};
     background: #F0F4F8;
     color: #0F172A;
     font-size: 14px;
     line-height: 1.5;
+  }
+  .en-num, .font-mono, [dir="ltr"] {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
   }
   .page { max-width: 900px; margin: 0 auto; background: #fff; }
 

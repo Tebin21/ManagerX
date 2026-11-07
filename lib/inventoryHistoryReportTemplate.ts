@@ -77,14 +77,22 @@ export function buildInventoryHistoryReportHTML(
 <title>${isKurdish ? `جەردی بەرهەمە سڕاوەکان — ${escHtml(business.name)}` : `Deleted Products Audit Report — ${escHtml(business.name)}`}</title>
 <style>
   ${KURDISH_FONT_FACE}
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: ${isKurdish ? `'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif` : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif`};
+  }
   body {
     direction: ${dir};
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
+    font-family: ${isKurdish ? `'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif` : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif`};
     background: #F8FAFC;
     color: #0F172A;
     font-size: 12.5px;
     line-height: 1.5;
+  }
+  .en-num, .font-mono, [dir="ltr"] {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
   }
   .page {
     max-width: 920px;

@@ -96,17 +96,25 @@ function reportCSS(isKurdish: boolean): string {
   const numAlign = isKurdish ? 'left' : 'right';
   return `
     ${KURDISH_FONT_FACE}
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: ${isKurdish ? `'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif` : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif`};
+    }
     body {
       direction: ${isKurdish ? 'rtl' : 'ltr'};
       text-align: ${isKurdish ? 'right' : 'left'};
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
+      font-family: ${isKurdish ? `'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif` : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif`};
       background: #ffffff;
       color: #000000;
       font-size: 13px;
       line-height: 1.5;
     }
-    .ku-text { font-family: 'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; direction: rtl; unicode-bidi: isolate; font-weight: 400; letter-spacing: normal; text-transform: none; }
+    .ku-text { font-family: 'Bahij Janna', sans-serif !important; direction: rtl; unicode-bidi: isolate; font-weight: 400; letter-spacing: normal; text-transform: none; }
+    .en-num, .font-mono, [dir="ltr"] {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+    }
     .page { max-width: 900px; margin: 0 auto; background: #fff; }
 
     /* ── Header ── */

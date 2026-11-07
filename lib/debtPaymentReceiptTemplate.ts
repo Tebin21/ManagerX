@@ -49,7 +49,12 @@ export function buildDebtPaymentA4HTML(
       size: A4 portrait;
       margin: 12mm 14mm 14mm 14mm;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Bahij Janna', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
     body {
       font-family: 'Bahij Janna', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       direction: rtl;
@@ -58,6 +63,9 @@ export function buildDebtPaymentA4HTML(
       font-size: 13px;
       line-height: 1.5;
       padding: 0;
+    }
+    .en-num, .font-mono, [dir="ltr"] {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
     }
     .page-container {
       max-width: 780px;
@@ -353,6 +361,7 @@ export function buildDebtPaymentThermalHTML(
       padding: 0;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
+      font-family: 'Bahij Janna', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
     body {
       font-family: 'Bahij Janna', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -369,7 +378,9 @@ export function buildDebtPaymentThermalHTML(
     .text-right { text-align: right; }
     .text-left { text-align: left; }
     .font-bold { font-weight: 800; }
-    .font-mono { font-family: monospace; }
+    .font-mono, .en-num, [dir="ltr"] {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+    }
     
     .divider {
       border-top: 1px dashed #000;

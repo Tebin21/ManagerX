@@ -187,10 +187,15 @@ export function buildFinancialReportHTML(
 
   const CSS = `
     ${KURDISH_FONT_FACE}
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: ${isKurdish ? `'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif` : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif`};
+    }
     body {
       direction: ltr;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
+      font-family: ${isKurdish ? `'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif` : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif`};
       background: #ffffff;
       color: #000000;
       font-size: 14px;
@@ -199,12 +204,15 @@ export function buildFinancialReportHTML(
       print-color-adjust: exact;
     }
     .ku-text {
-      font-family: 'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: 'Bahij Janna', sans-serif !important;
       direction: rtl;
       unicode-bidi: isolate;
       font-weight: 400;
       letter-spacing: normal;
       text-transform: none;
+    }
+    .en-num, .font-mono, [dir="ltr"] {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
     }
     .ku-heading { font-size: 16px; }
 

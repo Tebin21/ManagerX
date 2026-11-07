@@ -40,6 +40,18 @@ export const KURDISH_FONT_FACE = `
   @font-face {
     font-family: 'Bahij Janna';
     src: url(data:font/ttf;base64,${BAHIJ_JANNA_BOLD_BASE64}) format('truetype');
+    font-weight: 800;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'Bahij Janna';
+    src: url(data:font/ttf;base64,${BAHIJ_JANNA_BOLD_BASE64}) format('truetype');
+    font-weight: 900;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'Bahij Janna';
+    src: url(data:font/ttf;base64,${BAHIJ_JANNA_BOLD_BASE64}) format('truetype');
     font-weight: 600;
     font-style: normal;
   }
@@ -47,6 +59,18 @@ export const KURDISH_FONT_FACE = `
     font-family: 'Bahij Janna';
     src: url(data:font/ttf;base64,${BAHIJ_JANNA_BOLD_BASE64}) format('truetype');
     font-weight: bold;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'Bahij Janna';
+    src: url(data:font/ttf;base64,${BAHIJ_JANNA_REGULAR_BASE64}) format('truetype');
+    font-weight: 300;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'Bahij Janna';
+    src: url(data:font/ttf;base64,${BAHIJ_JANNA_REGULAR_BASE64}) format('truetype');
+    font-weight: 500;
     font-style: normal;
   }
   @font-face {
@@ -59,6 +83,18 @@ export const KURDISH_FONT_FACE = `
     font-family: 'BahijJanna-Bold';
     src: url(data:font/ttf;base64,${BAHIJ_JANNA_BOLD_BASE64}) format('truetype');
     font-weight: 700;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'BahijJanna-Bold';
+    src: url(data:font/ttf;base64,${BAHIJ_JANNA_BOLD_BASE64}) format('truetype');
+    font-weight: 800;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'BahijJanna-Bold';
+    src: url(data:font/ttf;base64,${BAHIJ_JANNA_BOLD_BASE64}) format('truetype');
+    font-weight: 900;
     font-style: normal;
   }
   /* Backward-compatibility aliases so any rule pointing to 'Rudaw' or 'RudawRegular' gets Bahij Janna */

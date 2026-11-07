@@ -112,7 +112,7 @@ export function buildQuotationHTML(
   const aboutPolicySection = aboutPolicyText ? `
   <div class="policy-card">
     <div class="policy-label">${isAr ? ku('حول الشركة والسياسة') : isKu ? ku('دەربارەی کۆمپانیا و سیاسەت') : 'About & Business Policy'}</div>
-    <div class="policy-text">${escHtml(aboutPolicyText)}</div>
+    <div class="policy-text">${ku(escHtml(aboutPolicyText))}</div>
   </div>` : '';
 
   return `<!DOCTYPE html>
@@ -124,7 +124,12 @@ export function buildQuotationHTML(
 <title>Froshiar-${escHtml(quotation.quotationNumber)}</title>
 <style>
   ${KURDISH_FONT_FACE}
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: ${isKurdish ? `'Bahij Janna', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif` : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`};
+  }
   a, a:link, a:visited, a:hover, a:active {
     color: #000000 !important;
     text-decoration: none !important;
@@ -592,9 +597,9 @@ export function buildQuotationHTML(
     <div class="biz-info">
       ${logoHTML}
       <div>
-        <div class="biz-title">${escHtml(business.name)}</div>
+        <div class="biz-title">${ku(escHtml(business.name))}</div>
         ${quotationSettings.showBusinessPhone && business.phone ? `<div class="biz-meta"><span style="color:#444444;">${isAr ? ku('الهاتف:') : isKu ? ku('تەلەفۆن:') : 'Tel:'}</span> <span class="en-num" dir="ltr">${escHtml(business.phone)}</span></div>` : ''}
-        ${quotationSettings.showBusinessAddress && business.address ? `<div class="biz-meta"><span style="color:#444444;">${isAr ? ku('العنوان:') : isKu ? ku('ناونیشان:') : 'Address:'}</span> ${escHtml(business.address)}</div>` : ''}
+        ${quotationSettings.showBusinessAddress && business.address ? `<div class="biz-meta"><span style="color:#444444;">${isAr ? ku('العنوان:') : isKu ? ku('ناونیشان:') : 'Address:'}</span> ${ku(escHtml(business.address))}</div>` : ''}
       </div>
     </div>
   </div>
@@ -630,9 +635,9 @@ export function buildQuotationHTML(
   <div class="info-box">
     <div class="info-group">
       <div class="info-group-label">${isAr ? ku('يُقدم إلى (الشركة / العميل):') : isKu ? ku('پێشکەش دەکرێت بە (کۆمپانیا / کڕیار):') : 'Presented To (Company / Client):'}</div>
-      ${quotationSettings.showCustomerName ? `<div class="info-group-value">${escHtml(quotation.customerName || (isAr ? 'الشركة / العميل المحترم' : isKu ? 'شەریکە / کڕیاری گشتی' : 'Valued Company / Client'))}</div>` : ''}
+      ${quotationSettings.showCustomerName ? `<div class="info-group-value">${ku(escHtml(quotation.customerName || (isAr ? 'الشركة / العميل المحترم' : isKu ? 'شەریکە / کڕیاری گشتی' : 'Valued Company / Client')))}</div>` : ''}
       ${quotationSettings.showCustomerPhone && quotation.customerPhone ? `<div class="info-group-sub"><span style="color:#444444;">${isAr ? ku('الهاتف:') : isKu ? ku('تەلەفۆن:') : 'Tel:'}</span> <span class="en-num" dir="ltr">${escHtml(quotation.customerPhone)}</span></div>` : ''}
-      ${quotation.customerAddress ? `<div class="info-group-sub"><span style="color:#444444;">${isAr ? ku('العنوان:') : isKu ? ku('ناونیشان:') : 'Address:'}</span> ${escHtml(quotation.customerAddress)}</div>` : ''}
+      ${quotation.customerAddress ? `<div class="info-group-sub"><span style="color:#444444;">${isAr ? ku('العنوان:') : isKu ? ku('ناونیشان:') : 'Address:'}</span> ${ku(escHtml(quotation.customerAddress))}</div>` : ''}
     </div>
     ${quotationSettings.showValidUntil ? `
     <div class="info-group validity-group" style="text-align:${isRtl ? 'left' : 'right'};">
@@ -668,7 +673,7 @@ export function buildQuotationHTML(
 
     <div class="notes-top-card">
       <div class="card-top-label">${isAr ? ku('الملاحظات والشروط') : isKu ? ku('تێبینی و مەرجەکان') : 'Notes & Terms'}</div>
-      <div class="notes-body">${escHtml(quotation.notes || (isAr ? 'جميع الأسعار ثابتة للمدة المحددة وغير قابلة للتغيير.' : isKu ? 'سەرجەم نرخەکان بۆ ماوەی دیاریکراو جێگیرن و ناگۆڕدرێن.' : 'All prices are valid and fixed for the stated period.'))}</div>
+      <div class="notes-body">${ku(escHtml(quotation.notes || (isAr ? 'جميع الأسعار ثابتة للمدة المحددة وغير قابلة للتغيير.' : isKu ? 'سەرجەم نرخەکان بۆ ماوەی دیاریکراو جێگیرن و ناگۆڕدرێن.' : 'All prices are valid and fixed for the stated period.')))}</div>
     </div>
   </div>
 

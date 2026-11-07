@@ -112,19 +112,30 @@ function buildGrandTotal(
 function buildSalesCSS(isKurdish: boolean): string {
   const kuAlign = isKurdish ? 'right' : 'left';
   const numAlign = isKurdish ? 'left' : 'right';
+  const primaryFont = isKurdish
+    ? `'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`
+    : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif`;
   return `
   ${KURDISH_FONT_FACE}
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: ${primaryFont};
+  }
   body {
     direction: ltr;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
+    font-family: ${primaryFont};
     background: #ffffff;
     color: #000000;
     font-size: 14px;
     line-height: 1.5;
   }
-  .ku-text { font-family: 'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; direction: rtl; unicode-bidi: isolate; }
+  .ku-text { font-family: 'Bahij Janna', sans-serif !important; direction: rtl; unicode-bidi: isolate; }
   .body .ku-text { font-weight: 400; letter-spacing: normal; text-transform: none; }
+  .en-num, .row-value-ltr, .id-chip, .font-mono, [dir="ltr"] {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  }
 
   /* ── Header: 3-column (Business | Customer | Invoice Info) ── */
   .header {
@@ -510,15 +521,15 @@ export function buildInvoiceHTML(
   const showCustAddr = salesSettings.showBusinessAddress && sale.customerAddress;
   const customerColumn = (showCustName || showCustPhone || showCustAddr) ? `
       <div class="card-label">${ku(t('customer'))}</div>
-      ${showCustName  ? `<div class="info-row"><span class="row-label">${ku(t('name') + ':')}</span><span class="row-value">${escHtml(sale.customerName!)}</span></div>` : ''}
+      ${showCustName  ? `<div class="info-row"><span class="row-label">${ku(t('name') + ':')}</span><span class="row-value">${ku(escHtml(sale.customerName!))}</span></div>` : ''}
       ${showCustPhone ? `<div class="info-row"><span class="row-label">${ku(t('phone') + ':')}</span><span class="row-value">${escHtml(sale.customerPhone!)}</span></div>` : ''}
-      ${showCustAddr  ? `<div class="info-row"><span class="row-label">${ku(t('address') + ':')}</span><span class="row-value">${escHtml(sale.customerAddress!)}</span></div>` : ''}` : '';
+      ${showCustAddr  ? `<div class="info-row"><span class="row-label">${ku(t('address') + ':')}</span><span class="row-value">${ku(escHtml(sale.customerAddress!))}</span></div>` : ''}` : '';
 
   // ── Items table — Product ID is always its own column, never hidden ──
   const itemRows = items.length > 0 ? items.map((item, i) => `
     <tr>
       <td class="num-col" style="width:4%;">${i + 1}</td>
-      <td style="width:36%;text-align:${kuAlign};"><span class="item-name">${escHtml(item.productName)}</span>${item.itemDescription ? `<span class="item-desc">${escHtml(item.itemDescription)}</span>` : ''}</td>
+      <td style="width:36%;text-align:${kuAlign};"><span class="item-name">${ku(escHtml(item.productName))}</span>${item.itemDescription ? `<span class="item-desc">${ku(escHtml(item.itemDescription))}</span>` : ''}</td>
       <td class="center" style="width:12%;">${(salesSettings.showItemBarcode && item.itemId) ? `<span class="id-chip">${escHtml(item.itemId)}</span>` : '<span class="muted-cell">—</span>'}</td>
       <td class="center" style="width:6%;">${item.quantity}</td>
       <td class="right" style="width:13%;white-space:nowrap !important;">${item.discount > 0 ? `<span style="text-decoration:line-through;color:#94a3b8;font-size:0.9em;margin-inline-end:4px;">${fmtRow(item.sellingPrice)}</span><span style="font-weight:700;">${fmtRow(item.sellingPrice - item.discount)}</span>` : fmtRow(item.sellingPrice)}</td>
@@ -546,13 +557,13 @@ export function buildInvoiceHTML(
       ${sale.warranty ? `
       <div style="margin-bottom: 6px;">
         <div class="card-label">${ku(t('warranty'))}</div>
-        <p class="block-text" style="${blockTextStyle}">${escHtml(sale.warranty)}</p>
+        <p class="block-text" style="${blockTextStyle}">${ku(escHtml(sale.warranty))}</p>
       </div>
       <div style="margin: 6px 0; border-top: 1px dashed #e2e8f0;"></div>
       ` : ''}
       <div>
         <div class="card-label">${ku(t('notes'))}</div>
-        <p class="block-text" style="${blockTextStyle}">${notesText}</p>
+        <p class="block-text" style="${blockTextStyle}">${ku(notesText)}</p>
         ${customNoteBlock}
       </div>
     </div>` : '';
@@ -602,7 +613,7 @@ export function buildInvoiceHTML(
   const aboutPolicySection = aboutPolicyText ? `
   <div class="policy-card">
     <div class="policy-label">${ku(t('companyPolicy'))}</div>
-    <p class="policy-text">${escHtml(aboutPolicyText)}</p>
+    <p class="policy-text">${ku(escHtml(aboutPolicyText))}</p>
   </div>` : '';
 
   return `<!DOCTYPE html>
@@ -621,8 +632,8 @@ export function buildInvoiceHTML(
       <div class="logo-frame">
         ${logoHTML}
       </div>
-      <div class="biz-name">${escHtml(business.name || 'Business')}</div>
-      ${salesSettings.showBusinessAddress && business.address ? `<div class="biz-meta">${escHtml(business.address)}</div>` : ''}
+      <div class="biz-name">${ku(escHtml(business.name || 'Business'))}</div>
+      ${salesSettings.showBusinessAddress && business.address ? `<div class="biz-meta">${ku(escHtml(business.address))}</div>` : ''}
       ${salesSettings.showBusinessPhone && business.phone ? `<div class="biz-meta">${escHtml(business.phone)}</div>` : ''}
     </div>
     <div class="col-customer">
@@ -724,19 +735,30 @@ export interface PurchaseItemRow {
 function buildPurchaseCSS(isKurdish: boolean): string {
   const kuAlign = isKurdish ? 'right' : 'left';
   const numAlign = isKurdish ? 'left' : 'right';
+  const primaryFont = isKurdish
+    ? `'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`
+    : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif`;
   return `
   ${KURDISH_FONT_FACE}
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: ${primaryFont};
+  }
   body {
     direction: ltr;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
+    font-family: ${primaryFont};
     background: #ffffff;
     color: #000000;
     font-size: 14px;
     line-height: 1.5;
   }
-  .ku-text { font-family: 'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; direction: rtl; unicode-bidi: isolate; }
+  .ku-text { font-family: 'Bahij Janna', sans-serif !important; direction: rtl; unicode-bidi: isolate; }
   .body .ku-text { font-weight: 400; letter-spacing: normal; text-transform: none; }
+  .en-num, .row-value-ltr, .id-chip, .font-mono, [dir="ltr"] {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  }
 
   /* ── Header: 3-column (Business | Supplier | Invoice Info) ── */
   .header {
@@ -1160,9 +1182,9 @@ export function buildPurchaseInvoiceHTML(
   const showSuppPhone = purchaseSettings.showSupplierPhone && purchase.supplierPhone;
   const supplierColumn = (showSuppName || showSuppPhone || purchase.supplierAddress) ? `
       <div class="card-label">${ku(isPurchaseAr ? 'المورد' : isPurchaseKu ? 'دابینکەر' : 'SUPPLIER')}</div>
-      ${showSuppName    ? `<div class="info-row"><span class="row-label">${ku(isPurchaseAr ? 'المورد:' : isPurchaseKu ? 'دابینکەر:' : 'Supplier:')}</span><span class="row-value">${escHtml(purchase.supplierName!)}</span></div>` : ''}
+      ${showSuppName    ? `<div class="info-row"><span class="row-label">${ku(isPurchaseAr ? 'المورد:' : isPurchaseKu ? 'دابینکەر:' : 'Supplier:')}</span><span class="row-value">${ku(escHtml(purchase.supplierName!))}</span></div>` : ''}
       ${showSuppPhone   ? `<div class="info-row"><span class="row-label">${ku(isPurchaseAr ? 'الهاتف:' : isPurchaseKu ? 'تەلەفۆن:' : 'Phone:')}</span><span class="row-value row-value-ltr">${escHtml(purchase.supplierPhone!)}</span></div>` : ''}
-      ${purchase.supplierAddress ? `<div class="info-row"><span class="row-label">${ku(isPurchaseAr ? 'العنوان:' : isPurchaseKu ? 'ناونیشان:' : 'Address:')}</span><span class="row-value">${escHtml(purchase.supplierAddress)}</span></div>` : ''}` : '';
+      ${purchase.supplierAddress ? `<div class="info-row"><span class="row-label">${ku(isPurchaseAr ? 'العنوان:' : isPurchaseKu ? 'ناونیشان:' : 'Address:')}</span><span class="row-value">${ku(escHtml(purchase.supplierAddress))}</span></div>` : ''}` : '';
 
   // ── Items table ──
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
@@ -1197,8 +1219,8 @@ export function buildPurchaseInvoiceHTML(
         <tr>
           <td class="num-col" style="width:4%;">${i + 1}</td>
           <td style="width:28%;text-align:${kuAlign};">
-            <span class="item-name">${escHtml(row.name)}</span>
-            ${row.description ? `<span class="item-desc">${escHtml(row.description)}</span>` : ''}
+            <span class="item-name">${ku(escHtml(row.name))}</span>
+            ${row.description ? `<span class="item-desc">${ku(escHtml(row.description))}</span>` : ''}
           </td>
           <td class="center" style="width:12%;">${(purchaseSettings.showItemBarcode && row.idChip) ? `<span class="id-chip">${escHtml(row.idChip)}</span>` : '<span class="muted-cell">—</span>'}</td>
           <td class="center" style="width:14%;color:#64748b;font-size:11px;">${escHtml(row.category || '—')}</td>
@@ -1273,19 +1295,19 @@ export function buildPurchaseInvoiceHTML(
       ${purchase.warranty ? `
       <div style="margin-bottom: 6px;">
         <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 2px;">${ku(isPurchaseAr ? 'ضمان المورد:' : isPurchaseKu ? 'گرەنتی دابینکەر:' : 'Supplier Warranty:')}</div>
-        <p class="block-text" style="${blockTextStyle}">${escHtml(purchase.warranty)}</p>
+        <p class="block-text" style="${blockTextStyle}">${ku(escHtml(purchase.warranty))}</p>
       </div>
       <div style="margin: 6px 0; border-top: 1px dashed #e2e8f0;"></div>
       ` : `
       <div style="margin-bottom: 6px;">
         <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 2px;">${ku(isPurchaseAr ? 'ضمان المورد:' : isPurchaseKu ? 'گرەنتی دابینکەر:' : 'Supplier Warranty:')}</div>
-        <p class="block-text" style="${blockTextStyle}">${isPurchaseAr ? 'ضمان رسمي لمدة 1 سنة من الشركة الموردة.' : isPurchaseKu ? 'گرەنتی فەرمی ١ ساڵ لە کۆمپانیای دابینکەرەوە.' : '1-year official supplier warranty.'}</p>
+        <p class="block-text" style="${blockTextStyle}">${ku(isPurchaseAr ? 'ضمان رسمي لمدة 1 سنة من الشركة الموردة.' : isPurchaseKu ? 'گرەنتی فەرمی ١ ساڵ لە کۆمپانیای دابینکەرەوە.' : '1-year official supplier warranty.')}</p>
       </div>
       <div style="margin: 6px 0; border-top: 1px dashed #e2e8f0;"></div>
       `}
       <div>
         <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 2px;">${ku(isPurchaseAr ? 'ملاحظات الفحص والاستلام:' : isPurchaseKu ? 'تێبینی و پشکنین:' : 'Inspection Notes:')}</div>
-        <p class="block-text" style="${blockTextStyle}">${purchase.notes ? escHtml(purchase.notes) : (purchaseSettings.customFooterNote ? escHtml(purchaseSettings.customFooterNote) : (isPurchaseAr ? 'وصل شراء وتوثيق استلام البضائع في النظام' : isPurchaseKu ? 'وەسڵی کڕین و تۆمارکردنی کاڵاکان لە سیستەم' : 'Purchase voucher and warehouse inventory intake record'))}</p>
+        <p class="block-text" style="${blockTextStyle}">${ku(purchase.notes ? escHtml(purchase.notes) : (purchaseSettings.customFooterNote ? escHtml(purchaseSettings.customFooterNote) : (isPurchaseAr ? 'وصل شراء وتوثيق استلام البضائع في النظام' : isPurchaseKu ? 'وەسڵی کڕین و تۆمارکردنی کاڵاکان لە سیستەم' : 'Purchase voucher and warehouse inventory intake record')))}</p>
       </div>
     </div>` : '';
 
@@ -1303,7 +1325,7 @@ export function buildPurchaseInvoiceHTML(
   const aboutPolicySection = purchaseSettings.showAboutPolicy !== false ? `
   <div class="policy-card">
     <div class="policy-label">${ku(isPurchaseAr ? 'سياسة الشراء والاستلام' : isPurchaseKu ? 'سیاسەتی وەرگرتن و کڕین' : 'PROCUREMENT POLICY')}</div>
-    <p class="policy-text">${escHtml(aboutPolicyText)}</p>
+    <p class="policy-text">${ku(escHtml(aboutPolicyText))}</p>
   </div>` : '';
 
   const cleanPurchaseNum = (purchase.purchaseNumber || '').replace(/^#/, '');
@@ -1324,8 +1346,8 @@ export function buildPurchaseInvoiceHTML(
       <div class="logo-frame">
         ${logoHTML}
       </div>
-      <div class="biz-name">${escHtml(business.name || 'Business')}</div>
-      ${purchaseSettings.showBusinessAddress && business.address ? `<div class="biz-meta">${escHtml(business.address)}</div>` : ''}
+      <div class="biz-name">${ku(escHtml(business.name || 'Business'))}</div>
+      ${purchaseSettings.showBusinessAddress && business.address ? `<div class="biz-meta">${ku(escHtml(business.address))}</div>` : ''}
       ${purchaseSettings.showBusinessPhone && business.phone ? `<div class="biz-meta">${escHtml(business.phone)}</div>` : ''}
     </div>
     <div class="col-supplier">

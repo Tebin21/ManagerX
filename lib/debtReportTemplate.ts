@@ -25,14 +25,22 @@ function pctPaid(paid: number, original: number): number {
 function sharedCSS(dir: 'ltr' | 'rtl'): string {
   return `
     ${KURDISH_FONT_FACE}
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
     body {
       direction: ltr;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
+      font-family: 'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       background: #F0F4F8;
       color: #111827;
       font-size: 14px;
       line-height: 1.5;
+    }
+    .en-num, .font-mono, [dir="ltr"] {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
     }
     .page { max-width: 720px; margin: 0 auto; background: #fff; }
 
@@ -1072,14 +1080,22 @@ export function buildDebtsAuditReportHTML(
 <title>${reportTitle} — ${escHtml(business.name)}</title>
 <style>
   ${KURDISH_FONT_FACE}
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
   body {
     direction: ${dir};
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
+    font-family: 'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     background: #F8FAFC;
     color: #0F172A;
     font-size: 12.5px;
     line-height: 1.5;
+  }
+  .en-num, .font-mono, [dir="ltr"] {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
   }
   .page {
     max-width: 920px;

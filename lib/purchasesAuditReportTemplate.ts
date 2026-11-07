@@ -116,7 +116,12 @@ export function buildPurchasesAuditReportHTML(
 <title>${isAr ? `تقرير جرد المشتريات — ${escHtml(business.name)}` : isKu ? `جەردی کڕین — ${escHtml(business.name)}` : `Purchases Audit Report — ${escHtml(business.name)}`}</title>
 <style>
   ${KURDISH_FONT_FACE}
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: ${(isAr || isKu) ? `'Bahij Janna', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif` : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`};
+  }
   body {
     direction: ${isRtl ? 'rtl' : 'ltr'};
     font-family: ${(isAr || isKu) ? `'Bahij Janna', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif` : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`};

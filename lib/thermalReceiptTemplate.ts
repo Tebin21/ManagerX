@@ -95,6 +95,10 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
     pageMargin = '3.5mm 3.5mm';
   }
 
+  const primaryFont = isKurdish
+    ? `'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`
+    : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif`;
+
   return `
     ${KURDISH_FONT_FACE}
     @page {
@@ -107,6 +111,7 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
       padding: 0;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
+      font-family: ${primaryFont};
     }
     body {
       width: ${bodyWidthMm}mm;
@@ -114,15 +119,18 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
       margin: 0 auto;
       background: #ffffff;
       color: #000000;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
+      font-family: ${primaryFont};
       font-size: ${baseFontSizePx}px;
       line-height: 1.35;
       direction: ${isKurdish ? 'rtl' : 'ltr'};
     }
     .ku-text {
-      font-family: 'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: 'Bahij Janna', sans-serif !important;
       direction: rtl;
       unicode-bidi: isolate;
+    }
+    .en-num, .row-value-ltr, .font-mono, .barcode-num, .info-date, [dir="ltr"] {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
     }
     .receipt-container {
       width: 100%;
@@ -315,11 +323,19 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
       font-size: ${baseFontSizePx - 1.5}px;
       line-height: 1.35;
       word-break: break-word;
+      font-family: ${isKurdish ? `'Bahij Janna', sans-serif` : `'Inter', sans-serif`};
+      direction: ${isKurdish ? 'rtl' : 'ltr'};
+      text-align: ${isKurdish ? 'right' : 'left'};
     }
     .notes-title {
       font-weight: 800;
       margin-bottom: 2px;
       text-transform: uppercase;
+      font-family: ${isKurdish ? `'Bahij Janna', sans-serif` : `'Inter', sans-serif`};
+    }
+    .notes-content {
+      word-break: break-word;
+      font-family: ${isKurdish ? `'Bahij Janna', sans-serif` : `'Inter', sans-serif`};
     }
 
     /* ── Footer ── */
@@ -438,7 +454,7 @@ export function buildThermalReceiptHTML(
       return `
         <div class="row-58">
           <div class="row-58-top">
-            <span dir="ltr" style="display:inline-block;font-weight:700;margin-inline-end:3px;">${i + 1}.</span><bdi>${escHtml(item.productName)}</bdi>
+            <span dir="ltr" style="display:inline-block;font-weight:700;margin-inline-end:3px;">${i + 1}.</span><bdi class="ku-text">${escHtml(item.productName)}</bdi>
             ${barcodeTag}
           </div>
           <div class="row-58-bottom">
@@ -543,9 +559,9 @@ export function buildThermalReceiptHTML(
     settings.showNotes && (noteContent || warrantyContent || policyContent)
       ? `
         <div class="notes-box">
-          ${warrantyContent ? `<div class="notes-title">${ku(isAr ? 'الضمان والشروط:' : isKu ? 'گرەنتی / مەرج:' : 'Warranty:')}</div><div style="margin-bottom:3px;">${escHtml(warrantyContent)}</div>` : ''}
-          ${noteContent ? `<div class="notes-title">${ku(isAr ? 'الملاحظات:' : isKu ? 'تێبینی:' : 'Notes:')}</div><div style="margin-bottom:3px;">${escHtml(noteContent)}</div>` : ''}
-          ${policyContent ? `<div class="notes-title">${ku(isAr ? 'السياسة والتعليمات:' : isKu ? 'ڕێنمایی و سیاسەت:' : 'Policy:')}</div><div>${escHtml(policyContent)}</div>` : ''}
+          ${warrantyContent ? `<div class="notes-title">${ku(isAr ? 'الضمان والشروط:' : isKu ? 'گرەنتی / مەرج:' : 'Warranty:')}</div><div style="margin-bottom:3px;">${ku(escHtml(warrantyContent))}</div>` : ''}
+          ${noteContent ? `<div class="notes-title">${ku(isAr ? 'الملاحظات:' : isKu ? 'تێبینی:' : 'Notes:')}</div><div style="margin-bottom:3px;">${ku(escHtml(noteContent))}</div>` : ''}
+          ${policyContent ? `<div class="notes-title">${ku(isAr ? 'السياسة والتعليمات:' : isKu ? 'ڕێنمایی و سیاسەت:' : 'Policy:')}</div><div>${ku(escHtml(policyContent))}</div>` : ''}
         </div>
       `
       : '';
@@ -568,8 +584,8 @@ export function buildThermalReceiptHTML(
   <div class="receipt-container">
     <!-- Store Header (NO LOGO) -->
     <div class="biz-header">
-      <div class="biz-name">${storeName}</div>
-      ${storeAddress ? `<div class="biz-contact">${storeAddress}</div>` : ''}
+      <div class="biz-name">${ku(storeName)}</div>
+      ${storeAddress ? `<div class="biz-contact">${ku(storeAddress)}</div>` : ''}
       ${storePhone ? `<div class="biz-contact">${storePhone}</div>` : ''}
     </div>
 
@@ -590,7 +606,7 @@ export function buildThermalReceiptHTML(
       ${customerName ? `
       <div class="info-row">
         <span class="info-label">${ku(isAr ? 'الزبون:' : isKu ? 'کڕیار:' : 'Customer:')}</span>
-        <span class="info-value">${customerName}</span>
+        <span class="info-value">${ku(customerName)}</span>
       </div>` : ''}
       ${customerPhone ? `
       <div class="info-row">
@@ -743,7 +759,7 @@ export function buildThermalPurchaseReceiptHTML(
         <div class="item-block-58">
           <div class="item-title-58">
             <span class="item-index-58" dir="ltr" style="display:inline-block;margin-inline-end:3px;">${i + 1}.</span>
-            <span class="item-name-58"><bdi>${escHtml(item.productName)}</bdi></span>
+            <span class="item-name-58"><bdi class="ku-text">${escHtml(item.productName)}</bdi></span>
             ${idTag}
           </div>
           <div class="item-meta-row-58">
@@ -770,7 +786,7 @@ export function buildThermalPurchaseReceiptHTML(
         <tr>
           <td class="item-name-cell">
             <span class="item-index-inline" dir="ltr" style="display:inline-block;margin-inline-end:3px;">${i + 1}.</span>
-            <bdi>${escHtml(item.productName)}</bdi>
+            <bdi class="ku-text">${escHtml(item.productName)}</bdi>
             ${idTag}
           </td>
           ${settings.showQty ? `<td class="center-col" style="width:${qtyColWidth};">${item.quantity}</td>` : ''}
@@ -814,9 +830,9 @@ export function buildThermalPurchaseReceiptHTML(
 <body>
   <div class="receipt-container">
     <div class="receipt-header">
-      <div class="biz-name">${storeName}</div>
+      <div class="biz-name">${ku(storeName)}</div>
       <div class="biz-type-badge">${ku(isPurchaseAr ? 'وصل شراء (مخزن)' : isPurchaseKu ? 'وەسڵی کڕین (کۆگا)' : 'Purchase Voucher')}</div>
-      ${storeAddress ? `<div class="biz-contact">${storeAddress}</div>` : ''}
+      ${storeAddress ? `<div class="biz-contact">${ku(storeAddress)}</div>` : ''}
       ${storePhone ? `<div class="biz-contact">${storePhone}</div>` : ''}
     </div>
     <div class="divider-dashed"></div>
@@ -824,7 +840,7 @@ export function buildThermalPurchaseReceiptHTML(
     <div class="info-section">
       ${billNum ? `<div class="info-row"><span class="info-label">${ku(isPurchaseAr ? 'رقم وصل الشراء:' : isPurchaseKu ? 'وەسڵی کڕین:' : 'Bill #:')}</span><span class="info-value">#${billNum}</span></div>` : ''}
       ${fullDateTime ? `<div class="info-row"><span class="info-label">${ku(isPurchaseAr ? 'التاريخ:' : isPurchaseKu ? 'بەروار:' : 'Date:')}</span><span class="info-value info-date" dir="ltr">${fullDateTime}</span></div>` : ''}
-      ${supplierName ? `<div class="info-row"><span class="info-label">${ku(isPurchaseAr ? 'المورد:' : isPurchaseKu ? 'دابینکەر:' : 'Supplier:')}</span><span class="info-value">${supplierName}</span></div>` : ''}
+      ${supplierName ? `<div class="info-row"><span class="info-label">${ku(isPurchaseAr ? 'المورد:' : isPurchaseKu ? 'دابینکەر:' : 'Supplier:')}</span><span class="info-value">${ku(supplierName)}</span></div>` : ''}
       ${supplierPhone ? `<div class="info-row"><span class="info-label">${ku(isPurchaseAr ? 'الهاتف:' : isPurchaseKu ? 'مۆبایل:' : 'Phone:')}</span><span class="info-value">${supplierPhone}</span></div>` : ''}
     </div>
     <div class="divider-dashed"></div>
@@ -847,7 +863,7 @@ export function buildThermalPurchaseReceiptHTML(
     ${settings.showNotes && purchase.notes ? `
     <div class="notes-box">
       <div class="notes-title">${ku(isPurchaseAr ? 'الملاحظات:' : isPurchaseKu ? 'تێبینی:' : 'Notes:')}</div>
-      <div class="notes-content">${escHtml(purchase.notes)}</div>
+      <div class="notes-content">${ku(escHtml(purchase.notes))}</div>
     </div>` : ''}
 
     <div class="receipt-footer">
@@ -919,7 +935,7 @@ export function buildThermalInventoryReceiptHTML(
         <div class="item-block-58">
           <div class="item-title-58">
             <span class="item-index-58">${i + 1}.</span>
-            <span class="item-name-58">${escHtml(item.name)}</span>
+            <span class="item-name-58"><bdi class="ku-text">${escHtml(item.name)}</bdi></span>
             ${idTag}
             ${catTag}
           </div>
@@ -937,7 +953,7 @@ export function buildThermalInventoryReceiptHTML(
         <tr>
           <td class="item-name-cell">
             <span class="item-index-inline">${i + 1}.</span>
-            ${escHtml(item.name)}
+            <bdi class="ku-text">${escHtml(item.name)}</bdi>
             ${idTag}
           </td>
           ${settings.showQuantity ? `<td class="center-col" style="width:14%;">${item.quantity}</td>` : ''}
@@ -975,7 +991,7 @@ export function buildThermalInventoryReceiptHTML(
 <body>
   <div class="receipt-container">
     <div class="receipt-header">
-      <div class="biz-name">${storeName}</div>
+      <div class="biz-name">${ku(storeName)}</div>
       <div class="biz-type-badge">${ku(resolvedReportTitle)}</div>
       ${fullDateTime ? `<div class="biz-contact"><span dir="rtl">${ku(isInvAr ? 'التاريخ:' : isInvKu ? 'بەروار:' : 'Date:')}</span> <span class="info-date" dir="ltr">${fullDateTime}</span></div>` : ''}
     </div>
@@ -1078,7 +1094,7 @@ export function buildThermalQuotationReceiptHTML(
       return `
         <div class="row-58">
           <div class="row-58-top">
-            <span dir="ltr" style="display:inline-block;font-weight:700;margin-inline-end:3px;">${i + 1}.</span><bdi>${escHtml(item.productName)}</bdi>
+            <span dir="ltr" style="display:inline-block;font-weight:700;margin-inline-end:3px;">${i + 1}.</span><bdi class="ku-text">${escHtml(item.productName)}</bdi>
             ${barcodeTag}
           </div>
           <div class="row-58-bottom">
@@ -1109,7 +1125,7 @@ export function buildThermalQuotationReceiptHTML(
 
       return `
         <tr class="item-row">
-          <td class="col-item"><span dir="ltr" style="display:inline-block;font-weight:700;margin-inline-end:3px;">${i + 1}.</span><bdi>${escHtml(item.productName)}</bdi>${barcodeTag}${discountTag}</td>
+          <td class="col-item"><span dir="ltr" style="display:inline-block;font-weight:700;margin-inline-end:3px;">${i + 1}.</span><bdi class="ku-text">${escHtml(item.productName)}</bdi>${barcodeTag}${discountTag}</td>
           ${settings.showQty ? `<td class="col-qty" style="width:${qtyColWidth};">${item.quantity}</td>` : ''}
           ${settings.showItemPrice ? `<td class="col-price" style="width:${priceColWidth};">${unitPrice}</td>` : ''}
           <td class="col-total" style="width:${totalColWidth};">${fmtRow(item.lineTotal)}</td>
@@ -1149,9 +1165,9 @@ export function buildThermalQuotationReceiptHTML(
 <body>
   <div class="receipt-wrapper">
     <div class="biz-header">
-      <div class="biz-name">${storeName}</div>
+      <div class="biz-name">${ku(storeName)}</div>
       <div class="biz-type-badge">${ku(isAr ? 'عرض أسعار (كشف)' : isKu ? 'وەسڵی عەرز (تەنها نرخ)' : 'Price Quotation')}</div>
-      ${storeAddress ? `<div class="biz-contact">${storeAddress}</div>` : ''}
+      ${storeAddress ? `<div class="biz-contact">${ku(storeAddress)}</div>` : ''}
       ${storePhone ? `<div class="biz-contact">${storePhone}</div>` : ''}
     </div>
     <div class="divider-dashed"></div>
@@ -1159,7 +1175,7 @@ export function buildThermalQuotationReceiptHTML(
     <div class="info-section">
       ${quotationNum ? `<div class="info-row"><span class="info-label">${ku(isAr ? 'رقم العرض:' : isKu ? 'ژ. وەسڵ:' : 'Quote #:')}</span><span class="info-value">#${quotationNum}</span></div>` : ''}
       ${fullDateTime ? `<div class="info-row"><span class="info-label">${ku(isAr ? 'التاريخ:' : isKu ? 'بەروار:' : 'Date:')}</span><span class="info-value info-date" dir="ltr">${fullDateTime}</span></div>` : ''}
-      ${customerName ? `<div class="info-row"><span class="info-label">${ku(isAr ? 'العميل:' : isKu ? 'کڕیار:' : 'Customer:')}</span><span class="info-value">${customerName}</span></div>` : ''}
+      ${customerName ? `<div class="info-row"><span class="info-label">${ku(isAr ? 'العميل:' : isKu ? 'کڕیار:' : 'Customer:')}</span><span class="info-value">${ku(customerName)}</span></div>` : ''}
       ${customerPhone ? `<div class="info-row"><span class="info-label">${ku(isAr ? 'الهاتف:' : isKu ? 'مۆبایل:' : 'Phone:')}</span><span class="info-value">${customerPhone}</span></div>` : ''}
     </div>
     <div class="divider-dashed"></div>
@@ -1196,7 +1212,7 @@ export function buildThermalQuotationReceiptHTML(
     ${quotation.notes ? `
     <div class="notes-box">
       <div class="notes-title">${ku(isAr ? 'الملاحظات:' : isKu ? 'تێبینی:' : 'Notes:')}</div>
-      <div class="notes-content">${escHtml(quotation.notes)}</div>
+      <div class="notes-content">${ku(escHtml(quotation.notes))}</div>
     </div>` : ''}
 
     <div class="receipt-footer">
