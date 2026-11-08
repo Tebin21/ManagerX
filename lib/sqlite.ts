@@ -5322,6 +5322,9 @@ export async function recordInstallmentPayment(
     } catch {}
   }
 
+  receipt.saleId = saleId;
+  receipt.isInstallment = true;
+
   return receipt;
 }
 
@@ -5506,7 +5509,18 @@ export async function getAllDebtPaymentReceipts(): Promise<DebtPaymentReceiptDat
       CASE
         WHEN dp.debt_type = 'sales' THEN COALESCE(dp.reference_number, s.invoice_number)
         ELSE COALESCE(dp.reference_number, pd.purchase_number)
-      END AS resolved_ref_number
+      END AS resolved_ref_number,
+      s.id AS sale_id,
+      CASE
+        WHEN s.payment_method = 'installment'
+          OR (s.installment_months IS NOT NULL AND s.installment_months > 0)
+          OR (d.installment_months IS NOT NULL AND d.installment_months > 0)
+          OR dp.note LIKE '%قیست%'
+          OR dp.note LIKE '%قسط%'
+          OR LOWER(COALESCE(dp.note, '')) LIKE '%installment%'
+        THEN 1
+        ELSE 0
+      END AS is_installment
     FROM debt_payments dp
     LEFT JOIN debts d ON dp.debt_type = 'sales' AND dp.debt_id = d.id
     LEFT JOIN sales s ON d.sale_id = s.id
@@ -5540,6 +5554,8 @@ export async function getAllDebtPaymentReceipts(): Promise<DebtPaymentReceiptDat
       originalAmount,
       printCount: (row.print_count as number) || 0,
       viewCount: (row.view_count as number) || 0,
+      saleId: row.sale_id != null ? Number(row.sale_id) : null,
+      isInstallment: Boolean(row.is_installment),
     };
   });
 }
@@ -5575,7 +5591,18 @@ export async function getDebtPaymentReceiptById(id: number): Promise<DebtPayment
       CASE
         WHEN dp.debt_type = 'sales' THEN COALESCE(dp.reference_number, s.invoice_number)
         ELSE COALESCE(dp.reference_number, pd.purchase_number)
-      END AS resolved_ref_number
+      END AS resolved_ref_number,
+      s.id AS sale_id,
+      CASE
+        WHEN s.payment_method = 'installment'
+          OR (s.installment_months IS NOT NULL AND s.installment_months > 0)
+          OR (d.installment_months IS NOT NULL AND d.installment_months > 0)
+          OR dp.note LIKE '%قیست%'
+          OR dp.note LIKE '%قسط%'
+          OR LOWER(COALESCE(dp.note, '')) LIKE '%installment%'
+        THEN 1
+        ELSE 0
+      END AS is_installment
     FROM debt_payments dp
     LEFT JOIN debts d ON dp.debt_type = 'sales' AND dp.debt_id = d.id
     LEFT JOIN sales s ON d.sale_id = s.id
@@ -5607,6 +5634,8 @@ export async function getDebtPaymentReceiptById(id: number): Promise<DebtPayment
     originalAmount,
     printCount: (row.print_count as number) || 0,
     viewCount: (row.view_count as number) || 0,
+    saleId: row.sale_id != null ? Number(row.sale_id) : null,
+    isInstallment: Boolean(row.is_installment),
   };
 }
 

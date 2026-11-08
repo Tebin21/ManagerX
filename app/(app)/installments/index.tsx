@@ -35,6 +35,7 @@ import { useBusinessStore } from '@/store/businessStore';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { hexToRgba } from '@/lib/colorUtils';
 import { fmtIQD, fmtUSD, toEnglishDigits, formatDate } from '@/utils/formatters';
 import { getPeriodBounds, isDateWithinRange, type PeriodKey } from '@/utils/dateRanges';
 import {
@@ -127,6 +128,10 @@ export default function InstallmentsScreen() {
   const [invoiceModalVisible, setInvoiceModalVisible] = useState(false);
   const [viewingSale, setViewingSale] = useState<Sale | null>(null);
   const [invoicePaperSize, setInvoicePaperSize] = useState<'A4' | '80mm' | '58mm' | '110mm'>('A4');
+
+  // Receipt / Invoice Options Table Modal State ("تەبلێ جوان")
+  const [receiptPickerModalVisible, setReceiptPickerModalVisible] = useState(false);
+  const [selectedReceiptSale, setSelectedReceiptSale] = useState<InstallmentSaleRow | null>(null);
 
   // Load installments from SQLite
   const loadData = useCallback(async () => {
@@ -364,7 +369,7 @@ export default function InstallmentsScreen() {
       ? (isFullPayment
           ? (isArLanguage ? 'تسوية كامل الدين' : isKuLanguage ? 'سافکردنی تەواوی قەرز' : 'Full debt settlement')
           : (isArLanguage ? 'دفع مبلغ آخر' : isKuLanguage ? 'دانەوەی بڕی تر' : 'Other amount payment'))
-      : undefined;
+      : (isArLanguage ? 'سداد قسط شهر' : isKuLanguage ? 'سەرفکردنی قیستی مانگانە' : 'Monthly installment payment');
     const finalNote = payNote.trim() || defaultNote;
 
     setIsSubmittingPayment(true);
@@ -465,35 +470,13 @@ export default function InstallmentsScreen() {
     }
   };
 
-  // Prompt user for which receipt to print (Invoice vs Payment Receipt, both with 4 sizes)
+  // Open modern receipts & invoices table modal ("تەبلێ جوان")
   const handleReceiptButtonPress = (item: InstallmentSaleRow) => {
-    Haptics.selectionAsync();
-    if (item.paymentsCount > 0 && item.debtId) {
-      Alert.alert(
-        isArLanguage ? 'طباعة الوصل والفاتورة (٤ أحجام)' : isKuLanguage ? 'چاپکردنی وەسڵ و پسوولە (٤ قەبارە)' : 'Print Receipt & Invoice (4 sizes)',
-        isArLanguage
-          ? 'يمكنك طباعة فاتورة البيع أو إيصال تسديد القسط بجميع الأحجام الأربعة (A4, 80mm, 58mm, 110mm):'
-          : isKuLanguage
-          ? 'دەتوانیت پسوولەی فرۆشتن یان وەسڵی پارەدانی قیست بە هەر ٤ قەبارەکە (A4, 80mm, 58mm, 110mm) چاپ بکەیت:'
-          : 'You can print sales invoice or installment payment receipt in all 4 sizes (A4, 80mm, 58mm, 110mm):',
-        [
-          {
-            text: isArLanguage ? 'إيصال آخر دفعة (٤ أحجام)' : isKuLanguage ? 'وەسڵی دوایین پارەدان (٤ قەبارە)' : 'Latest Payment Receipt (4 sizes)',
-            onPress: () => openLatestReceipt(item),
-          },
-          {
-            text: isArLanguage ? 'فاتورة البيع (٤ أحجام)' : isKuLanguage ? 'پسوولەی فرۆشتن (٤ قەبارە)' : 'Sales Invoice (4 sizes)',
-            onPress: () => handleViewInvoice(item.saleId),
-          },
-          {
-            text: t('common.cancel'),
-            style: 'cancel',
-          },
-        ]
-      );
-    } else {
-      handleViewInvoice(item.saleId);
-    }
+    try {
+      Haptics.selectionAsync().catch(() => {});
+    } catch {}
+    setSelectedReceiptSale(item);
+    setReceiptPickerModalVisible(true);
   };
 
   // Quick WhatsApp / Call actions
@@ -811,7 +794,7 @@ export default function InstallmentsScreen() {
                 style={[
                   styles.actionBtnText,
                   { color: colors.black },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                  (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
                 numberOfLines={1}
               >
@@ -837,11 +820,12 @@ export default function InstallmentsScreen() {
                 style={[
                   styles.actionBtnText,
                   { color: colors.black },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
                 numberOfLines={1}
               >
-                {t('installmentList.viewInvoice', 'پسوولە / چاپکردن')}
+                {isArLanguage ? 'الوصل' : isKuLanguage ? 'وەسڵ' : 'Receipt'}
+                {` (${1 + (item.paymentsCount || 0)})`}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1915,6 +1899,622 @@ export default function InstallmentsScreen() {
         </Pressable>
       </Modal>
 
+      {/* ── Beautiful Table/Card Modal for Invoices & Receipts ("تەبلێ جوان") ── */}
+      <Modal
+        visible={receiptPickerModalVisible}
+        transparent
+        animationType="fade"
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
+        onRequestClose={() => setReceiptPickerModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setReceiptPickerModalVisible(false)}
+        >
+          <Pressable
+            style={[
+              styles.receiptTableModalCard,
+              {
+                backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                borderColor: isDark ? colors.gray200 : '#E2E8F0',
+                maxHeight: Math.min(windowHeight * 0.9, 740),
+                width: isTablet ? Math.min(windowWidth - 64, 580) : Math.min(windowWidth - 28, 440),
+              },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* 1. Header */}
+            <View style={[styles.receiptModalHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                <View
+                  style={[
+                    styles.receiptModalHeaderIconWrap,
+                    {
+                      backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF9C3',
+                      borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : '#FDE047',
+                    },
+                  ]}
+                >
+                  <Ionicons name="receipt" size={22} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.receiptModalTitle,
+                      { color: colors.black, textAlign },
+                      (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
+                    {isArLanguage ? 'فواتير وإيصالات الأقساط' : isKuLanguage ? 'پسوولە و وەسڵەکانی قیست' : 'Installment Receipts & Invoices'}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.receiptModalSubtitle,
+                      { color: colors.gray500, textAlign },
+                      (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT },
+                    ]}
+                  >
+                    {isArLanguage
+                      ? 'اختر الوصل أو الفاتورة للمعاينة والطباعة (٤ أحجام)'
+                      : isKuLanguage
+                      ? 'پسوولە یان وەسڵ هەڵبژێرە بۆ چاپکردن بە هەر ٤ قەبارەکە'
+                      : 'Choose invoice or receipt to preview & print (4 sizes)'}
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setReceiptPickerModalVisible(false)}
+                style={[styles.modalCloseBtn, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={20} color={colors.gray600} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedReceiptSale && (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 10 }}>
+                {/* 2. Customer Summary Card */}
+                <View
+                  style={[
+                    styles.receiptCustomerSummaryCard,
+                    {
+                      backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                      borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                    },
+                  ]}
+                >
+                  <View style={[styles.receiptCustomerTopRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                      <Ionicons name="person-circle" size={18} color={colors.primary} />
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.receiptCustomerName,
+                          { color: colors.black },
+                          (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {selectedReceiptSale.customerName}
+                      </Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.receiptInvoiceBadge,
+                        {
+                          backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : '#EEF2FF',
+                          borderColor: isDark ? 'rgba(99, 102, 241, 0.35)' : '#C7D2FE',
+                        },
+                      ]}
+                    >
+                      <IdText style={[styles.receiptInvoiceBadgeText, { color: '#6366F1' }]}>
+                        #{selectedReceiptSale.invoiceNumber}
+                      </IdText>
+                    </View>
+                  </View>
+
+                  {/* Financial KPI Row */}
+                  <View
+                    style={[
+                      styles.receiptFinanceRow,
+                      {
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                        borderTopColor: isDark ? colors.gray300 : '#E2E8F0',
+                      },
+                    ]}
+                  >
+                    <View style={styles.receiptFinanceCol}>
+                      <Text style={[styles.receiptFinanceLabel, { color: colors.gray500, textAlign }]}>
+                        {isArLanguage ? 'الإجمالي' : isKuLanguage ? 'کۆی گشتی' : 'Total'}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.receiptFinanceValue,
+                          { color: colors.black, textAlign },
+                          (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {formatPrimary(selectedReceiptSale.grandTotal)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.receiptFinanceCol}>
+                      <Text style={[styles.receiptFinanceLabel, { color: colors.gray500, textAlign }]}>
+                        {isArLanguage ? 'المدفوع' : isKuLanguage ? 'دراو' : 'Paid'}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.receiptFinanceValue,
+                          { color: '#10B981', textAlign },
+                          (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {formatPrimary(selectedReceiptSale.paidAmount)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.receiptFinanceCol}>
+                      <Text style={[styles.receiptFinanceLabel, { color: colors.gray500, textAlign }]}>
+                        {isArLanguage ? 'المتبقي' : isKuLanguage ? 'ماوە' : 'Remaining'}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.receiptFinanceValue,
+                          {
+                            color: selectedReceiptSale.remainingDebt <= 0 ? '#10B981' : '#EF4444',
+                            textAlign,
+                          },
+                          (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {formatPrimary(selectedReceiptSale.remainingDebt)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* 3. Section Label */}
+                <Text
+                  style={[
+                    styles.receiptSectionHeader,
+                    { color: colors.gray600, textAlign },
+                    (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isArLanguage ? 'قائمة الفواتير والإيصالات المتاحة:' : isKuLanguage ? 'لیستی پسوولە و وەسڵە بەردەستەکان:' : 'Available Documents & Actions:'}
+                </Text>
+
+                {/* 4. Table Cards List ("تەبلێ جوان") */}
+                <View style={{ gap: 10 }}>
+                  {/* Row 1: Sales Invoice (فاتورة البيع الأصلية) */}
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      setReceiptPickerModalVisible(false);
+                      setTimeout(() => handleViewInvoice(selectedReceiptSale.saleId), 200);
+                    }}
+                    style={[
+                      styles.receiptTableRow,
+                      {
+                        backgroundColor: isDark ? colors.gray200 : '#FFFFFF',
+                        borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.receiptTableRowIconWrap,
+                        {
+                          backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#EFF6FF',
+                          borderColor: isDark ? 'rgba(59, 130, 246, 0.35)' : '#BFDBFE',
+                        },
+                      ]}
+                    >
+                      <Ionicons name="document-text" size={22} color="#3B82F6" />
+                    </View>
+
+                    <View style={{ flex: 1, marginHorizontal: 8, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <Text
+                          style={[
+                            styles.receiptTableRowTitle,
+                            { color: colors.black },
+                            (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          ]}
+                        >
+                          {isArLanguage ? 'فاتورة البيع الأصلية' : isKuLanguage ? 'پسوولەی فرۆشتنی سەرەکی' : 'Original Sales Invoice'}
+                        </Text>
+                        <View style={[styles.receiptPillTag, { backgroundColor: hexToRgba(colors.primary, 0.15) }]}>
+                          <Text style={[styles.receiptPillTagText, { color: colors.primary }]}>
+                            {isArLanguage ? '٤ أحجام' : isKuLanguage ? '٤ قەبارە' : '4 sizes'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Text
+                        style={[
+                          styles.receiptTableRowSubtitle,
+                          { color: colors.gray500, textAlign },
+                          (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT },
+                        ]}
+                      >
+                        {isArLanguage
+                          ? `فاتورة البيع الكاملة (${selectedReceiptSale.itemsCount || 0} مواد) • ${formatDate(selectedReceiptSale.saleDate)}`
+                          : isKuLanguage
+                          ? `پسوولەی گشتی فرۆشتن (${selectedReceiptSale.itemsCount || 0} کاڵا) • ${formatDate(selectedReceiptSale.saleDate)}`
+                          : `Sales invoice (${selectedReceiptSale.itemsCount || 0} items) • ${formatDate(selectedReceiptSale.saleDate)}`}
+                      </Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.receiptActionBtnPill,
+                        {
+                          backgroundColor: isDark ? colors.primary : '#1E293B',
+                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                        },
+                      ]}
+                    >
+                      <Ionicons name="print-outline" size={14} color="#FFFFFF" />
+                      <Text
+                        style={[
+                          styles.receiptActionBtnPillText,
+                          { color: '#FFFFFF' },
+                          (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {isArLanguage ? 'معاينة / طباعة' : isKuLanguage ? 'بینین / چاپ' : 'Print'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Row 2: Latest Payment Receipt (إيصال آخر دفعة تسديد) */}
+                  {selectedReceiptSale.paymentsCount > 0 ? (
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        setReceiptPickerModalVisible(false);
+                        setTimeout(() => openLatestReceipt(selectedReceiptSale), 200);
+                      }}
+                      style={[
+                        styles.receiptTableRow,
+                        {
+                          backgroundColor: isDark ? colors.gray200 : '#FFFFFF',
+                          borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.receiptTableRowIconWrap,
+                          {
+                            backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
+                            borderColor: isDark ? 'rgba(16, 185, 129, 0.35)' : '#A7F3D0',
+                          },
+                        ]}
+                      >
+                        <Ionicons name="cash" size={22} color="#10B981" />
+                      </View>
+
+                      <View style={{ flex: 1, marginHorizontal: 8, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <Text
+                            style={[
+                              styles.receiptTableRowTitle,
+                              { color: colors.black },
+                              (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                            ]}
+                          >
+                            {isArLanguage ? 'إيصال آخر دفعة تسديد' : isKuLanguage ? 'وەسڵی دوایین پارەدان' : 'Latest Payment Receipt'}
+                          </Text>
+                          <View
+                            style={[
+                              styles.receiptPillTag,
+                              { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#D1FAE5' },
+                            ]}
+                          >
+                            <Text style={[styles.receiptPillTagText, { color: '#059669' }]}>
+                              {isArLanguage ? `${selectedReceiptSale.paymentsCount} دفعات` : isKuLanguage ? `${selectedReceiptSale.paymentsCount} پارەدان` : `${selectedReceiptSale.paymentsCount} payments`}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <Text
+                          style={[
+                            styles.receiptTableRowSubtitle,
+                            { color: colors.gray500, textAlign },
+                            (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT },
+                          ]}
+                        >
+                          {isArLanguage
+                            ? `إيصال تسديد رسمي • تاريخ: ${selectedReceiptSale.latestPaymentDate ? formatDate(selectedReceiptSale.latestPaymentDate) : '-'}`
+                            : isKuLanguage
+                            ? `وەسڵی فەرمی پارەدان • بەروار: ${selectedReceiptSale.latestPaymentDate ? formatDate(selectedReceiptSale.latestPaymentDate) : '-'}`
+                            : `Official receipt • Date: ${selectedReceiptSale.latestPaymentDate ? formatDate(selectedReceiptSale.latestPaymentDate) : '-'}`}
+                        </Text>
+                      </View>
+
+                      <View
+                        style={[
+                          styles.receiptActionBtnPill,
+                          {
+                            backgroundColor: '#10B981',
+                            flexDirection: isRTL ? 'row-reverse' : 'row',
+                          },
+                        ]}
+                      >
+                        <Ionicons name="receipt-outline" size={14} color="#FFFFFF" />
+                        <Text
+                          style={[
+                            styles.receiptActionBtnPillText,
+                            { color: '#FFFFFF' },
+                            (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          ]}
+                        >
+                          {isArLanguage ? 'طباعة الوصل' : isKuLanguage ? 'چاپی وەسڵ' : 'Receipt'}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ) : (
+                    <View
+                      style={[
+                        styles.receiptTableRow,
+                        {
+                          backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                          borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                          borderStyle: 'dashed',
+                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                          opacity: 0.75,
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.receiptTableRowIconWrap,
+                          {
+                            backgroundColor: isDark ? 'rgba(100, 116, 139, 0.15)' : '#F1F5F9',
+                            borderColor: isDark ? 'rgba(100, 116, 139, 0.3)' : '#CBD5E1',
+                          },
+                        ]}
+                      >
+                        <Ionicons name="receipt-outline" size={22} color={colors.gray400} />
+                      </View>
+
+                      <View style={{ flex: 1, marginHorizontal: 8, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                        <Text
+                          style={[
+                            styles.receiptTableRowTitle,
+                            { color: colors.gray500 },
+                            (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          ]}
+                        >
+                          {isArLanguage ? 'إيصال تسديد القسط' : isKuLanguage ? 'وەسڵی پارەدانی قیست' : 'Installment Payment Receipt'}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.receiptTableRowSubtitle,
+                            { color: colors.gray400, textAlign },
+                            (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT },
+                          ]}
+                        >
+                          {isArLanguage
+                            ? 'لم يتم تسجيل أي دفعة تسديد لهذا القسط حتى الآن'
+                            : isKuLanguage
+                            ? 'هێشتا هیچ پارەدانێک بۆ ئەم قیستە تۆمار نەکراوە'
+                            : 'No payment made yet for this installment'}
+                        </Text>
+                      </View>
+
+                      <View
+                        style={[
+                          styles.receiptActionBtnPill,
+                          {
+                            backgroundColor: isDark ? colors.gray300 : '#E2E8F0',
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.receiptActionBtnPillText,
+                            { color: colors.gray500 },
+                            (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT },
+                          ]}
+                        >
+                          {isArLanguage ? 'لا توجد دفعات' : isKuLanguage ? 'پارە نەدراوە' : 'None'}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Row 3: Schedule & Due Dates */}
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      setReceiptPickerModalVisible(false);
+                      setTimeout(() => openScheduleModal(selectedReceiptSale), 200);
+                    }}
+                    style={[
+                      styles.receiptTableRow,
+                      {
+                        backgroundColor: isDark ? colors.gray200 : '#FFFFFF',
+                        borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.receiptTableRowIconWrap,
+                        {
+                          backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : '#F5F3FF',
+                          borderColor: isDark ? 'rgba(139, 92, 246, 0.35)' : '#DDD6FE',
+                        },
+                      ]}
+                    >
+                      <Ionicons name="calendar-outline" size={22} color="#8B5CF6" />
+                    </View>
+
+                    <View style={{ flex: 1, marginHorizontal: 8, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                      <Text
+                        style={[
+                          styles.receiptTableRowTitle,
+                          { color: colors.black },
+                          (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {isArLanguage ? 'جدول ومواعيد الأقساط' : isKuLanguage ? 'خشتە و بەرواری قیستەکان' : 'Installment Schedule'}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.receiptTableRowSubtitle,
+                          { color: colors.gray500, textAlign },
+                          (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT },
+                        ]}
+                      >
+                        {isArLanguage
+                          ? `${selectedReceiptSale.installmentMonths} أشهر • القسط الشهري: ${formatPrimary(selectedReceiptSale.installmentMonthlyAmount)}`
+                          : isKuLanguage
+                          ? `${selectedReceiptSale.installmentMonths} مانگ • قیستی مانگانە: ${formatPrimary(selectedReceiptSale.installmentMonthlyAmount)}`
+                          : `${selectedReceiptSale.installmentMonths} months • Monthly: ${formatPrimary(selectedReceiptSale.installmentMonthlyAmount)}`}
+                      </Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.receiptActionBtnPill,
+                        {
+                          backgroundColor: isDark ? colors.gray300 : '#F1F5F9',
+                          borderColor: isDark ? colors.gray400 : '#CBD5E1',
+                          borderWidth: 1,
+                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                        },
+                      ]}
+                    >
+                      <Ionicons name="calendar" size={13} color={colors.black} />
+                      <Text
+                        style={[
+                          styles.receiptActionBtnPillText,
+                          { color: colors.black },
+                          (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {isArLanguage ? 'عرض الجدول' : isKuLanguage ? 'بینینی خشتە' : 'View'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Row 4: View in Invoices Hub */}
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      setReceiptPickerModalVisible(false);
+                      router.push({
+                        pathname: '/(app)/invoices',
+                        params: {
+                          tab: 'installments',
+                        },
+                      });
+                    }}
+                    style={[
+                      styles.receiptTableRow,
+                      {
+                        backgroundColor: isDark ? colors.gray200 : '#FFFFFF',
+                        borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.receiptTableRowIconWrap,
+                        {
+                          backgroundColor: isDark ? 'rgba(2, 132, 199, 0.15)' : '#F0F9FF',
+                          borderColor: isDark ? 'rgba(2, 132, 199, 0.35)' : '#BAE6FD',
+                        },
+                      ]}
+                    >
+                      <Ionicons name="documents-outline" size={22} color="#0284C7" />
+                    </View>
+
+                    <View style={{ flex: 1, marginHorizontal: 8, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                      <Text
+                        style={[
+                          styles.receiptTableRowTitle,
+                          { color: colors.black },
+                          (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {isArLanguage ? 'عرض كافة الفواتير في قسم الفواتير' : isKuLanguage ? 'بینینی هەموو وەسڵەکان لە بەشی پسوڵەکان' : 'Invoices Hub'}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.receiptTableRowSubtitle,
+                          { color: colors.gray500, textAlign },
+                          (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT },
+                        ]}
+                      >
+                        {isArLanguage
+                          ? 'الانتقال إلى قسم الفواتير والإيصالات الشاملة'
+                          : isKuLanguage
+                          ? 'دەستگەیشتنی ڕاستەوخۆ بە بەشی سەرەکی پسوڵەکان'
+                          : 'Open invoices and receipts section'}
+                      </Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.receiptActionBtnPill,
+                        {
+                          backgroundColor: '#0284C7',
+                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                        },
+                      ]}
+                    >
+                      <Ionicons name={isRTL ? 'arrow-back' : 'arrow-forward'} size={14} color="#FFFFFF" />
+                      <Text
+                        style={[
+                          styles.receiptActionBtnPillText,
+                          { color: '#FFFFFF' },
+                          (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {isArLanguage ? 'فتح' : isKuLanguage ? 'چوون' : 'Open'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+
+                {/* 5. Footer Dismiss Button */}
+                <TouchableOpacity
+                  onPress={() => setReceiptPickerModalVisible(false)}
+                  style={[
+                    styles.receiptModalCloseBtnFull,
+                    {
+                      backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                      borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                    },
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.receiptModalCloseBtnFullText,
+                      { color: colors.gray700 },
+                      (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
+                    {isArLanguage ? 'إغلاق' : isKuLanguage ? 'داخستن' : 'Close'}
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* ── Month-by-Month Schedule Modal (Centered) ── */}
       <Modal
         visible={scheduleModalVisible}
@@ -2775,5 +3375,136 @@ const styles = StyleSheet.create({
   },
   scheduleStatusTagText: {
     fontSize: 10,
+  },
+  // ── Beautiful Receipt Options Table Modal Styles ("تەبلێ جوان") ──
+  receiptTableModalCard: {
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  receiptModalHeader: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  receiptModalHeaderIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  receiptModalTitle: {
+    fontSize: 17,
+  },
+  receiptModalSubtitle: {
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  receiptCustomerSummaryCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 14,
+  },
+  receiptCustomerTopRow: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  receiptCustomerName: {
+    fontSize: 15,
+    flexShrink: 1,
+  },
+  receiptInvoiceBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  receiptInvoiceBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  receiptFinanceRow: {
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'space-between',
+  },
+  receiptFinanceCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  receiptFinanceLabel: {
+    fontSize: 10.5,
+    marginBottom: 2,
+  },
+  receiptFinanceValue: {
+    fontSize: 13,
+  },
+  receiptSectionHeader: {
+    fontSize: 12.5,
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  receiptTableRow: {
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  receiptTableRowIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  receiptTableRowTitle: {
+    fontSize: 13.5,
+  },
+  receiptTableRowSubtitle: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  receiptPillTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  receiptPillTagText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  receiptActionBtnPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  receiptActionBtnPillText: {
+    fontSize: 11.5,
+  },
+  receiptModalCloseBtnFull: {
+    height: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  receiptModalCloseBtnFullText: {
+    fontSize: 13.5,
   },
 });

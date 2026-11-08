@@ -79,6 +79,8 @@ export interface DebtPaymentReceiptData {
   originalAmount?: number;
   printCount?: number;
   viewCount?: number;
+  saleId?: number | null;
+  isInstallment?: boolean;
 }
 
 export type LedgerEventType = 'debt_created' | 'payment' | 'debt_fully_paid';

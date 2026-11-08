@@ -413,8 +413,14 @@ export default function InvoicesHubScreen() {
 
   const filteredInstallmentPaymentsByPeriod = useMemo(() => {
     const installmentDebtIds = new Set(installmentSales.map((s) => s.debtId).filter(Boolean));
+    const installmentSaleIds = new Set(installmentSales.map((s) => s.saleId).filter(Boolean));
     return filteredDebtsByPeriod.filter(
-      (d) => d.debtType === 'sales' && (installmentDebtIds.has(d.debtId) || (d.note && d.note.includes('قیست')))
+      (d) =>
+        d.debtType === 'sales' &&
+        (d.isInstallment ||
+          installmentDebtIds.has(d.debtId) ||
+          (d.saleId && installmentSaleIds.has(d.saleId)) ||
+          (d.note && (d.note.includes('قیست') || d.note.includes('قسط') || d.note.toLowerCase().includes('installment'))))
     );
   }, [filteredDebtsByPeriod, installmentSales]);
 
@@ -437,8 +443,8 @@ export default function InvoicesHubScreen() {
     // 3. Quotation Invoices (وەسڵی عەرز)
     const quotationCount = filteredQuotationsByPeriod.length;
 
-    // 4. All Invoices (کۆی گشتی هەموو وەسڵەکان)
-    const allCount = purchaseCount + salesCount + quotationCount;
+    // 4. All Invoices (کۆی گشتی هەموو وەسڵەکان - لەگەڵ وەسڵەکانی دانەوەی قەرز و قیست)
+    const allCount = purchaseCount + salesCount + quotationCount + filteredDebtsByPeriod.length;
 
     // 5. Paid Invoices count (کۆی گشتی وەسڵی پارەدراو)
     let paidInvoicesCount = 0;
@@ -624,7 +630,7 @@ export default function InvoicesHubScreen() {
       remainingDebt: d.remainingAfter,
       installmentMonths: 0,
       installmentMonthlyAmount: 0,
-      productsSummary: d.note || (isKu ? 'دانەوەی قیست' : 'Installment Payment'),
+      productsSummary: d.note || (isAr ? 'تسديد قسط' : isKu ? 'دانەوەی قیست' : 'Installment Payment'),
       printCount: d.printCount || 0,
       status: d.remainingAfter <= 0 ? 'settled' : 'active',
       receiptData: d,
@@ -962,14 +968,16 @@ export default function InvoicesHubScreen() {
 
   const handleDeleteQuotation = useCallback((q: Quotation) => {
     Alert.alert(
-      isKu ? 'سڕینەوەی وەسڵی عەرز' : 'Delete Quotation Invoice',
-      isKu
+      isAr ? 'حذف عرض السعر' : isKu ? 'سڕینەوەی وەسڵی عەرز' : 'Delete Quotation Invoice',
+      isAr
+        ? `هل أنت متأكد من حذف عرض السعر ${q.quotationNumber}؟`
+        : isKu
         ? `ئایا دڵنیایت لە سڕینەوەی عەرزی ${q.quotationNumber}؟`
         : `Are you sure you want to delete quotation ${q.quotationNumber}?`,
       [
-        { text: isKu ? 'پاشگەزبوونەوە' : 'Cancel', style: 'cancel' },
+        { text: isAr ? 'إلغاء' : isKu ? 'پاشگەزبوونەوە' : 'Cancel', style: 'cancel' },
         {
-          text: isKu ? 'سڕینەوە' : 'Delete',
+          text: isAr ? 'حذف' : isKu ? 'سڕینەوە' : 'Delete',
           style: 'destructive',
           onPress: () => {
             deleteQuotation(q.id);
@@ -1130,10 +1138,10 @@ export default function InvoicesHubScreen() {
                 styles.periodSectionTitle,
                 { color: colors.black },
                 isTablet && { fontSize: isTabletLandscape ? 16.5 : 15 },
-                isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {isKu ? 'فلتەرکردنی کات:' : 'Time Period:'}
+              {isAr ? 'تصفية الفترة:' : isKu ? 'فلتەرکردنی کات:' : 'Time Period:'}
             </Text>
           </View>
 
@@ -1142,15 +1150,19 @@ export default function InvoicesHubScreen() {
               styles.periodSubHint,
               { color: colors.gray400 },
               isTablet && { fontSize: isTabletLandscape ? 13.5 : 12.5 },
-              isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+              (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT },
             ]}
           >
             {hasSearchQuery
-              ? isKu
+              ? isAr
+                ? `بحث: "${tabSearchConfig!.query}"`
+                : isKu
                 ? `گەڕان: "${tabSearchConfig!.query}"`
                 : `Search: "${tabSearchConfig!.query}"`
               : periodKey === 'all'
-              ? isKu
+              ? isAr
+                ? 'كل الوقت (افتراضي)'
+                : isKu
                 ? 'هەموو کات (سەرەکی)'
                 : 'All Time (Default)'
               : periodPillLabels[periodKey]}
@@ -1602,7 +1614,7 @@ export default function InvoicesHubScreen() {
                     bgLight: '#FFF7ED',
                     borderDark: 'rgba(234, 88, 12, 0.35)',
                     borderLight: '#FED7AA',
-                    label: isKu ? 'کۆی گشتی وەسڵی کڕین' : 'Purchase Invoices',
+                    label: isAr ? 'إجمالي فواتير الشراء' : isKu ? 'کۆی گشتی وەسڵی کڕین' : 'Purchase Invoices',
                     count: reportStats.purchaseCount,
                   },
                   {
@@ -1613,7 +1625,7 @@ export default function InvoicesHubScreen() {
                     bgLight: '#ECFDF5',
                     borderDark: 'rgba(16, 185, 129, 0.35)',
                     borderLight: '#A7F3D0',
-                    label: isKu ? 'کۆی گشتی وەسڵی فرۆشتن' : 'Sales Invoices',
+                    label: isAr ? 'إجمالي فواتير البيع' : isKu ? 'کۆی گشتی وەسڵی فرۆشتن' : 'Sales Invoices',
                     count: reportStats.salesCount,
                   },
                   {
@@ -1624,7 +1636,7 @@ export default function InvoicesHubScreen() {
                     bgLight: '#F0F9FF',
                     borderDark: 'rgba(2, 132, 199, 0.35)',
                     borderLight: '#BAE6FD',
-                    label: isKu ? 'کۆی گشتی هەموو وەسڵەکان' : 'All Invoices',
+                    label: isAr ? 'إجمالي جميع الفواتير والإيصالات' : isKu ? 'کۆی گشتی هەموو وەسڵەکان' : 'All Invoices',
                     count: reportStats.allCount,
                   },
                   {
@@ -1635,7 +1647,7 @@ export default function InvoicesHubScreen() {
                     bgLight: '#F0FDF4',
                     borderDark: 'rgba(5, 150, 105, 0.35)',
                     borderLight: '#BBF7D0',
-                    label: isKu ? 'کۆی گشتی وەسڵی پارەدراو' : 'Paid Invoices',
+                    label: isAr ? 'فواتير مدفوعة بالكامل' : isKu ? 'کۆی گشتی وەسڵی پارەدراو' : 'Paid Invoices',
                     count: reportStats.paidInvoicesCount,
                   },
                   {
@@ -1646,7 +1658,7 @@ export default function InvoicesHubScreen() {
                     bgLight: '#FFF1F2',
                     borderDark: 'rgba(225, 29, 72, 0.35)',
                     borderLight: '#FECDD3',
-                    label: isKu ? 'کۆی وەسڵی قەرزی نەدراو' : 'Unpaid Debt Invoices',
+                    label: isAr ? 'فواتير بديون متبقية' : isKu ? 'کۆی وەسڵی قەرزی نەدراو' : 'Unpaid Debt Invoices',
                     count: reportStats.unpaidDebtCount,
                   },
                   {
@@ -1657,7 +1669,7 @@ export default function InvoicesHubScreen() {
                     bgLight: '#EEF2FF',
                     borderDark: 'rgba(99, 102, 241, 0.35)',
                     borderLight: '#C7D2FE',
-                    label: isKu ? 'کۆی گشتی وەسڵی FIB' : 'Total FIB Invoices',
+                    label: isAr ? 'إجمالي فواتير FIB' : isKu ? 'کۆی گشتی وەسڵی FIB' : 'Total FIB Invoices',
                     count: reportStats.fibCount,
                   },
                   {
@@ -1668,7 +1680,7 @@ export default function InvoicesHubScreen() {
                     bgLight: '#F0FDFA',
                     borderDark: 'rgba(13, 148, 136, 0.35)',
                     borderLight: '#99F6E4',
-                    label: isKu ? 'کۆی گشتی وەسڵی کاش' : 'Total Cash Invoices',
+                    label: isAr ? 'إجمالي فواتير نقدية' : isKu ? 'کۆی گشتی وەسڵی کاش' : 'Total Cash Invoices',
                     count: reportStats.cashCount,
                   },
                   {
@@ -1679,7 +1691,7 @@ export default function InvoicesHubScreen() {
                     bgLight: '#F5F3FF',
                     borderDark: 'rgba(139, 92, 246, 0.35)',
                     borderLight: '#DDD6FE',
-                    label: isKu ? 'کۆی گشتی وەسڵی قەرز' : 'Total Debt Invoices',
+                    label: isAr ? 'إجمالي فواتير الديون' : isKu ? 'کۆی گشتی وەسڵی قەرز' : 'Total Debt Invoices',
                     count: reportStats.debtCount,
                   },
                   {
@@ -1690,7 +1702,7 @@ export default function InvoicesHubScreen() {
                     bgLight: '#F0F9FF',
                     borderDark: 'rgba(2, 132, 199, 0.35)',
                     borderLight: '#BAE6FD',
-                    label: isKu ? 'وەسڵەکانی پارەدانی قەرز' : 'Debt Payment Receipts',
+                    label: isAr ? 'إيصالات تسديد الديون' : isKu ? 'وەسڵەکانی پارەدانی قەرز' : 'Debt Payment Receipts',
                     count: filteredDebtsByPeriod.length,
                   },
                   {
@@ -1701,7 +1713,7 @@ export default function InvoicesHubScreen() {
                     bgLight: '#EEF2FF',
                     borderDark: 'rgba(99, 102, 241, 0.35)',
                     borderLight: '#C7D2FE',
-                    label: isKu ? 'کۆی گشتی وەسڵی قیست' : 'Installment Invoices',
+                    label: isAr ? 'إجمالي فواتير وإيصالات الأقساط' : isKu ? 'کۆی گشتی وەسڵی قیست' : 'Installment Invoices',
                     count: reportStats.installmentCount,
                   },
                   {
@@ -1712,7 +1724,7 @@ export default function InvoicesHubScreen() {
                     bgLight: '#FDF4FF',
                     borderDark: 'rgba(217, 70, 239, 0.35)',
                     borderLight: '#F5D0FE',
-                    label: isKu ? 'وەسڵەکانی داشکاندن' : 'Discounted Sales',
+                    label: isAr ? 'فواتير الخصومات' : isKu ? 'وەسڵەکانی داشکاندن' : 'Discounted Sales',
                     count: reportStats.discountedSalesCount,
                   },
                   {
@@ -1723,7 +1735,7 @@ export default function InvoicesHubScreen() {
                     bgLight: '#FEF9C3',
                     borderDark: 'rgba(212, 175, 55, 0.35)',
                     borderLight: '#FDE047',
-                    label: isKu ? 'کۆی گشتی وەسڵی عەرز' : 'Quotation Invoices',
+                    label: isAr ? 'إجمالي عروض الأسعار' : isKu ? 'کۆی گشتی وەسڵی عەرز' : 'Quotation Invoices',
                     count: reportStats.quotationCount,
                   },
                 ].map((kpi) => (
@@ -1786,9 +1798,10 @@ export default function InvoicesHubScreen() {
                           writingDirection,
                         },
                         isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        isAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
-                      {isKu ? `\u200F${kpi.count} وەسڵ` : `${kpi.count} Invoices`}
+                      {isAr ? `\u200F${kpi.count} فاتورة` : isKu ? `\u200F${kpi.count} وەسڵ` : `${kpi.count} Invoices`}
                     </Text>
                   </View>
                 ))}
@@ -1808,7 +1821,7 @@ export default function InvoicesHubScreen() {
                 {renderPeriodFilterSection({
                   query: purchaseSearch,
                   setQuery: setPurchaseSearch,
-                  placeholder: isKu ? 'گەڕان بە ناوی دابینکەر، وەسڵ...' : 'Search supplier, invoice #...',
+                  placeholder: isAr ? 'البحث باسم المورد، رقم الفاتورة...' : isKu ? 'گەڕان بە ناوی دابینکەر، وەسڵ...' : 'Search supplier, invoice #...',
                 })}
               </View>
 
@@ -1836,8 +1849,8 @@ export default function InvoicesHubScreen() {
                 ListEmptyComponent={
                   <View style={styles.emptyWrap}>
                     <Ionicons name="document-text-outline" size={48} color={colors.gray300} />
-                    <Text style={[styles.emptyText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                      {isKu ? 'هیچ پسوڵەیەکی کڕین نەدۆزرایەوە' : 'No purchase invoices found'}
+                    <Text style={[styles.emptyText, { color: colors.gray500 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                      {isAr ? 'لم يتم العثور على أي فواتير شراء' : isKu ? 'هیچ پسوڵەیەکی کڕین نەدۆزرایەوە' : 'No purchase invoices found'}
                     </Text>
                   </View>
                 }
@@ -1845,7 +1858,7 @@ export default function InvoicesHubScreen() {
                   const debt = purchaseDebtsMap[item.id];
                   const isDebt = item.paymentStatus === 'debt';
                   const isFib = item.paymentStatus === 'fib' || item.initialPaymentMethod === 'fib';
-                  const statusLabel = isDebt ? (isKu ? 'قەرز' : 'Debt') : isFib ? 'FIB' : (isKu ? 'کاش' : 'Cash');
+                  const statusLabel = isDebt ? (isAr ? 'دين' : isKu ? 'قەرز' : 'Debt') : isFib ? 'FIB' : (isAr ? 'نقداً' : isKu ? 'کاش' : 'Cash');
                   const statusColor = isDebt ? '#EA580C' : isFib ? '#6366F1' : '#10B981';
 
                   return (
@@ -1896,7 +1909,7 @@ export default function InvoicesHubScreen() {
                               styles.statusBadgeText,
                               isMobileGrid && { fontSize: 10.5 },
                               { color: statusColor },
-                              isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                              (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                             ]}
                           >
                             {statusLabel}
@@ -1911,10 +1924,10 @@ export default function InvoicesHubScreen() {
                           style={[
                             styles.partyName,
                             { color: colors.black, textAlign, fontSize: isTablet ? 16.5 : 14 },
-                            isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                            (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                           ]}
                         >
-                          {item.supplierName || (isKu ? 'کڕینی ڕاستەوخۆ' : 'Direct Supplier')}
+                          {item.supplierName || (isAr ? 'مورد مباشر' : isKu ? 'کڕینی ڕاستەوخۆ' : 'Direct Supplier')}
                         </Text>
                         {!!item.supplierPhone && (
                           <View style={[styles.phoneRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -1923,7 +1936,7 @@ export default function InvoicesHubScreen() {
                           </View>
                         )}
                         <Text numberOfLines={1} style={[styles.subProductName, { color: colors.gray400, textAlign, fontSize: isTablet ? 13 : 11.5 }]}>
-                          {item.productName} {item.quantity > 1 ? `(${item.quantity} دانە)` : ''}
+                          {item.productName} {item.quantity > 1 ? `(${item.quantity} ${isAr ? 'قطع' : isKu ? 'دانە' : 'pcs'})` : ''}
                         </Text>
                       </View>
 
@@ -1951,7 +1964,7 @@ export default function InvoicesHubScreen() {
                 {renderPeriodFilterSection({
                   query: salesSearch,
                   setQuery: setSalesSearch,
-                  placeholder: isKu ? 'گەڕان بە ناوی کڕیار، وەسڵ...' : 'Search customer, invoice #...',
+                  placeholder: isAr ? 'البحث باسم الزبون، رقم الفاتورة...' : isKu ? 'گەڕان بە ناوی کڕیار، وەسڵ...' : 'Search customer, invoice #...',
                 })}
               </View>
 
@@ -1979,15 +1992,15 @@ export default function InvoicesHubScreen() {
                 ListEmptyComponent={
                   <View style={styles.emptyWrap}>
                     <Ionicons name="receipt-outline" size={48} color={colors.gray300} />
-                    <Text style={[styles.emptyText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                      {isKu ? 'هیچ پسوڵەیەکی فرۆشتن نەدۆزرایەوە' : 'No sales invoices found'}
+                    <Text style={[styles.emptyText, { color: colors.gray500 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                      {isAr ? 'لم يتم العثور على أي فواتير بيع' : isKu ? 'هیچ پسوڵەیەکی فرۆشتن نەدۆزرایەوە' : 'No sales invoices found'}
                     </Text>
                   </View>
                 }
                 renderItem={({ item }) => {
                   const isDebt = item.paymentMethod === 'debt' || item.remainingDebt > 0;
                   const isFib = item.paymentMethod === 'fib' || item.initialPaymentMethod === 'fib';
-                  const statusLabel = isDebt ? (isKu ? 'قەرز' : 'Debt') : isFib ? 'FIB' : (isKu ? 'کاش' : 'Cash');
+                  const statusLabel = isDebt ? (isAr ? 'دين' : isKu ? 'قەرز' : 'Debt') : isFib ? 'FIB' : (isAr ? 'نقداً' : isKu ? 'کاش' : 'Cash');
                   const statusColor = isDebt ? '#EA580C' : isFib ? '#6366F1' : '#10B981';
                   const hasDiscount = (item.discountTotal || 0) + (item.globalDiscount || 0) > 0;
 
@@ -2070,10 +2083,10 @@ export default function InvoicesHubScreen() {
                                   styles.discountPillText,
                                   isMobileGrid && { fontSize: 9.5 },
                                   { color: '#D946EF' },
-                                  isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                                  (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                                 ]}
                               >
-                                {isKu ? 'داشکاندن' : 'Disc.'}
+                                {isAr ? 'خصم' : isKu ? 'داشکاندن' : 'Disc.'}
                               </Text>
                             </View>
                           )}
@@ -2126,7 +2139,7 @@ export default function InvoicesHubScreen() {
                 {renderPeriodFilterSection({
                   query: installmentSearch,
                   setQuery: setInstallmentSearch,
-                  placeholder: isKu ? 'گەڕان بە ناوی کڕیار، ژمارەی وەسڵ...' : 'Search customer, invoice #...',
+                  placeholder: isAr ? 'البحث باسم الزبون، رقم الوصل...' : isKu ? 'گەڕان بە ناوی کڕیار، ژمارەی وەسڵ...' : 'Search customer, invoice #...',
                 })}
               </View>
 
@@ -2141,9 +2154,9 @@ export default function InvoicesHubScreen() {
                 ]}
               >
                 {[
-                  { key: 'all' as const, label: isKu ? `هەمووی (${filteredInstallmentSalesByPeriod.length + filteredInstallmentPaymentsByPeriod.length})` : `All` },
-                  { key: 'sales' as const, label: isKu ? `فرۆشتنی قیست (${filteredInstallmentSalesByPeriod.length})` : `Sales` },
-                  { key: 'payments' as const, label: isKu ? `وەسڵی دانەوە (${filteredInstallmentPaymentsByPeriod.length})` : `Payments` },
+                  { key: 'all' as const, label: isAr ? `الكل (${filteredInstallmentSalesByPeriod.length + filteredInstallmentPaymentsByPeriod.length})` : isKu ? `هەمووی (${filteredInstallmentSalesByPeriod.length + filteredInstallmentPaymentsByPeriod.length})` : `All` },
+                  { key: 'sales' as const, label: isAr ? `مبيعات الأقساط (${filteredInstallmentSalesByPeriod.length})` : isKu ? `فرۆشتنی قیست (${filteredInstallmentSalesByPeriod.length})` : `Sales` },
+                  { key: 'payments' as const, label: isAr ? `إيصالات التسديد (${filteredInstallmentPaymentsByPeriod.length})` : isKu ? `وەسڵی دانەوە (${filteredInstallmentPaymentsByPeriod.length})` : `Payments` },
                 ].map((flt) => {
                   const isActive = installmentTypeFilter === flt.key;
                   return (
@@ -2201,14 +2214,14 @@ export default function InvoicesHubScreen() {
                 ListEmptyComponent={
                   <View style={styles.emptyWrap}>
                     <Ionicons name="calendar-number-outline" size={48} color={colors.gray300} />
-                    <Text style={[styles.emptyText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                      {isKu ? 'هیچ پسوڵەیەکی قیست نەدۆزرایەوە' : 'No installment invoices found'}
+                    <Text style={[styles.emptyText, { color: colors.gray500 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                      {isAr ? 'لم يتم العثور على أي فواتير أو إيصالات أقساط' : isKu ? 'هیچ پسوڵەیەکی قیست نەدۆزرایەوە' : 'No installment invoices found'}
                     </Text>
                   </View>
                 }
                 renderItem={({ item }) => {
                   const isSale = item.kind === 'sale';
-                  const badgeLabel = isSale ? (isKu ? 'فرۆشتنی قیست' : 'Installment Sale') : (isKu ? 'دانەوەی قیست' : 'Installment Payment');
+                  const badgeLabel = isSale ? (isAr ? 'بيع بالأقساط' : isKu ? 'فرۆشتنی قیست' : 'Installment Sale') : (isAr ? 'تسديد قسط' : isKu ? 'دانەوەی قیست' : 'Installment Payment');
                   const badgeColor = isSale ? '#6366F1' : '#10B981';
 
                   const onOpen = () => {
@@ -2316,10 +2329,10 @@ export default function InvoicesHubScreen() {
                                   styles.discountPillText,
                                   isMobileGrid && { fontSize: 9.5 },
                                   { color: '#8B5CF6' },
-                                  isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                                  (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                                 ]}
                               >
-                                {item.installmentMonths} {isKu ? 'مانگ' : 'mo'}
+                                {item.installmentMonths} {isAr ? 'أشهر' : isKu ? 'مانگ' : 'mo'}
                               </Text>
                             </View>
                           )}
@@ -2333,10 +2346,10 @@ export default function InvoicesHubScreen() {
                           style={[
                             styles.partyName,
                             { color: colors.black, textAlign, fontSize: isTablet ? 16.5 : 14 },
-                            isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                            (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                           ]}
                         >
-                          {item.partyName || (isKu ? 'کڕیار' : 'Customer')}
+                          {item.partyName || (isAr ? 'زبون' : isKu ? 'کڕیار' : 'Customer')}
                         </Text>
                         {!!item.partyPhone && (
                           <View style={[styles.phoneRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -2353,7 +2366,7 @@ export default function InvoicesHubScreen() {
                           style={[
                             styles.productsSummaryText,
                             { color: colors.gray500, textAlign, fontSize: 11.5, marginVertical: 3 },
-                            isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+                            (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT },
                           ]}
                         >
                           {item.productsSummary}
@@ -2364,7 +2377,7 @@ export default function InvoicesHubScreen() {
                       <View style={[styles.installmentAmountRow, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', marginTop: 4 }]}>
                         <View>
                           <Text style={{ fontSize: 10.5, color: colors.gray400, textAlign }}>
-                            {isSale ? (isKu ? 'کۆی گشتی' : 'Total') : (isKu ? 'بڕی دراو' : 'Paid')}
+                            {isSale ? (isAr ? 'الإجمالي' : isKu ? 'کۆی گشتی' : 'Total') : (isAr ? 'المدفوع' : isKu ? 'بڕی دراو' : 'Paid')}
                           </Text>
                           <Text style={{ fontSize: 13, color: colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
                             {formatMoney(isSale ? item.grandTotal : item.paidAmount)}
@@ -2373,7 +2386,7 @@ export default function InvoicesHubScreen() {
                         {item.remainingDebt > 0 && (
                           <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
                             <Text style={{ fontSize: 10.5, color: '#EA580C', textAlign }}>
-                              {isKu ? 'ماوەی قەرز' : 'Remaining'}
+                              {isAr ? 'المتبقي' : isKu ? 'ماوەی قەرز' : 'Remaining'}
                             </Text>
                             <Text style={{ fontSize: 13, color: '#EA580C', fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
                               {formatMoney(item.remainingDebt)}
@@ -2406,7 +2419,7 @@ export default function InvoicesHubScreen() {
                 {renderPeriodFilterSection({
                   query: quotationSearch,
                   setQuery: setQuotationSearch,
-                  placeholder: isKu ? 'گەڕان بە ناوی کڕیار، عەرز...' : 'Search customer, quote #...',
+                  placeholder: isAr ? 'البحث باسم الزبون، رقم العرض...' : isKu ? 'گەڕان بە ناوی کڕیار، عەرز...' : 'Search customer, quote #...',
                 })}
               </View>
 
@@ -2434,8 +2447,8 @@ export default function InvoicesHubScreen() {
                 ListEmptyComponent={
                   <View style={styles.emptyWrap}>
                     <Ionicons name="document-text-outline" size={48} color={colors.gray300} />
-                    <Text style={[styles.emptyText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                      {isKu ? 'هیچ وەسڵێکی عەرز نەدۆزرایەوە' : 'No quotation invoices found'}
+                    <Text style={[styles.emptyText, { color: colors.gray500 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                      {isAr ? 'لم يتم العثور على أي عروض أسعار' : isKu ? 'هیچ وەسڵێکی عەرز نەدۆزرایەوە' : 'No quotation invoices found'}
                     </Text>
                   </View>
                 }
@@ -2444,7 +2457,7 @@ export default function InvoicesHubScreen() {
                   const usdVal = item.exchangeRate > 0 ? item.grandTotal / item.exchangeRate : 0;
                   const printCount = item.printCount || 0;
                   const viewCount = item.viewCount || 0;
-                  const statusLabel = isKu ? 'عەرز' : 'Quote';
+                  const statusLabel = isAr ? 'عرض سعر' : isKu ? 'عەرز' : 'Quote';
                   const statusColor = colors.primary;
 
                   return (
@@ -2495,7 +2508,7 @@ export default function InvoicesHubScreen() {
                               styles.statusBadgeText,
                               isMobileGrid && { fontSize: 10.5 },
                               { color: statusColor },
-                              isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                              (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                             ]}
                           >
                             {statusLabel}
@@ -2510,10 +2523,10 @@ export default function InvoicesHubScreen() {
                           style={[
                             styles.partyName,
                             { color: colors.black, textAlign, fontSize: isTablet ? 16.5 : 14 },
-                            isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                            (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                           ]}
                         >
-                          {item.customerName || (isKu ? 'کڕیاری گشتی' : 'Valued Client')}
+                          {item.customerName || (isAr ? 'زبون عام' : isKu ? 'کڕیاری گشتی' : 'Valued Client')}
                         </Text>
                         {!!item.customerPhone && (
                           <View style={[styles.phoneRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -2522,7 +2535,7 @@ export default function InvoicesHubScreen() {
                           </View>
                         )}
                         <Text numberOfLines={1} style={[styles.subProductName, { color: colors.gray400, textAlign, fontSize: isTablet ? 13 : 11.5 }]}>
-                          {itemsCount} {isKu ? 'کاڵا' : 'items'} • {item.date} {item.time ? `• ${formatTime(item.time)}` : ''}
+                          {itemsCount} {isAr ? 'مواد' : isKu ? 'کاڵا' : 'items'} • {item.date} {item.time ? `• ${formatTime(item.time)}` : ''}
                         </Text>
                       </View>
 
@@ -2530,7 +2543,7 @@ export default function InvoicesHubScreen() {
                       <View style={[styles.amountRow, { flexDirection: isRTL ? 'row-reverse' : 'row', borderTopColor: isDark ? colors.gray200 : '#F1F5F9' }]}>
                         <View>
                           <Text style={[styles.amountLabel, { color: colors.gray400, textAlign }]}>
-                            {isKu ? 'کۆی گشتی' : 'Grand Total'}
+                            {isAr ? 'الإجمالي العام' : isKu ? 'کۆی گشتی' : 'Grand Total'}
                           </Text>
                           {item.currencyMode === 'usd' ? (
                             <Text style={[{ color: colors.black, fontSize: isTablet ? 16 : 14, fontWeight: '800' }]}>
@@ -2574,7 +2587,7 @@ export default function InvoicesHubScreen() {
                 {renderPeriodFilterSection({
                   query: debtSearch,
                   setQuery: setDebtSearch,
-                  placeholder: isKu ? 'گەڕان بە ناوی کڕیار، دابینکەر، ژمارەی وەسڵ...' : 'Search party, receipt #...',
+                  placeholder: isAr ? 'البحث باسم الزبون، المورد، رقم الإيصال...' : isKu ? 'گەڕان بە ناوی کڕیار، دابینکەر، ژمارەی وەسڵ...' : 'Search party, receipt #...',
                 })}
               </View>
 
@@ -2602,8 +2615,8 @@ export default function InvoicesHubScreen() {
                 ListEmptyComponent={
                   <View style={styles.emptyWrap}>
                     <Ionicons name="wallet-outline" size={48} color={colors.gray300} />
-                    <Text style={[styles.emptyText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                      {isKu ? 'هیچ وەسڵێکی پارەدانی قەرز نەدۆزرایەوە' : 'No debt payment receipts found'}
+                    <Text style={[styles.emptyText, { color: colors.gray500 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                      {isAr ? 'لم يتم العثور على أي إيصالات تسديد ديون' : isKu ? 'هیچ وەسڵێکی پارەدانی قەرز نەدۆزرایەوە' : 'No debt payment receipts found'}
                     </Text>
                   </View>
                 }
@@ -2611,7 +2624,7 @@ export default function InvoicesHubScreen() {
                   const isCust = item.debtType === 'sales';
                   const isSettled = item.remainingAfter <= 0;
                   const usdVal = exchangeRate > 0 ? item.amount / exchangeRate : 0;
-                  const typeLabel = isCust ? (isKu ? 'وەرگرتن لە کڕیار' : 'Customer') : (isKu ? 'دانەوە بە دابینکەر' : 'Supplier');
+                  const typeLabel = isCust ? (isAr ? 'قبض من زبون' : isKu ? 'وەرگرتن لە کڕیار' : 'Customer') : (isAr ? 'دفع إلى مورد' : isKu ? 'دانەوە بە دابینکەر' : 'Supplier');
                   const typeColor = isCust ? '#059669' : '#B45309';
 
                   return (
@@ -2701,7 +2714,7 @@ export default function InvoicesHubScreen() {
                       <View style={[styles.amountRow, { flexDirection: isRTL ? 'row-reverse' : 'row', borderTopColor: isDark ? colors.gray200 : '#F1F5F9' }]}>
                         <View>
                           <Text style={[styles.amountLabel, { color: colors.gray400, textAlign }]}>
-                            {isKu ? 'بڕی دراو / وەرگیراو' : 'Paid Amount'}
+                            {isAr ? 'المبلغ المسدد / المقبوض' : isKu ? 'بڕی دراو / وەرگیراو' : 'Paid Amount'}
                           </Text>
                           <Text style={[{ color: colors.black, fontSize: isTablet ? 16 : 14, fontWeight: '800' }]}>
                             {fmtIQD(item.amount)} IQD
@@ -2710,7 +2723,7 @@ export default function InvoicesHubScreen() {
 
                         <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
                           <Text style={[styles.amountLabel, { color: isSettled ? colors.success : '#B45309', textAlign }]}>
-                            {isSettled ? (isKu ? 'تەواوبوو' : 'Settled') : `${isKu ? 'ماوە:' : 'Owes:'} ${fmtIQD(item.remainingAfter)}`}
+                            {isSettled ? (isAr ? 'مكتمل' : isKu ? 'تەواوبوو' : 'Settled') : `${isAr ? 'المتبقي:' : isKu ? 'ماوە:' : 'Owes:'} ${fmtIQD(item.remainingAfter)}`}
                           </Text>
                           {usdVal > 0 && (
                             <Text style={[{ color: colors.success, fontSize: 12, fontWeight: '700' }]}>
@@ -2849,10 +2862,10 @@ export default function InvoicesHubScreen() {
                 style={[
                   styles.modalTitle,
                   { color: colors.black },
-                  isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
-                {isKu ? 'وردەکاری وەسڵی کڕین' : 'Purchase Invoice Details'}
+                {isAr ? 'تفاصيل فاتورة الشراء' : isKu ? 'وردەکاری وەسڵی کڕین' : 'Purchase Invoice Details'}
               </Text>
             </View>
 
@@ -2890,10 +2903,12 @@ export default function InvoicesHubScreen() {
                   style={[
                     styles.readOnlyNoticePillText,
                     { color: isDark ? '#FDBA74' : '#C2410C', textAlign },
-                    isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+                    (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
                 >
-                  {isKu
+                  {isAr
+                    ? 'هذا القسم للعرض والأرشفة فقط ولا يمكن التعديل عليه.'
+                    : isKu
                     ? 'ئەم بەشە تەنها بۆ بینینە و دەستکاری ناکرێت.'
                     : 'This section is read-only. No edits allowed.'}
                 </Text>
@@ -2910,8 +2925,8 @@ export default function InvoicesHubScreen() {
                 ]}
               >
                 <View style={[styles.modalDetailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                    {isKu ? 'ژمارەی پسوڵە:' : 'Purchase Number:'}
+                  <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {isAr ? 'رقم الفاتورة:' : isKu ? 'ژمارەی پسوڵە:' : 'Purchase Number:'}
                   </Text>
                   <IdText style={[styles.modalDetailValue, { color: colors.primary }]}>
                     {selectedPurchase.purchaseNumber}
@@ -2919,18 +2934,18 @@ export default function InvoicesHubScreen() {
                 </View>
 
                 <View style={[styles.modalDetailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                    {isKu ? 'دابینکەر:' : 'Supplier:'}
+                  <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {isAr ? 'المورد:' : isKu ? 'دابینکەر:' : 'Supplier:'}
                   </Text>
-                  <Text style={[styles.modalDetailValue, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {selectedPurchase.supplierName || (isKu ? 'کڕینی ڕاستەوخۆ' : 'Direct Supplier')}
+                  <Text style={[styles.modalDetailValue, { color: colors.black }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {selectedPurchase.supplierName || (isAr ? 'مورد مباشر' : isKu ? 'کڕینی ڕاستەوخۆ' : 'Direct Supplier')}
                   </Text>
                 </View>
 
                 {!!selectedPurchase.supplierPhone && (
                   <View style={[styles.modalDetailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                      {isKu ? 'مۆبایل:' : 'Phone:'}
+                    <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                      {isAr ? 'رقم الهاتف:' : isKu ? 'مۆبایل:' : 'Phone:'}
                     </Text>
                     <Text style={[styles.modalDetailValue, { color: colors.black }]}>
                       {selectedPurchase.supplierPhone}
@@ -2939,8 +2954,8 @@ export default function InvoicesHubScreen() {
                 )}
 
                 <View style={[styles.modalDetailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                    {isKu ? 'بەروار و کات:' : 'Date & Time:'}
+                  <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {isAr ? 'التاريخ والوقت:' : isKu ? 'بەروار و کات:' : 'Date & Time:'}
                   </Text>
                   <Text style={[styles.modalDetailValue, { color: colors.gray600 }]}>
                     {formatDate(selectedPurchase.date || selectedPurchase.createdAt)} - {formatTime(selectedPurchase.createdAt)}
@@ -2948,8 +2963,8 @@ export default function InvoicesHubScreen() {
                 </View>
 
                 <View style={[styles.modalDetailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                    {isKu ? 'شێوازی پارەدان:' : 'Payment Method:'}
+                  <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {isAr ? 'طريقة الدفع:' : isKu ? 'شێوازی پارەدان:' : 'Payment Method:'}
                   </Text>
                   <View
                     style={[
@@ -2977,15 +2992,19 @@ export default function InvoicesHubScreen() {
                               ? '#6366F1'
                               : '#10B981',
                         },
-                        isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
                       {selectedPurchase.paymentStatus === 'debt'
-                        ? isKu
+                        ? isAr
+                          ? 'دين'
+                          : isKu
                           ? 'قەرز'
                           : 'Debt'
                         : selectedPurchase.paymentStatus === 'fib'
                         ? 'FIB'
+                        : isAr
+                        ? 'نقداً'
                         : isKu
                         ? 'کاش'
                         : 'Cash'}
@@ -2994,20 +3013,20 @@ export default function InvoicesHubScreen() {
                 </View>
 
                 <View style={[styles.modalDetailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                    {isKu ? 'ئاماری پسوڵە:' : 'Invoice Stats:'}
+                  <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {isAr ? 'إحصائيات الفاتورة:' : isKu ? 'ئاماری پسوڵە:' : 'Invoice Stats:'}
                   </Text>
                   <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12, alignItems: 'center' }}>
                     <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
                       <Ionicons name="eye-outline" size={13} color={colors.gray500} />
-                      <Text style={[styles.modalDetailValue, { color: colors.gray600 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                        {isKu ? `بینین: ${selectedPurchase.viewCount || 0} جار` : `Views: ${selectedPurchase.viewCount || 0}`}
+                      <Text style={[styles.modalDetailValue, { color: colors.gray600 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        {isAr ? `المعاينة: ${selectedPurchase.viewCount || 0} مرات` : isKu ? `بینین: ${selectedPurchase.viewCount || 0} جار` : `Views: ${selectedPurchase.viewCount || 0}`}
                       </Text>
                     </View>
                     <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
                       <Ionicons name="print-outline" size={13} color={colors.primary} />
-                      <Text style={[styles.modalDetailValue, { color: colors.primary }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                        {isKu ? `چاپ: ${selectedPurchase.printCount || 0} جار` : `Prints: ${selectedPurchase.printCount || 0}`}
+                      <Text style={[styles.modalDetailValue, { color: colors.primary }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                        {isAr ? `الطباعة: ${selectedPurchase.printCount || 0} مرات` : isKu ? `چاپ: ${selectedPurchase.printCount || 0} جار` : `Prints: ${selectedPurchase.printCount || 0}`}
                       </Text>
                     </View>
                   </View>
@@ -3028,10 +3047,10 @@ export default function InvoicesHubScreen() {
                   style={[
                     styles.itemsSectionTitle,
                     { color: colors.black, textAlign },
-                    isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKu ? 'کاڵاکانی ئەم پسوڵەیە' : 'Invoice Items'}
+                  {isAr ? 'مواد هذه الفاتورة' : isKu ? 'کاڵاکانی ئەم پسوڵەیە' : 'Invoice Items'}
                 </Text>
 
                 {selectedPurchaseItems.length > 0 ? (
@@ -3097,8 +3116,8 @@ export default function InvoicesHubScreen() {
                 ]}
               >
                 <View style={[styles.modalDetailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <Text style={[styles.modalTotalLabel, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {isKu ? 'کۆی گشتی:' : 'Grand Total:'}
+                  <Text style={[styles.modalTotalLabel, { color: colors.black }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {isAr ? 'الإجمالي العام:' : isKu ? 'کۆی گشتی:' : 'Grand Total:'}
                   </Text>
                   <Text style={[styles.modalTotalValue, { color: colors.primary }]}>
                     {formatMoney(selectedPurchase.totalIQD)}
@@ -3108,8 +3127,8 @@ export default function InvoicesHubScreen() {
                 {selectedPurchase.paymentStatus === 'debt' && selectedPurchaseDebt && (
                   <>
                     <View style={[styles.modalDetailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                      <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                        {isKu ? 'پارەی دراو:' : 'Paid Amount:'}
+                      <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        {isAr ? 'المبلغ المدفوع:' : isKu ? 'پارەی دراو:' : 'Paid Amount:'}
                       </Text>
                       <Text style={[styles.modalDetailValue, { color: '#10B981' }]}>
                         {formatMoney(selectedPurchaseDebt.paidAmount)}
@@ -3117,8 +3136,8 @@ export default function InvoicesHubScreen() {
                     </View>
 
                     <View style={[styles.modalDetailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                      <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                        {isKu ? 'قەرزی ماوە:' : 'Remaining Debt:'}
+                      <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        {isAr ? 'الدين المتبقي:' : isKu ? 'قەرزی ماوە:' : 'Remaining Debt:'}
                       </Text>
                       <Text style={[styles.modalDetailValue, { color: '#EA580C' }]}>
                         {formatMoney(selectedPurchaseDebt.remainingAmount)}
@@ -3136,8 +3155,8 @@ export default function InvoicesHubScreen() {
                   style={[styles.modalPrimaryBtn, { backgroundColor: colors.primary }]}
                 >
                   <Ionicons name="print" size={18} color="#0F172A" />
-                  <Text style={[styles.modalPrimaryBtnText, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {isKu ? 'چاپکردنی وەسڵ' : 'Print Invoice'}
+                  <Text style={[styles.modalPrimaryBtnText, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {isAr ? 'طباعة الفاتورة' : isKu ? 'چاپکردنی وەسڵ' : 'Print Invoice'}
                   </Text>
                 </TouchableOpacity>
 
@@ -3146,8 +3165,8 @@ export default function InvoicesHubScreen() {
                   onPress={() => setPurchaseModalVisible(false)}
                   style={[styles.modalSecondaryBtn, { borderColor: colors.gray300 }]}
                 >
-                  <Text style={[styles.modalSecondaryBtnText, { color: colors.gray600 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {isKu ? 'داخستن' : 'Close'}
+                  <Text style={[styles.modalSecondaryBtnText, { color: colors.gray600 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {isAr ? 'إغلاق' : isKu ? 'داخستن' : 'Close'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -3204,10 +3223,10 @@ export default function InvoicesHubScreen() {
                 style={[
                   styles.modalTitle,
                   { color: colors.black },
-                  isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
-                {isKu ? 'وردەکاری وەسڵی فرۆشتن' : 'Sales Invoice Details'}
+                {isAr ? 'تفاصيل فاتورة البيع' : isKu ? 'وردەکاری وەسڵی فرۆشتن' : 'Sales Invoice Details'}
               </Text>
             </View>
 
@@ -3245,10 +3264,12 @@ export default function InvoicesHubScreen() {
                   style={[
                     styles.readOnlyNoticePillText,
                     { color: isDark ? '#6EE7B7' : '#047857', textAlign },
-                    isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+                    (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
                 >
-                  {isKu
+                  {isAr
+                    ? 'هذه الفاتورة محفوظة في الأرشيف وهي للعرض والطباعة فقط.'
+                    : isKu
                     ? 'ئەم پسوڵەیە لە ئەرشیف پارێزراوە و تەنها بۆ بینین و چاپکردنە.'
                     : 'Archived receipt for viewing and printing.'}
                 </Text>
@@ -3267,20 +3288,20 @@ export default function InvoicesHubScreen() {
                 ]}
               >
                 <View style={[styles.modalDetailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                    {isKu ? 'ئاماری پسوڵە:' : 'Invoice Stats:'}
+                  <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {isAr ? 'إحصائيات الفاتورة:' : isKu ? 'ئاماری پسوڵە:' : 'Invoice Stats:'}
                   </Text>
                   <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12, alignItems: 'center' }}>
                     <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
                       <Ionicons name="eye-outline" size={13} color={colors.gray500} />
-                      <Text style={[styles.modalDetailValue, { color: colors.gray600 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                        {isKu ? `بینین: ${selectedSale.viewCount || 0} جار` : `Views: ${selectedSale.viewCount || 0}`}
+                      <Text style={[styles.modalDetailValue, { color: colors.gray600 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        {isAr ? `المعاينة: ${selectedSale.viewCount || 0} مرات` : isKu ? `بینین: ${selectedSale.viewCount || 0} جار` : `Views: ${selectedSale.viewCount || 0}`}
                       </Text>
                     </View>
                     <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
                       <Ionicons name="print-outline" size={13} color={colors.primary} />
-                      <Text style={[styles.modalDetailValue, { color: colors.primary }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                        {isKu ? `چاپ: ${selectedSale.printCount || 0} جار` : `Prints: ${selectedSale.printCount || 0}`}
+                      <Text style={[styles.modalDetailValue, { color: colors.primary }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                        {isAr ? `الطباعة: ${selectedSale.printCount || 0} مرات` : isKu ? `چاپ: ${selectedSale.printCount || 0} جار` : `Prints: ${selectedSale.printCount || 0}`}
                       </Text>
                     </View>
                   </View>
@@ -3300,8 +3321,8 @@ export default function InvoicesHubScreen() {
                   style={[styles.modalPrimaryBtn, { backgroundColor: colors.primary }]}
                 >
                   <Ionicons name="print" size={18} color="#0F172A" />
-                  <Text style={[styles.modalPrimaryBtnText, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {isKu ? 'چاپکردنی وەسڵ' : 'Print Invoice'}
+                  <Text style={[styles.modalPrimaryBtnText, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {isAr ? 'طباعة الفاتورة' : isKu ? 'چاپکردنی وەسڵ' : 'Print Invoice'}
                   </Text>
                 </TouchableOpacity>
 
@@ -3310,8 +3331,8 @@ export default function InvoicesHubScreen() {
                   onPress={() => setSaleModalVisible(false)}
                   style={[styles.modalSecondaryBtn, { borderColor: colors.gray300 }]}
                 >
-                  <Text style={[styles.modalSecondaryBtnText, { color: colors.gray600 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {isKu ? 'داخستن' : 'Close'}
+                  <Text style={[styles.modalSecondaryBtnText, { color: colors.gray600 }, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {isAr ? 'إغلاق' : isKu ? 'داخستن' : 'Close'}
                   </Text>
                 </TouchableOpacity>
               </View>
