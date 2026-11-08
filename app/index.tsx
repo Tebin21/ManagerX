@@ -19,6 +19,7 @@ export default function Index() {
   const onboardingHydrated = useHasHydrated(useOnboardingStore);
   const businessHydrated = useHasHydrated(useBusinessStore);
 
+  const [reconcileFinished, setReconcileFinished] = React.useState(false);
   const reconcileTriggeredRef = useRef(false);
   const hasNavigatedRef = useRef(false);
 
@@ -26,15 +27,26 @@ export default function Index() {
   useEffect(() => {
     if (!authHydrated || !businessHydrated || reconcileTriggeredRef.current) return;
     reconcileTriggeredRef.current = true;
-    if (!user) return;
+    if (!user) {
+      setReconcileFinished(true);
+      return;
+    }
+
     (async () => {
-      const { reconcileColdStart } = await import('@/store/authStore');
-      await Promise.race([
-        reconcileColdStart(),
-        new Promise((resolve) => setTimeout(resolve, RECONCILE_TIMEOUT_MS)),
-      ]);
       const { useBusinessStore } = await import('@/store/businessStore');
-      useBusinessStore.getState().setReconciling(false);
+      useBusinessStore.getState().setReconciling(true);
+      try {
+        const { reconcileColdStart } = await import('@/store/authStore');
+        await Promise.race([
+          reconcileColdStart(),
+          new Promise((resolve) => setTimeout(resolve, RECONCILE_TIMEOUT_MS)),
+        ]);
+      } catch (err) {
+        console.warn('[Index] Cold start reconcile error:', err);
+      } finally {
+        useBusinessStore.getState().setReconciling(false);
+        setReconcileFinished(true);
+      }
     })();
   }, [authHydrated, businessHydrated, user]);
 
@@ -85,7 +97,10 @@ export default function Index() {
   // As soon as hydration & state checks are ready, navigate to destination underneath the splash overlay
   useEffect(() => {
     if (!authHydrated || !onboardingHydrated || !businessHydrated) return;
-    if (user && !isSetupComplete && isReconciling) return;
+    // CRITICAL: If an existing user session is recognized on cold-start, wait completely
+    // for cold start reconciliation to finish. Navigating early causes the setup screen
+    // to flash and results in navigation lockup glitches.
+    if (user && !reconcileFinished) return;
 
     if (hasNavigatedRef.current) return;
     hasNavigatedRef.current = true;
@@ -96,6 +111,7 @@ export default function Index() {
     onboardingHydrated,
     businessHydrated,
     user,
+    reconcileFinished,
     isSetupComplete,
     isReconciling,
     pendingCloudConflict,

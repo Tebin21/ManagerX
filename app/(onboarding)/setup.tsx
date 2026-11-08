@@ -28,6 +28,8 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useLanguageStore } from '@/store/languageStore';
 import { useAuthStore } from '@/store/authStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
+import { useBusinessStore } from '@/store/businessStore';
+import { useManagementStore } from '@/store/managementStore';
 import { hexToRgba } from '@/lib/colorUtils';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 
@@ -117,6 +119,15 @@ export default function SetupScreen() {
 
   const business = useBusiness();
   const user = useAuthStore((s) => s.user);
+
+  // If business setup is already complete or account is an employee, immediately enter dashboard
+  React.useEffect(() => {
+    const isEmployee = useManagementStore.getState().isEmployee;
+    const isComplete = useBusinessStore.getState().isSetupComplete;
+    if (isComplete || isEmployee) {
+      router.replace('/(app)/dashboard');
+    }
+  }, []);
 
   // Pre-fill initial name and phone if available from auth profile
   const derivedInitialName =

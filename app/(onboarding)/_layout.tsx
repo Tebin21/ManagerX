@@ -41,7 +41,9 @@ export default function OnboardingLayout() {
         useOnboardingStore.getState().completeOnboarding();
       }
 
-      if (!isSetupComplete && isReconciling) return;
+      // NEVER redirect while cold-start or sign-in reconciliation is active
+      if (isReconciling) return;
+      if (useAuthStore.getState().isLoading) return;
 
       const { useManagementStore } = require('@/store/managementStore');
       const isEmployee = useManagementStore.getState().isEmployee;
@@ -50,6 +52,11 @@ export default function OnboardingLayout() {
         if (pathname !== '/setup' && pathname !== '/(onboarding)/setup') {
           router.replace('/(onboarding)/setup' as never);
         }
+        return;
+      }
+
+      // If user is already on the setup screen and has not completed it, stay there
+      if ((pathname === '/setup' || pathname === '/(onboarding)/setup') && !isSetupComplete && !isEmployee) {
         return;
       }
 

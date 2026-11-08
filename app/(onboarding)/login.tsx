@@ -174,14 +174,6 @@ export default function LoginScreen() {
 
           await recordEmployeeLogin(emp.email);
 
-          const appUser = {
-            id: emp.id,
-            uid: emp.id,
-            email: emp.email,
-            displayName: emp.displayName,
-          };
-          useAuthStore.setState({ user: appUser as any, isLoading: false });
-
           // Direct business sync to manager's email namespace with complete data bleed prevention
           const { useBusinessStore } = await import('@/store/businessStore');
           const prevOwner = useBusinessStore.getState().ownerUserId;
@@ -199,7 +191,32 @@ export default function LoginScreen() {
           }
           useBusinessStore.getState().setOwnerUserId(targetOwner);
 
+          // Load local business profile if it exists so isSetupComplete is true BEFORE setting user
+          const { loadBusiness } = await import('@/lib/sqlite');
+          const existingBiz = await loadBusiness();
+          if (existingBiz && existingBiz.name && existingBiz.name.trim()) {
+            useBusinessStore.getState().setBusiness({
+              name: existingBiz.name.trim(),
+              type: existingBiz.type || 'General',
+              phone: existingBiz.phone || '',
+              address: existingBiz.address || '',
+              logoUri: existingBiz.logoPath || null,
+            });
+          } else {
+            // Employee and manager accounts never go through the initial store creation wizard
+            useBusinessStore.setState({ isSetupComplete: true });
+          }
+
           useOnboardingStore.getState().completeOnboarding();
+
+          const appUser = {
+            id: emp.id,
+            uid: emp.id,
+            email: emp.email,
+            displayName: emp.displayName,
+          };
+          useAuthStore.setState({ user: appUser as any, isLoading: false });
+
           router.replace('/(app)/dashboard');
           return;
         } else if (empResult.error === 'ACCOUNT_SUSPENDED') {

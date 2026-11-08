@@ -362,11 +362,12 @@ export async function adoptSignedInUser(
   auto: boolean = false
 ) {
   const appUser = firebaseUserToAppUser(user);
-  // Optimistically set user immediately so UI and layout guards recognize the signed-in state
-  set({ user: appUser });
+
+  // Mark reconciling true so layout guards and screens do not react prematurely to a half-loaded state
+  const { useBusinessStore } = await import('@/store/businessStore');
+  useBusinessStore.getState().setReconciling(true);
 
   if (adoptingUid === user.uid && adoptingPromise) {
-    set({ user: appUser, isLoading: false });
     return adoptingPromise;
   }
   adoptingUid = user.uid;
@@ -377,6 +378,7 @@ export async function adoptSignedInUser(
     .finally(() => {
       adoptingUid = null;
       adoptingPromise = null;
+      useBusinessStore.getState().setReconciling(false);
       set({ user: firebaseUserToAppUser(user), isLoading: false });
     });
   return adoptingPromise;
