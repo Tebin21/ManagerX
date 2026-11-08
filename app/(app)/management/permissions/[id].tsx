@@ -26,7 +26,6 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useLanguageStore } from '@/store/languageStore';
 import { useAuthStore } from '@/store/authStore';
 import { useManagementStore } from '@/store/managementStore';
-import { isAdminEmail } from '@/lib/adminNotificationService';
 import {
   updateEmployeePermissions,
   updateEmployeePassword,
@@ -64,28 +63,25 @@ export default function EmployeePermissionsScreen() {
   const employeeName = params.name || email;
 
   const user = useAuthStore((s) => s.user);
-  const isAdmin = isAdminEmail(user?.email);
   const isEmployee = useManagementStore((s) => s.isEmployee);
-  const isManager = useManagementStore((s) => s.isManager);
 
-  // Security route guard: Employees and unauthorized accounts can NEVER enter
+  // Security route guard: Employees and unauthenticated accounts can NEVER enter
   useEffect(() => {
-    if (isEmployee || (!isAdmin && !isManager)) {
+    if (isEmployee || !user?.email) {
       router.replace('/(app)/dashboard');
     }
-  }, [isEmployee, isAdmin, isManager]);
+  }, [isEmployee, user?.email]);
 
-  const employees = useManagementStore((s) => s.employees);
   const managedEmployees = useManagementStore((s) => s.managedEmployees);
-  // Strict tenant scoping: Admins see all; Managers ONLY see their own managed staff
-  const candidateEmployees = isAdmin ? [...employees, ...managedEmployees] : managedEmployees;
+  // Strict tenant scoping: universally isolated to managed staff for this store account
+  const candidateEmployees = managedEmployees;
   const foundEmp = candidateEmployees.find(
     (e) => e.email?.toLowerCase() === email.toLowerCase() || e.id === params.id
   );
 
-  // Tenant Isolation Guard: Managers cannot view/edit employees of other managers
+  // Tenant Isolation Guard: Universal check - managers cannot view/edit employees of other managers
   useEffect(() => {
-    if (foundEmp && !isAdmin) {
+    if (foundEmp) {
       const currentMgrEmail = (user?.email || '').trim().toLowerCase();
       const empMgrEmail = (foundEmp.managerEmail || '').trim().toLowerCase();
       if (empMgrEmail && currentMgrEmail && empMgrEmail !== currentMgrEmail) {
@@ -100,7 +96,7 @@ export default function EmployeePermissionsScreen() {
         router.replace('/(app)/management');
       }
     }
-  }, [foundEmp, isAdmin, user?.email]);
+  }, [foundEmp, user?.email]);
 
   // Active Tab state
   const [activeTab, setActiveTab] = useState<TabType>('modules');

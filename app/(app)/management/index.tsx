@@ -20,7 +20,6 @@ import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useAuthStore } from '@/store/authStore';
 import { useLanguageStore } from '@/store/languageStore';
-import { isAdminEmail } from '@/lib/adminNotificationService';
 import { useManagementStore } from '@/store/managementStore';
 import {
   setEmployeeStatus,
@@ -42,15 +41,11 @@ export default function ManagementScreen() {
   const isAr = currentLang === 'ar';
 
   const user = useAuthStore((s) => s.user);
-  const isAdmin = isAdminEmail(user?.email);
   const isEmployee = useManagementStore((s) => s.isEmployee);
-  const isManager = useManagementStore((s) => s.isManager);
   const managedEmployees = useManagementStore((s) => s.managedEmployees);
 
   const {
-    employees,
     isLoading,
-    initSuperAdminSubscription,
     initManagerSubscription,
   } = useManagementStore();
 
@@ -61,30 +56,23 @@ export default function ManagementScreen() {
 
   useEffect(() => {
     // Hard security boundary: Employees and unauthorized accounts can NEVER enter management
-    if (isEmployee || (!isAdmin && !isManager)) {
+    if (isEmployee || !user?.email) {
       router.replace('/(app)/dashboard' as never);
       return;
     }
 
-    let unsub: (() => void) | undefined;
-    if (isAdmin) {
-      unsub = initSuperAdminSubscription();
-    } else if (user?.email && !isEmployee) {
-      unsub = initManagerSubscription(user.email);
-    }
+    const unsub = initManagerSubscription(user.email);
 
     getGoogleDriveConfig().then(setGdriveConfig).catch(() => {});
 
     return () => {
       unsub?.();
     };
-  }, [isAdmin, isManager, isEmployee, user?.email]);
+  }, [isEmployee, user?.email]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    if (isAdmin) {
-      initSuperAdminSubscription();
-    } else if (user?.email && !isEmployee) {
+    if (user?.email && !isEmployee) {
       initManagerSubscription(user.email);
     }
     getGoogleDriveConfig().then(setGdriveConfig).catch(() => {});
@@ -116,7 +104,8 @@ export default function ManagementScreen() {
     }
   };
 
-  const displayEmployees = isAdmin ? employees : managedEmployees;
+  // Strict tenant scoping: mobile app strictly shows staff managed by this manager
+  const displayEmployees = managedEmployees;
   const totalEmployees = displayEmployees.length;
   const activeCount = useMemo(
     () => displayEmployees.filter((e) => e.status !== 'suspended').length,
@@ -159,7 +148,22 @@ export default function ManagementScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.gray50 }]}>
-      <AppHeader title={t('management.title')} />
+      <AppHeader
+        title={t('management.title')}
+        rightAction={
+          <TouchableOpacity
+            style={[styles.addBtn, { backgroundColor: colors.primary }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+              router.push('/(app)/management/new-employee' as never);
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="person-add" size={16} color="#FFFFFF" />
+            <Text style={styles.addBtnText}>{t('management.addEmployee')}</Text>
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView
         contentContainerStyle={[styles.scrollContent, isTablet && contentContainerStyle]}

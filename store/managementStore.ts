@@ -120,11 +120,10 @@ export const useManagementStore = create<ManagementState>()(
         }),
 
       initSuperAdminSubscription: () => {
-        set({ isLoading: true });
-        const unsubscribe = subscribeToEmployees((employees) => {
-          get().setEmployees(employees);
-        });
-        return unsubscribe;
+        // Mobile POS client enforces strict single-tenant isolation.
+        // Global administrative overview is reserved strictly for froshiar-website admin panel.
+        set({ employees: [], isLoading: false });
+        return () => {};
       },
 
       initCurrentUserLiveSubscription: (email: string) => {

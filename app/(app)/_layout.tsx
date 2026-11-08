@@ -79,7 +79,6 @@ export default function AppLayout() {
       initEmployeeLiveSubscription,
       initCurrentUserLiveSubscription,
       initManagerSubscription,
-      initSuperAdminSubscription,
       clearEmployeeSession,
     } = useManagementStore.getState();
 

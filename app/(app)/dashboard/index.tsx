@@ -16,7 +16,6 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useModuleStore } from '@/store/moduleStore';
 import { useManagementStore } from '@/store/managementStore';
 import { useAuthStore } from '@/store/authStore';
-import { isAdminEmail } from '@/lib/adminNotificationService';
 import { getGoogleDriveConfig } from '@/lib/googleDriveBackup';
 
 export default function DashboardScreen() {
@@ -26,22 +25,20 @@ export default function DashboardScreen() {
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const showDashboardNavigation = useModuleStore((s) => s.showDashboardNavigation ?? true);
   const isEmployee = useManagementStore((s) => s.isEmployee);
-  const isManager = useManagementStore((s) => s.isManager);
   const managedEmployees = useManagementStore((s) => s.managedEmployees);
-  const allEmployees = useManagementStore((s) => s.employees);
   const user = useAuthStore((s) => s.user);
-  const isAdmin = isAdminEmail(user?.email);
   const isDemoAccount =
     !user?.email ||
     user.email.toLowerCase().trim() === 'demo@froshiar.store' ||
     user.id === 'dev_user_1';
-  const displayEmployees = isAdmin ? (allEmployees.length > 0 ? allEmployees : managedEmployees) : managedEmployees;
+  // Strict tenant scoping: mobile app strictly shows staff managed by this user
+  const displayEmployees = managedEmployees;
 
-  // Management banner is visible for store managers and admins
+  // Management banner is visible for store managers / owners (not employees, not demo)
   const showManagementBanner =
     !isEmployee &&
     !isDemoAccount &&
-    (isAdmin || isManager);
+    Boolean(user?.email);
 
   const [isDriveConnected, setIsDriveConnected] = React.useState(false);
 
