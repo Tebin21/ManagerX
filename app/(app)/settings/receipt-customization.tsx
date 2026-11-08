@@ -421,7 +421,7 @@ export default function ReceiptCustomizationScreen() {
       if (activeTab === 'sales') {
         if (activePaperSize === 'A4') {
           const { directPrintInvoice } = await import('@/lib/generateInvoice');
-          await directPrintInvoice(mockSale, testBiz);
+          await directPrintInvoice(mockSale, testBiz, 'iqd', 'A4');
         } else {
           const { directPrintThermalInvoice } = await import('@/lib/generateInvoice');
           await directPrintThermalInvoice(

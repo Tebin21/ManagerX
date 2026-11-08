@@ -11,6 +11,7 @@ import { useBusinessStore } from '@/store/businessStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useLanguageStore } from '@/store/languageStore';
 import type { Sale } from '@/types/sales';
+import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 import {
   fmtIQD, fmtUSD, formatDate, formatTime,
   getPaymentStatus, PAYMENT_STATUS_LABEL, type PaymentStatus,
@@ -19,6 +20,7 @@ import {
 interface Props {
   sale: Sale;
   compact?: boolean;
+  currencyMode?: ReceiptCurrencyMode;
 }
 
 const PAYMENT_LABEL: Record<string, string> = {
@@ -43,7 +45,7 @@ function getInitials(name: string | null | undefined): string {
   return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
 }
 
-export function InvoiceView({ sale, compact = false }: Props) {
+export function InvoiceView({ sale, compact = false, currencyMode }: Props) {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, writingDirection, flexDirection, alignStart } = useRTL();
@@ -52,7 +54,7 @@ export function InvoiceView({ sale, compact = false }: Props) {
   const tableScrollRef = useRef<ScrollView>(null);
 
   const baseCurrency = useSettingsStore(s => s.baseCurrency) || 'IQD';
-  const isUSD = baseCurrency === 'USD';
+  const isUSD = currencyMode ? currencyMode === 'usd' : baseCurrency === 'USD';
 
   const items = sale.items ?? [];
   const status = getPaymentStatus(sale);

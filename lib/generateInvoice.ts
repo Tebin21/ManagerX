@@ -24,6 +24,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { buildInvoiceHTML, buildPurchaseInvoiceHTML, type PurchaseItemRow, type ReceiptCurrencyMode } from './invoiceTemplate';
 import { buildThermalReceiptHTML } from './thermalReceiptTemplate';
 import { useSettingsStore, type ThermalReceiptWidth, type ReceiptPaperSize } from '@/store/settingsStore';
+export { type ThermalReceiptWidth, type ReceiptPaperSize } from '@/store/settingsStore';
 import { PURCHASE_RATE } from '@/types/purchases';
 import { buildInventoryReportHTML } from './inventoryReportTemplate';
 import {
@@ -511,7 +512,7 @@ export async function directPrintInvoice(
   sale: Sale,
   business: BusinessInfo,
   currencyMode: ReceiptCurrencyMode = 'iqd',
-  paperSize: ReceiptPaperSize = '80mm'
+  paperSize: ReceiptPaperSize = 'A4'
 ): Promise<boolean> {
   const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
   const printCheck = await checkInvoicePrintLimit();
@@ -676,7 +677,7 @@ export async function directPrintPurchaseInvoice(
   business: BusinessInfo,
   currencyMode: ReceiptCurrencyMode = 'iqd',
   purchaseDebt?: PurchaseDebt | null,
-  paperSize: ReceiptPaperSize = '80mm'
+  paperSize: ReceiptPaperSize = 'A4'
 ): Promise<boolean> {
   const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
   const printCheck = await checkInvoicePrintLimit();
@@ -1244,7 +1245,7 @@ export async function shareQuotationInvoice(
   quotation: Quotation,
   business: BusinessInfo,
   currencyMode: ReceiptCurrencyMode = 'both',
-  paperSize: ReceiptPaperSize = '80mm'
+  paperSize: ReceiptPaperSize = 'A4'
 ): Promise<boolean> {
   const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
   const printCheck = await checkInvoicePrintLimit();
@@ -1300,7 +1301,7 @@ export async function directPrintQuotationInvoice(
   quotation: Quotation,
   business: BusinessInfo,
   currencyMode: ReceiptCurrencyMode = 'both',
-  paperSize: ReceiptPaperSize = '80mm'
+  paperSize: ReceiptPaperSize = 'A4'
 ): Promise<boolean> {
   const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
   const printCheck = await checkInvoicePrintLimit();

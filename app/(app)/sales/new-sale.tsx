@@ -41,7 +41,7 @@ import { InvoiceView } from '@/components/sales/InvoiceView';
 import { CheckoutActionGrid, type CheckoutMode } from '@/components/shared/CheckoutActionGrid';
 import { InvoiceAboutPolicyAccordion } from '@/components/sales/InvoiceAboutPolicyAccordion';
 import { useBusinessStore } from '@/store/businessStore';
-import { directPrintInvoice, directPrintThermalInvoice } from '@/lib/generateInvoice';
+import { directPrintInvoice, directPrintThermalInvoice, type ReceiptPaperSize, type ThermalReceiptWidth } from '@/lib/generateInvoice';
 import * as Haptics from 'expo-haptics';
 
 import { useTranslation } from 'react-i18next';
@@ -399,41 +399,53 @@ export default function NewSaleScreen() {
       cart.clearCart();
       setIsSubmitting(false);
 
-      if (checkoutMode === 'print') {
+      if (
+        checkoutMode === 'print' ||
+        checkoutMode === 'print58' ||
+        checkoutMode === 'print80' ||
+        checkoutMode === 'print110'
+      ) {
         const business = useBusinessStore.getState();
-        // Fire print in background so checkout screen transitions instantly without blocking on printer modal
-        directPrintInvoice(
-          sale,
-          {
-            name: business.name || 'My Store',
-            phone: business.phone || '',
-            address: business.address || '',
-            logoUri: business.logoUri ?? null,
-          },
-          receiptCurrency
-        ).catch((printErr) => {
-          console.error('[Sale] Direct print error:', printErr);
-        });
+        const paperSize: ReceiptPaperSize =
+          checkoutMode === 'print58'
+            ? '58mm'
+            : checkoutMode === 'print80'
+            ? '80mm'
+            : checkoutMode === 'print110'
+            ? '110mm'
+            : 'A4';
 
-        try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); } catch {}
-        setStep(1);
-      } else if (checkoutMode === 'print58' || checkoutMode === 'print80' || checkoutMode === 'print110') {
-        const business = useBusinessStore.getState();
-        const thermalWidth = checkoutMode === 'print58' ? '58mm' : checkoutMode === 'print80' ? '80mm' : '110mm';
-        // Fire thermal print in background without blocking
-        directPrintThermalInvoice(
-          sale,
-          {
-            name: business.name || 'My Store',
-            phone: business.phone || '',
-            address: business.address || '',
-            logoUri: business.logoUri ?? null,
-          },
-          thermalWidth,
-          receiptCurrency
-        ).catch((printErr) => {
-          console.error('[Sale] Direct thermal print error:', printErr);
-        });
+        if (paperSize === 'A4') {
+          // Fire A4 direct print in background so checkout screen transitions instantly
+          directPrintInvoice(
+            sale,
+            {
+              name: business.name || 'My Store',
+              phone: business.phone || '',
+              address: business.address || '',
+              logoUri: business.logoUri ?? null,
+            },
+            receiptCurrency,
+            'A4'
+          ).catch((printErr) => {
+            console.error('[Sale] Direct A4 print error:', printErr);
+          });
+        } else {
+          // Fire thermal print (58mm, 80mm, 110mm) in background with exact chosen width
+          directPrintThermalInvoice(
+            sale,
+            {
+              name: business.name || 'My Store',
+              phone: business.phone || '',
+              address: business.address || '',
+              logoUri: business.logoUri ?? null,
+            },
+            paperSize as ThermalReceiptWidth,
+            receiptCurrency
+          ).catch((printErr) => {
+            console.error('[Sale] Direct thermal print error:', printErr);
+          });
+        }
 
         try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); } catch {}
         setStep(1);
@@ -1269,7 +1281,9 @@ export default function NewSaleScreen() {
               >
                 {showSalesInvoicePreview
                   ? (isKuLanguage ? 'داخستنی پێشبینین' : 'Hide Preview')
-                  : (isKuLanguage ? 'پیشاندانی پسوولە' : 'Show Preview')}
+                  : (isKuLanguage
+                      ? `پیشاندانی پسوولە • ${checkoutMode === 'print' ? 'A4' : checkoutMode === 'print58' ? '58mm' : checkoutMode === 'print80' ? '80mm' : checkoutMode === 'print110' ? '110mm' : 'ئاسایی'}`
+                      : `Show Preview • ${checkoutMode === 'print' ? 'A4' : checkoutMode === 'print58' ? '58mm' : checkoutMode === 'print80' ? '80mm' : checkoutMode === 'print110' ? '110mm' : 'Normal'}`)}
               </Text>
             </View>
           </View>
@@ -1371,6 +1385,7 @@ export default function NewSaleScreen() {
                 })),
               }}
               compact={compact}
+              currencyMode={receiptCurrency}
             />
           </View>
         )}

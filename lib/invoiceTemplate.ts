@@ -117,6 +117,10 @@ function buildSalesCSS(isKurdish: boolean): string {
     : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif`;
   return `
   ${KURDISH_FONT_FACE}
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
   * {
     margin: 0;
     padding: 0;
@@ -766,6 +770,10 @@ function buildPurchaseCSS(isKurdish: boolean): string {
     : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif`;
   return `
   ${KURDISH_FONT_FACE}
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
   * {
     margin: 0;
     padding: 0;
