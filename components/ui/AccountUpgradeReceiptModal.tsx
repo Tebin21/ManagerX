@@ -15,6 +15,7 @@ import { useManagementStore } from '@/store/managementStore';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
+import { formatDate } from '@/utils/formatters';
 import * as Haptics from 'expo-haptics';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -232,18 +233,10 @@ export function AccountUpgradeReceiptModal() {
 
   const formattedStartDate = isNaN(startDateObj.getTime())
     ? labels.notSpecified
-    : startDateObj.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      });
+    : formatDate(startDateObj);
 
   const expiresDateStr = receipt.expiresAt
-    ? new Date(receipt.expiresAt).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      })
+    ? formatDate(receipt.expiresAt)
     : labels.unlimitedLifetime;
 
   const customerName =

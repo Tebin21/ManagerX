@@ -54,7 +54,7 @@ import {
   DIRECT_CUSTOMER_NAME,
   ensureDirectCustomer,
 } from '@/lib/sqlite';
-import { fmtIQD, fmtUSD, formatTime, sanitizeNumericInput, toEnglishDigits } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, formatDateTimeUI, formatTime, sanitizeNumericInput, toEnglishDigits } from '@/utils/formatters';
 import { Theme } from '@/constants/theme';
 import { hexToRgba } from '@/lib/colorUtils';
 import { SETTINGS_KURDISH_FONT_REGULAR, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
@@ -1262,7 +1262,7 @@ export default function SalesQuotationScreen() {
             <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
               <Ionicons name="calendar-outline" size={18} color="#3B82F6" />
               <Text style={[styles.datePickerDisplayText, { color: colors.black }]}>
-                {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} • {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                {formatDateTimeUI(new Date())}
               </Text>
             </View>
             <Ionicons name="chevron-down" size={16} color={colors.gray400} />

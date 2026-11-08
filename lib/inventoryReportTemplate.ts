@@ -1,5 +1,5 @@
 import type { InventoryProduct, InventoryStats } from '@/types/inventory';
-import { fmtIQD, fmtUSD, fmtPct, formatTime } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, fmtPct, formatDate, formatTime } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText } from '@/lib/pdfFont';
 import i18n from '@/lib/i18n';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -65,7 +65,7 @@ export function buildInventoryReportHTML(
   const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
 
   const now = new Date();
-  const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const dateStr = formatDate(now);
   const timeStr = formatTime(now);
 
   const logoHTML = business.logoUri

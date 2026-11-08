@@ -309,19 +309,15 @@ export function formatDateTime(v: string | Date): string {
   return `${formatDate(d)} · ${formatTime(d)}`;
 }
 
-// UI-facing date display — "23-Jun-2026" in both languages, for visual
-// consistency regardless of app language. PDF/invoice templates use
-// formatDate/formatDateTime directly so their output stays fixed.
+// UI-facing date display — "2026-11-08" in numeric format (all numbers including month).
+// Previously returned "08-Nov-2026", but user requested numbers for months as well.
 export function formatDateShort(v: string | Date): string {
-  const d = parseDateSafe(v);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = d.toLocaleDateString('en-US', { month: 'short' });
-  return `${day}-${month}-${d.getFullYear()}`;
+  return formatDate(v);
 }
 
 export function formatDateTimeUI(v: string | Date): string {
   const d = parseDateSafe(v);
-  return `${formatDateShort(d)} · ${formatTime(d)}`;
+  return `${formatDate(d)} · ${formatTime(d)}`;
 }
 
 export function formatRelativeTime(v: string | Date): string {
