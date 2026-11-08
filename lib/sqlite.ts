@@ -1076,21 +1076,15 @@ export async function getProductCategories(): Promise<string[]> {
   try {
     await database.runAsync(
       `INSERT OR IGNORE INTO categories (name, uuid, is_default, created_at, updated_at)
-       SELECT DISTINCT TRIM(category), lower(hex(randomblob(16))), 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-       FROM products
-       WHERE category IS NOT NULL AND TRIM(category) != ''`
-    );
-    await database.runAsync(
-      `INSERT OR IGNORE INTO categories (name, uuid, is_default, created_at, updated_at)
-       SELECT DISTINCT TRIM(category), lower(hex(randomblob(16))), 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-       FROM purchase_items
-       WHERE category IS NOT NULL AND TRIM(category) != ''`
-    );
-    await database.runAsync(
-      `INSERT OR IGNORE INTO categories (name, uuid, is_default, created_at, updated_at)
-       SELECT DISTINCT TRIM(category), lower(hex(randomblob(16))), 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-       FROM purchases
-       WHERE category IS NOT NULL AND TRIM(category) != ''`
+       SELECT cat_name, lower(hex(randomblob(16))), 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+       FROM (
+         SELECT DISTINCT TRIM(category) AS cat_name FROM products WHERE category IS NOT NULL AND TRIM(category) != ''
+         UNION
+         SELECT DISTINCT TRIM(category) AS cat_name FROM purchase_items WHERE category IS NOT NULL AND TRIM(category) != ''
+         UNION
+         SELECT DISTINCT TRIM(category) AS cat_name FROM purchases WHERE category IS NOT NULL AND TRIM(category) != ''
+       )
+       WHERE cat_name NOT IN (SELECT TRIM(name) FROM categories WHERE name IS NOT NULL AND TRIM(name) != '')`
     );
   } catch (syncErr) {
     console.warn('[Categories] Auto-sync error in getProductCategories:', syncErr);
@@ -1120,21 +1114,15 @@ export async function getAllManagedCategories(): Promise<Array<{ name: string; p
   try {
     await database.runAsync(
       `INSERT OR IGNORE INTO categories (name, uuid, is_default, created_at, updated_at)
-       SELECT DISTINCT TRIM(category), lower(hex(randomblob(16))), 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-       FROM products
-       WHERE category IS NOT NULL AND TRIM(category) != ''`
-    );
-    await database.runAsync(
-      `INSERT OR IGNORE INTO categories (name, uuid, is_default, created_at, updated_at)
-       SELECT DISTINCT TRIM(category), lower(hex(randomblob(16))), 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-       FROM purchase_items
-       WHERE category IS NOT NULL AND TRIM(category) != ''`
-    );
-    await database.runAsync(
-      `INSERT OR IGNORE INTO categories (name, uuid, is_default, created_at, updated_at)
-       SELECT DISTINCT TRIM(category), lower(hex(randomblob(16))), 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-       FROM purchases
-       WHERE category IS NOT NULL AND TRIM(category) != ''`
+       SELECT cat_name, lower(hex(randomblob(16))), 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+       FROM (
+         SELECT DISTINCT TRIM(category) AS cat_name FROM products WHERE category IS NOT NULL AND TRIM(category) != ''
+         UNION
+         SELECT DISTINCT TRIM(category) AS cat_name FROM purchase_items WHERE category IS NOT NULL AND TRIM(category) != ''
+         UNION
+         SELECT DISTINCT TRIM(category) AS cat_name FROM purchases WHERE category IS NOT NULL AND TRIM(category) != ''
+       )
+       WHERE cat_name NOT IN (SELECT TRIM(name) FROM categories WHERE name IS NOT NULL AND TRIM(name) != '')`
     );
 
     // Guarantee that 'گشتی' (or an intentionally renamed default) is the canonical default category (is_default = 1).
@@ -1189,7 +1177,7 @@ export async function getAllManagedCategories(): Promise<Array<{ name: string; p
       // Clean up duplicate unused General rows if a Kurdish 'گشتی' default exists
       if (defaultRow.name !== 'General') {
         const genWithProducts = await database.getFirstAsync<{ cnt: number }>(
-          "SELECT COUNT(*) AS cnt FROM products WHERE category = 'General' AND is_active = 1"
+          "SELECT COUNT(*) AS cnt FROM products WHERE (category = 'General' OR LOWER(TRIM(category)) = 'general') AND is_active = 1"
         );
         if ((genWithProducts?.cnt ?? 0) === 0) {
           await database.runAsync("DELETE FROM categories WHERE name = 'General' AND is_default = 0");
@@ -1206,7 +1194,15 @@ export async function getAllManagedCategories(): Promise<Array<{ name: string; p
   const rows = await database.getAllAsync<{ name: string; product_count: number; is_default: number | null }>(
     `SELECT c.name,
             MAX(COALESCE(c.is_default, 0)) AS is_default,
-            COUNT(CASE WHEN p.is_active = 1 THEN 1 END) AS product_count
+            (
+              SELECT COUNT(*)
+              FROM products p
+              WHERE p.is_active = 1
+                AND (
+                  TRIM(p.category) = TRIM(c.name)
+                  OR LOWER(TRIM(p.category)) = LOWER(TRIM(c.name))
+                )
+            ) AS product_count
      FROM (
        SELECT TRIM(name) AS name, COALESCE(is_default, 0) AS is_default FROM categories WHERE name IS NOT NULL AND TRIM(name) != ''
        UNION
@@ -1216,14 +1212,13 @@ export async function getAllManagedCategories(): Promise<Array<{ name: string; p
        UNION
        SELECT DISTINCT TRIM(category) AS name, 0 AS is_default FROM purchases WHERE category IS NOT NULL AND TRIM(category) != ''
      ) c
-     LEFT JOIN products p ON LOWER(TRIM(p.category)) = LOWER(c.name)
      WHERE TRIM(c.name) != ''
      GROUP BY c.name
      ORDER BY MAX(COALESCE(c.is_default, 0)) DESC, c.name COLLATE NOCASE ASC`
   );
   return rows.map((r) => ({
     name: r.name,
-    productCount: r.product_count,
+    productCount: Number(r.product_count) || 0,
     isDefault: (r.is_default ?? 0) === 1,
   }));
 }
@@ -1234,8 +1229,8 @@ export async function addManagedCategory(name: string): Promise<void> {
 
   const database = await getDatabase();
   const existing = await database.getFirstAsync<{ cnt: number }>(
-    'SELECT COUNT(*) AS cnt FROM categories WHERE LOWER(TRIM(name)) = LOWER(?)',
-    [trimmed]
+    'SELECT COUNT(*) AS cnt FROM categories WHERE TRIM(name) = ? OR LOWER(TRIM(name)) = LOWER(?)',
+    [trimmed, trimmed]
   );
   if ((existing?.cnt ?? 0) > 0) throw new Error('CATEGORY_ALREADY_EXISTS');
 
@@ -1251,14 +1246,15 @@ export async function deleteManagedCategory(name: string): Promise<void> {
 
   const database = await getDatabase();
   const cat = await database.getFirstAsync<{ is_default: number | null }>(
-    'SELECT is_default FROM categories WHERE LOWER(TRIM(name)) = LOWER(?)',
-    [trimmed]
+    'SELECT is_default FROM categories WHERE TRIM(name) = ? OR LOWER(TRIM(name)) = LOWER(?)',
+    [trimmed, trimmed]
   );
   if (
     (cat?.is_default ?? 0) === 1 ||
     trimmed === DEFAULT_CATEGORY ||
     trimmed === 'گشتی' ||
-    trimmed === 'بنەڕەت'
+    trimmed === 'بنەڕەت' ||
+    trimmed.toLowerCase() === 'general'
   ) {
     throw new Error('CATEGORY_IS_DEFAULT');
   }
@@ -1271,30 +1267,30 @@ export async function deleteManagedCategory(name: string): Promise<void> {
 
   // 1. Reassign products belonging to this category to the default category
   await database.runAsync(
-    'UPDATE products SET category = ?, updated_at = CURRENT_TIMESTAMP WHERE LOWER(TRIM(category)) = LOWER(?)',
-    [targetCategory, trimmed]
+    'UPDATE products SET category = ?, updated_at = CURRENT_TIMESTAMP WHERE TRIM(category) = ? OR LOWER(TRIM(category)) = LOWER(?)',
+    [targetCategory, trimmed, trimmed]
   );
 
   // 2. Reassign purchase_items and purchases
   await database.runAsync(
-    'UPDATE purchase_items SET category = ? WHERE LOWER(TRIM(category)) = LOWER(?)',
-    [targetCategory, trimmed]
+    'UPDATE purchase_items SET category = ? WHERE TRIM(category) = ? OR LOWER(TRIM(category)) = LOWER(?)',
+    [targetCategory, trimmed, trimmed]
   );
   await database.runAsync(
-    'UPDATE purchases SET category = ? WHERE LOWER(TRIM(category)) = LOWER(?)',
-    [targetCategory, trimmed]
+    'UPDATE purchases SET category = ? WHERE TRIM(category) = ? OR LOWER(TRIM(category)) = LOWER(?)',
+    [targetCategory, trimmed, trimmed]
   );
 
   // 3. Reassign inventory_history
   await database.runAsync(
-    'UPDATE inventory_history SET category = ? WHERE LOWER(TRIM(category)) = LOWER(?)',
-    [targetCategory, trimmed]
+    'UPDATE inventory_history SET category = ? WHERE TRIM(category) = ? OR LOWER(TRIM(category)) = LOWER(?)',
+    [targetCategory, trimmed, trimmed]
   );
 
   // 4. Delete the category record
   await database.runAsync(
-    'DELETE FROM categories WHERE LOWER(TRIM(name)) = LOWER(?)',
-    [trimmed]
+    'DELETE FROM categories WHERE TRIM(name) = ? OR LOWER(TRIM(name)) = LOWER(?)',
+    [trimmed, trimmed]
   );
 
   // 5. Enqueue sync changes for affected products
@@ -1308,23 +1304,24 @@ export async function deleteManagedCategory(name: string): Promise<void> {
 }
 
 export async function renameManagedCategory(oldName: string, newName: string): Promise<void> {
+  const trimmedOld = oldName.trim();
   const trimmed = newName.trim();
   if (!trimmed) throw new Error('CATEGORY_NAME_REQUIRED');
-  if (trimmed === oldName) return;
+  if (trimmed === trimmedOld) return;
 
   const database = await getDatabase();
   const existing = await database.getFirstAsync<{ cnt: number }>(
-    'SELECT COUNT(*) AS cnt FROM categories WHERE name = ?',
-    [trimmed]
+    'SELECT COUNT(*) AS cnt FROM categories WHERE TRIM(name) = ? OR LOWER(TRIM(name)) = LOWER(?)',
+    [trimmed, trimmed]
   );
   if ((existing?.cnt ?? 0) > 0) throw new Error('CATEGORY_ALREADY_EXISTS');
 
   // Check if old category was default
   const oldCat = await database.getFirstAsync<{ id: number; is_default: number | null }>(
-    'SELECT id, is_default FROM categories WHERE name = ?',
-    [oldName]
+    'SELECT id, is_default FROM categories WHERE TRIM(name) = ? OR LOWER(TRIM(name)) = LOWER(?)',
+    [trimmedOld, trimmedOld]
   );
-  const isDefaultCat = (oldCat?.is_default ?? 0) === 1 || oldName === DEFAULT_CATEGORY;
+  const isDefaultCat = (oldCat?.is_default ?? 0) === 1 || trimmedOld === DEFAULT_CATEGORY || trimmedOld === 'گشتی' || trimmedOld === 'بنەڕەت' || trimmedOld.toLowerCase() === 'general';
 
   if (!oldCat) {
     // If oldName didn't exist in categories table yet, insert the new one directly with proper default flag
@@ -1334,31 +1331,31 @@ export async function renameManagedCategory(oldName: string, newName: string): P
     );
   } else {
     await database.runAsync(
-      'UPDATE categories SET name = ?, is_default = CASE WHEN ? = 1 THEN 1 ELSE is_default END, updated_at = CURRENT_TIMESTAMP WHERE name = ?',
-      [trimmed, isDefaultCat ? 1 : 0, oldName]
+      'UPDATE categories SET name = ?, is_default = CASE WHEN ? = 1 THEN 1 ELSE is_default END, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [trimmed, isDefaultCat ? 1 : 0, oldCat.id]
     );
   }
 
   if (isDefaultCat) {
     // Clear is_default from any other category to ensure single default
-    await database.runAsync('UPDATE categories SET is_default = 0 WHERE name != ?', [trimmed]);
+    await database.runAsync('UPDATE categories SET is_default = 0 WHERE TRIM(name) != ?', [trimmed]);
   }
 
   await database.runAsync(
-    'UPDATE products SET category = ?, updated_at = CURRENT_TIMESTAMP WHERE category = ?',
-    [trimmed, oldName]
+    'UPDATE products SET category = ?, updated_at = CURRENT_TIMESTAMP WHERE TRIM(category) = ? OR LOWER(TRIM(category)) = LOWER(?)',
+    [trimmed, trimmedOld, trimmedOld]
   );
   await database.runAsync(
-    'UPDATE purchase_items SET category = ? WHERE category = ?',
-    [trimmed, oldName]
+    'UPDATE purchase_items SET category = ? WHERE TRIM(category) = ? OR LOWER(TRIM(category)) = LOWER(?)',
+    [trimmed, trimmedOld, trimmedOld]
   );
   await database.runAsync(
-    'UPDATE purchases SET category = ? WHERE category = ?',
-    [trimmed, oldName]
+    'UPDATE purchases SET category = ? WHERE TRIM(category) = ? OR LOWER(TRIM(category)) = LOWER(?)',
+    [trimmed, trimmedOld, trimmedOld]
   );
   await database.runAsync(
-    'UPDATE inventory_history SET category = ? WHERE category = ?',
-    [trimmed, oldName]
+    'UPDATE inventory_history SET category = ? WHERE TRIM(category) = ? OR LOWER(TRIM(category)) = LOWER(?)',
+    [trimmed, trimmedOld, trimmedOld]
   );
   // The rename changed every affected product's data, so each one needs to reach the
   // storefront on the next sync — same fan-out pattern used elsewhere for bulk updates.

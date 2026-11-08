@@ -236,9 +236,10 @@ export default function InventoryScreen() {
 
   useEffect(() => {
     if (catModalVisible) {
+      loadInventory();
       loadManagedCategories();
     }
-  }, [catModalVisible, loadManagedCategories]);
+  }, [catModalVisible, loadInventory, loadManagedCategories]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -368,17 +369,17 @@ export default function InventoryScreen() {
     try {
       await addCategory(name);
       setNewCatName('');
-      await loadManagedCategories();
+      await Promise.all([loadInventory(), loadManagedCategories()]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (msg === 'CATEGORY_ALREADY_EXISTS') {
         Alert.alert(t('inventory.manageCategoriesTitle'), t('inventory.duplicateCategory'));
-        await loadManagedCategories();
+        await Promise.all([loadInventory(), loadManagedCategories()]);
       } else {
         Alert.alert(t('common.error'), t('common.tryAgain'));
       }
     }
-  }, [newCatName, addCategory, loadManagedCategories, t]);
+  }, [newCatName, addCategory, loadInventory, loadManagedCategories, t]);
 
   const handleDeleteCategory = useCallback(
     (cat: { name: string; productCount: number; isDefault: boolean }) => {
@@ -403,6 +404,7 @@ export default function InventoryScreen() {
           (async () => {
             try {
               await deleteCategory(cat.name);
+              await Promise.all([loadInventory(), loadManagedCategories()]);
             } catch (err) {
               const msg = err instanceof Error ? err.message : '';
               if (msg === 'CATEGORY_IS_DEFAULT') {
@@ -427,6 +429,7 @@ export default function InventoryScreen() {
             onPress: async () => {
               try {
                 await deleteCategory(cat.name);
+                await Promise.all([loadInventory(), loadManagedCategories()]);
               } catch (err) {
                 const msg = err instanceof Error ? err.message : '';
                 if (msg === 'CATEGORY_IS_DEFAULT') {
@@ -440,7 +443,7 @@ export default function InventoryScreen() {
         ]
       );
     },
-    [deleteCategory, managedCategories, isKuLanguage, t]
+    [deleteCategory, managedCategories, isKuLanguage, loadInventory, loadManagedCategories, t]
   );
 
   const handleStartRename = useCallback((cat: { name: string; isDefault: boolean }) => {
@@ -463,6 +466,7 @@ export default function InventoryScreen() {
     try {
       await renameCategory(editingCategory, name);
       handleCancelRename();
+      await Promise.all([loadInventory(), loadManagedCategories()]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (msg === 'CATEGORY_ALREADY_EXISTS') {
@@ -471,7 +475,7 @@ export default function InventoryScreen() {
         Alert.alert(t('common.error'), t('common.tryAgain'));
       }
     }
-  }, [editingCategory, editCatName, renameCategory, handleCancelRename, t]);
+  }, [editingCategory, editCatName, renameCategory, handleCancelRename, loadInventory, loadManagedCategories, t]);
 
   // Comprehensive Filter & Search & Sort Pipeline
   const visible = useMemo(() => {
@@ -1110,7 +1114,7 @@ export default function InventoryScreen() {
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={async () => {
-                    await loadManagedCategories();
+                    await Promise.all([loadInventory(), loadManagedCategories()]);
                     setCatModalVisible(true);
                   }}
                   style={[

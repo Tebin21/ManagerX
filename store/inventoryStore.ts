@@ -87,6 +87,16 @@ function unifyCategories(
         productCount: prodCount,
         isDefault: trimmed === 'گشتی' || trimmed === 'General' || trimmed === 'بنەڕەت',
       });
+    } else {
+      const existing = map.get(key)!;
+      if (existing.productCount === 0) {
+        const prodCount = products.filter(
+          (prod) => prod?.isActive && prod?.category?.trim().toLowerCase() === key
+        ).length;
+        if (prodCount > 0) {
+          existing.productCount = prodCount;
+        }
+      }
     }
   });
 
@@ -360,11 +370,15 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   loadManagedCategories: async () => {
     try {
+      let currentProducts = get().products;
+      if (!currentProducts || currentProducts.length === 0) {
+        currentProducts = await getAllInventoryProducts();
+      }
       const [categories, managedCategories] = await Promise.all([
         getProductCategories(),
         getAllManagedCategories(),
       ]);
-      const unified = unifyCategories(categories, managedCategories, get().products);
+      const unified = unifyCategories(categories, managedCategories, currentProducts);
       set({ categories: unified.categories, managedCategories: unified.managedCategories });
     } catch (err) {
       console.error('Failed to load managed categories:', err);
@@ -380,12 +394,23 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
         throw err;
       }
     }
-    const [categories, managedCategories] = await Promise.all([
+    const [products, rawStats, categories, managedCategories, inventoryHistory] = await Promise.all([
+      getAllInventoryProducts(),
+      getInventoryStats(),
       getProductCategories(),
       getAllManagedCategories(),
+      getAllInventoryHistory(),
     ]);
-    const unified = unifyCategories(categories, managedCategories, get().products);
-    set({ categories: unified.categories, managedCategories: unified.managedCategories });
+    const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
+    const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
+    const unified = unifyCategories(categories, managedCategories, products);
+    set({
+      products,
+      stats,
+      categories: unified.categories,
+      managedCategories: unified.managedCategories,
+      inventoryHistory,
+    });
   },
 
   deleteCategory: async (name: string) => {
