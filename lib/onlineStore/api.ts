@@ -54,7 +54,12 @@ export class OnlineStoreApiError extends Error {
   constructor(message: string, public readonly status: number) {
     super(message);
     this.name = 'OnlineStoreApiError';
+    Object.setPrototypeOf(this, OnlineStoreApiError.prototype);
   }
+}
+
+export function isOnlineStoreApiError(err: unknown): err is OnlineStoreApiError {
+  return err instanceof OnlineStoreApiError || (err instanceof Error && err.name === 'OnlineStoreApiError');
 }
 
 async function request<T>(path: string, init?: RequestInit, timeoutMs = 15000): Promise<T> {
@@ -197,16 +202,23 @@ export async function uploadStoreImage(
 
   // Verify file exists on disk BEFORE passing to FormData.
   // On iOS, if RCTHTTPFormDataHelper tries to read a non-existent file, it triggers a fatal native error.
-  if (Platform.OS !== 'web' && (/^file:\/\//i.test(resolvedUri) || resolvedUri.startsWith('/'))) {
+  if (Platform.OS !== 'web') {
+    let exists = false;
     try {
-      const info = await FileSystem.getInfoAsync(resolvedUri);
-      if (!info || !info.exists) {
-        if (__DEV__) console.warn(`[onlineStore] Local image file does not exist on disk: ${resolvedUri}`);
-        throw new OnlineStoreApiError(`Image file not found on device: ${resolvedUri}`, 404);
+      if (/^file:\/\//i.test(resolvedUri) || resolvedUri.startsWith('/')) {
+        const info = await FileSystem.getInfoAsync(resolvedUri);
+        exists = Boolean(info && info.exists);
+      } else {
+        exists = false;
       }
-    } catch (e) {
-      if (e instanceof OnlineStoreApiError) throw e;
-      if (__DEV__) console.warn('[onlineStore] Failed to check file existence:', e);
+    } catch (checkErr) {
+      if (__DEV__) console.warn('[onlineStore] Failed to check file existence:', checkErr);
+      exists = false;
+    }
+
+    if (!exists) {
+      if (__DEV__) console.warn(`[onlineStore] Local image file does not exist on disk: ${resolvedUri}`);
+      throw new OnlineStoreApiError(`Image file not found on device: ${resolvedUri}`, 404);
     }
   }
 

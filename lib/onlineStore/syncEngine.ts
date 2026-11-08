@@ -12,6 +12,7 @@ import {
 } from '@/lib/sqlite';
 import {
   OnlineStoreApiError,
+  isOnlineStoreApiError,
   pushSync,
   pushStoreInfo,
   registerStore,
@@ -64,13 +65,13 @@ async function ensureRemoteImage(item: PendingSyncItem, slug: string, apiKey: st
     return true;
   } catch (err) {
     // If the local file is missing on device, skip trying to upload it without failing store credentials
-    if (err instanceof OnlineStoreApiError && err.message.includes('Image file not found')) {
+    if (isOnlineStoreApiError(err) && err.message.includes('Image file not found')) {
       if (__DEV__) console.warn('[onlineStore] skipping missing local image for product:', item.productId);
       return true;
     }
     // A 404/401 means the store credential is gone or invalid — propagate so
     // processQueue()'s outer catch can clear the stale registration and re-register.
-    if (err instanceof OnlineStoreApiError && (err.status === 404 || err.status === 401)) throw err;
+    if (isOnlineStoreApiError(err) && (err.status === 404 || err.status === 401)) throw err;
     if (__DEV__) console.warn('[onlineStore] image upload failed, leaving in queue to retry:', err);
     return false;
   }
@@ -127,6 +128,10 @@ async function ensureRemoteLogo(slug: string, apiKey: string): Promise<[string |
     return [url, true];
   } catch (err) {
     if (__DEV__) console.warn('[onlineStore] logo upload failed, will retry next cycle:', err);
+    // If the local file is missing on device, mark it so we don't repeat the missing upload every cycle
+    if (isOnlineStoreApiError(err) && err.message.includes('Image file not found')) {
+      await setLogoUploadState(remoteUrl || '', logoUri);
+    }
     return [remoteUrl, false]; // keep showing whatever was last uploaded, if anything
   }
 }
@@ -168,7 +173,7 @@ async function pushStoreInfoOpportunistically(slug: string, apiKey: string): Pro
     // mask the exact same bug for stores with no pending PRODUCT changes, since
     // `pending.length === 0` short-circuits processQueue() before ever reaching
     // pushSync(), which is otherwise what surfaces this for the product-sync path.
-    if (err instanceof OnlineStoreApiError && (err.status === 404 || err.status === 401)) throw err;
+    if (isOnlineStoreApiError(err) && (err.status === 404 || err.status === 401)) throw err;
     if (__DEV__) console.warn('[onlineStore] info push failed, will retry next cycle:', err);
   }
 }
@@ -285,7 +290,7 @@ export async function processQueue(
             try {
               await ensureRemoteImage(item, slug, apiKey);
             } catch (err) {
-              if (err instanceof OnlineStoreApiError && (err.status === 404 || err.status === 401)) {
+              if (isOnlineStoreApiError(err) && (err.status === 404 || err.status === 401)) {
                 throw err;
               }
               // Transient or rate error: keep going, product will still be pushed, image retries later
@@ -320,7 +325,7 @@ export async function processQueue(
 
     await clearLastSyncError();
   } catch (err) {
-    if (err instanceof OnlineStoreApiError && err.status === 402) {
+    if (isOnlineStoreApiError(err) && err.status === 402) {
       // The backend independently rejected this request for lacking a valid Online
       // Store Subscription — most likely the local subscription cache was stale (it
       // looked valid when checked above, but expired/was revoked by the time this
@@ -330,7 +335,7 @@ export async function processQueue(
       await setLastSyncError(
         'Online Store subscription required or expired — activate or renew to resume syncing.'
       );
-    } else if (err instanceof OnlineStoreApiError && (err.status === 404 || err.status === 401)) {
+    } else if (isOnlineStoreApiError(err) && (err.status === 404 || err.status === 401)) {
       // The backend no longer recognizes this store or the credential is invalid —
       // clear the stale API key so the next processQueue() run sees `!apiKey` above
       // and re-registers automatically.

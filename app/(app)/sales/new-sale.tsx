@@ -993,21 +993,21 @@ export default function NewSaleScreen() {
                 {/* Next Item Button (Left in RTL, Right in LTR) */}
                 <TouchableOpacity
                   activeOpacity={0.7}
+                  disabled={activeCartIndex >= cart.items.length - 1}
                   onPress={() => {
                     if (activeCartIndex < cart.items.length - 1) {
                       scrollToCartIndex(activeCartIndex + 1);
-                    } else {
-                      scrollToCartIndex(0);
                     }
                   }}
                   style={[
                     styles.cartNavBtn,
                     {
-                      backgroundColor: activeCartIndex < cart.items.length - 1
-                        ? (isDark ? hexToRgba(colors.primary, 0.22) : hexToRgba(colors.primary, 0.14))
+                      opacity: activeCartIndex >= cart.items.length - 1 ? 0.35 : 1,
+                      backgroundColor: activeCartIndex >= cart.items.length - 1
+                        ? 'transparent'
                         : (isDark ? 'rgba(255,255,255,0.06)' : colors.gray100),
-                      borderColor: activeCartIndex < cart.items.length - 1
-                        ? colors.primary
+                      borderColor: activeCartIndex >= cart.items.length - 1
+                        ? (isDark ? 'rgba(255,255,255,0.08)' : colors.gray200)
                         : (isDark ? '#475569' : colors.gray300),
                       flexDirection: isRTL ? 'row-reverse' : 'row',
                     },
@@ -1018,25 +1018,19 @@ export default function NewSaleScreen() {
                     style={[
                       styles.cartNavBtnText,
                       {
-                        color: activeCartIndex < cart.items.length - 1
-                          ? colors.primary
-                          : (isDark ? '#94A3B8' : colors.gray500),
+                        color: activeCartIndex >= cart.items.length - 1
+                          ? colors.gray400
+                          : (isDark ? '#F8FAFC' : '#0F172A'),
                       },
                       isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {activeCartIndex < cart.items.length - 1
-                      ? (isKuLanguage ? 'دواتر' : 'Next')
-                      : (isKuLanguage ? 'سەرەتا' : 'First')}
+                    {isKuLanguage ? 'دواتر' : 'Next'}
                   </Text>
                   <Ionicons
-                    name={
-                      activeCartIndex < cart.items.length - 1
-                        ? (isRTL ? "chevron-back" : "chevron-forward")
-                        : "refresh-outline"
-                    }
+                    name={isRTL ? "chevron-back" : "chevron-forward"}
                     size={18}
-                    color={activeCartIndex < cart.items.length - 1 ? colors.primary : colors.gray500}
+                    color={activeCartIndex >= cart.items.length - 1 ? colors.gray400 : colors.primary}
                   />
                 </TouchableOpacity>
               </View>
@@ -1049,16 +1043,15 @@ export default function NewSaleScreen() {
                   showsHorizontalScrollIndicator={false}
                   nestedScrollEnabled={true}
                   directionalLockEnabled={true}
-                  canCancelContentTouches={false}
+                  canCancelContentTouches={true}
                   keyboardShouldPersistTaps="handled"
                   snapToInterval={mobileCardWidth + 10}
                   snapToAlignment="start"
                   decelerationRate="fast"
                   disableIntervalMomentum={true}
                   overScrollMode="never"
-                  bounces={true}
+                  bounces={false}
                   scrollEventThrottle={16}
-                  onScroll={onCartScroll}
                   onMomentumScrollEnd={onCartScroll}
                   onScrollEndDrag={onCartScroll}
                   style={[
@@ -1067,7 +1060,10 @@ export default function NewSaleScreen() {
                   ]}
                   contentContainerStyle={[
                     styles.cartMobileScrollContent,
-                    { gap: 10, paddingEnd: 12 },
+                    {
+                      gap: 10,
+                      paddingEnd: Math.max(40, screenWidth - mobileCardWidth + 10),
+                    },
                   ]}
                 >
                   {cart.items.map((item) => (
