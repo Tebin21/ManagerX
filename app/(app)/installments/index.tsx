@@ -164,13 +164,13 @@ export default function InstallmentsScreen() {
 
   // Summary for Customers Tab (total, active, settled, short-term, long-term)
   const customersSummary = useMemo(() => {
-    let total = installments.length;
+    let total = periodFilteredInstallments.length;
     let active = 0;
     let settled = 0;
     let shortTerm = 0;
     let longTerm = 0;
 
-    installments.forEach((item) => {
+    periodFilteredInstallments.forEach((item) => {
       if (item.remainingDebt > 0 && item.debtStatus !== 'settled') {
         active += 1;
       } else {
@@ -184,7 +184,7 @@ export default function InstallmentsScreen() {
     });
 
     return { total, active, settled, shortTerm, longTerm };
-  }, [installments]);
+  }, [periodFilteredInstallments]);
 
   // Status Filter Pills for Customers Tab (matching media_1794138477479_e9550980.png)
   const statusPills: { key: StatusFilterType; label: string }[] = useMemo(() => [
@@ -197,7 +197,7 @@ export default function InstallmentsScreen() {
 
   // 2. Filter by Search Query & Sub-filter Status (for Customers Tab)
   const visibleInstallments = useMemo(() => {
-    return installments.filter((item) => {
+    return periodFilteredInstallments.filter((item) => {
       // Search text match
       const q = query.toLowerCase().trim();
       if (q) {
@@ -226,7 +226,7 @@ export default function InstallmentsScreen() {
 
       return true;
     });
-  }, [installments, query, statusFilter]);
+  }, [periodFilteredInstallments, query, statusFilter]);
 
   // Summary Metrics (Computed from current period)
   const periodSummary = useMemo(() => {
@@ -826,7 +826,7 @@ export default function InstallmentsScreen() {
 
       {/* ── 2-Tab Segmented Control (ڕاپۆرت | کەسەکان) ── */}
       <View style={[styles.segmentWrapper, { backgroundColor: colors.white, borderBottomColor: colors.gray200 }]}>
-        <View style={[styles.segmentTrack, { backgroundColor: colors.gray100, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <View style={[styles.segmentTrack, { backgroundColor: isDark ? colors.gray100 : '#F1F5F9', flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           {/* Tab 1: ڕاپۆرت (Report) */}
           <TouchableOpacity
             activeOpacity={0.8}
@@ -836,7 +836,7 @@ export default function InstallmentsScreen() {
             }}
             style={[
               styles.segmentBtn,
-              tab === 'report' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+              tab === 'report' && [styles.segmentBtnActive, { backgroundColor: isDark ? colors.primary : '#1E293B' }],
               { flexDirection: isRTL ? 'row-reverse' : 'row' },
             ]}
           >
@@ -866,7 +866,7 @@ export default function InstallmentsScreen() {
             }}
             style={[
               styles.segmentBtn,
-              tab === 'customers' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+              tab === 'customers' && [styles.segmentBtnActive, { backgroundColor: isDark ? colors.primary : '#1E293B' }],
               { flexDirection: isRTL ? 'row-reverse' : 'row' },
             ]}
           >
@@ -890,7 +890,7 @@ export default function InstallmentsScreen() {
                 style={[
                   styles.tabBadge,
                   tab === 'customers'
-                    ? { backgroundColor: 'rgba(255,255,255,0.3)' }
+                    ? { backgroundColor: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.22)' }
                     : { backgroundColor: colors.gray200 },
                 ]}
               >
@@ -908,6 +908,163 @@ export default function InstallmentsScreen() {
         </View>
       </View>
 
+      {/* ── Period Filter Horizontal Bar (ڕۆژ و ئەمڕۆ و شتەکان - ALWAYS PRESENT in BOTH tabs) ── */}
+      <View
+        style={[
+          styles.filterWrapper,
+          {
+            backgroundColor: colors.white,
+            borderBottomWidth: tab === 'report' ? 1 : 0.5,
+            borderBottomColor: colors.gray200,
+          },
+        ]}
+      >
+        <ScrollView
+          ref={filterScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={[
+            styles.periodScrollView,
+            isRTL ? { transform: [{ scaleX: -1 }] } : undefined,
+          ]}
+          contentContainerStyle={[
+            styles.filterRow,
+            {
+              paddingHorizontal: isTabletLandscape ? 24 : 16,
+              gap: isTablet ? 10 : 8,
+            },
+          ]}
+        >
+          {/* Search Button / Expandable Search Bar on Right of Row in RTL */}
+          {isSearchExpanded ? (
+            <Pressable
+              onPress={(e) => e.stopPropagation?.()}
+              style={[
+                styles.expandedSearchBox,
+                isRTL && { transform: [{ scaleX: -1 }] },
+                {
+                  width: dynamicSearchWidth,
+                  height: isTablet ? 42 : 38,
+                  borderRadius: isTablet ? 21 : 19,
+                  backgroundColor: isDark ? colors.gray100 : colors.white,
+                  borderColor: colors.primary,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <Ionicons name="search" size={16} color={colors.primary} />
+              <TextInput
+                ref={searchInputRef}
+                style={[
+                  styles.expandedSearchInput,
+                  {
+                    color: colors.black,
+                    textAlign: isRTL ? 'right' : 'left',
+                    fontFamily: SETTINGS_KURDISH_FONT,
+                    fontSize: isTablet ? 14 : 13,
+                  },
+                ]}
+                placeholder={t('installmentList.searchPlaceholder')}
+                placeholderTextColor={colors.gray400}
+                value={query}
+                onChangeText={setQuery}
+                returnKeyType="search"
+              />
+              {query.length > 0 && (
+                <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={17} color={colors.gray400} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={handleCollapseSearch}
+                style={[
+                  styles.closeSearchBtn,
+                  {
+                    backgroundColor: isDark ? colors.gray200 : colors.gray100,
+                  },
+                ]}
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={14} color={colors.gray500} />
+              </TouchableOpacity>
+            </Pressable>
+          ) : (
+            <TouchableOpacity
+              onPress={handleExpandSearch}
+              style={[
+                styles.searchIconBtn,
+                isRTL && { transform: [{ scaleX: -1 }] },
+                {
+                  width: isTablet ? 42 : 38,
+                  height: isTablet ? 42 : 38,
+                  borderRadius: isTablet ? 21 : 19,
+                  backgroundColor: query ? (isDark ? colors.primary : '#1E293B') : (isDark ? colors.gray100 : colors.white),
+                  borderColor: query ? (isDark ? colors.primary : '#1E293B') : colors.gray200,
+                },
+              ]}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name="search"
+                size={16}
+                color={query ? '#FFFFFF' : (isDark ? colors.gray400 : '#0F172A')}
+              />
+              {query.length > 0 && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 7,
+                    height: 7,
+                    borderRadius: 3.5,
+                    backgroundColor: '#10B981',
+                  }}
+                />
+              )}
+            </TouchableOpacity>
+          )}
+
+          {/* Period Pills: ئەمڕۆ, ئەم هەفتەیە, ئەم مانگە, ئەمساڵ, هەمووی, دیاریکراو */}
+          {periodKeys.map((key) => {
+            const active = periodKey === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[
+                  styles.periodPill,
+                  isRTL && { transform: [{ scaleX: -1 }] },
+                  {
+                    height: isTablet ? 42 : 38,
+                    borderRadius: isTablet ? 21 : 19,
+                    backgroundColor: active
+                      ? (isDark ? colors.primary : '#1E293B')
+                      : (isDark ? colors.gray100 : colors.white),
+                    borderColor: active ? (isDark ? colors.primary : '#1E293B') : colors.gray200,
+                  },
+                ]}
+                onPress={() => handlePeriodSelect(key)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.periodPillText,
+                    {
+                      color: active ? '#FFFFFF' : colors.gray600,
+                      fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {periodLabels[key]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
       {/* ── Sub-Filter Bar (فلتەری چالاک و شتە - ONLY in کەسەکان Tab) ── */}
       {tab === 'customers' && (
         <View
@@ -917,6 +1074,7 @@ export default function InstallmentsScreen() {
               backgroundColor: colors.white,
               borderBottomWidth: 1,
               borderBottomColor: colors.gray200,
+              paddingTop: 2,
             },
           ]}
         >
@@ -936,97 +1094,6 @@ export default function InstallmentsScreen() {
               },
             ]}
           >
-            {/* Search Button / Expandable Search Bar on Right of Row in RTL */}
-            {isSearchExpanded ? (
-              <Pressable
-                onPress={(e) => e.stopPropagation?.()}
-                style={[
-                  styles.expandedSearchBox,
-                  isRTL && { transform: [{ scaleX: -1 }] },
-                  {
-                    width: dynamicSearchWidth,
-                    height: isTablet ? 42 : 38,
-                    borderRadius: isTablet ? 21 : 19,
-                    backgroundColor: isDark ? colors.gray100 : colors.white,
-                    borderColor: colors.primary,
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
-                  },
-                ]}
-              >
-                <Ionicons name="search" size={16} color={colors.primary} />
-                <TextInput
-                  ref={searchInputRef}
-                  style={[
-                    styles.expandedSearchInput,
-                    {
-                      color: colors.black,
-                      textAlign: isRTL ? 'right' : 'left',
-                      fontFamily: SETTINGS_KURDISH_FONT,
-                      fontSize: isTablet ? 14 : 13,
-                    },
-                  ]}
-                  placeholder={t('installmentList.searchPlaceholder')}
-                  placeholderTextColor={colors.gray400}
-                  value={query}
-                  onChangeText={setQuery}
-                  returnKeyType="search"
-                />
-                {query.length > 0 && (
-                  <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
-                    <Ionicons name="close-circle" size={17} color={colors.gray400} />
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  onPress={handleCollapseSearch}
-                  style={[
-                    styles.closeSearchBtn,
-                    {
-                      backgroundColor: isDark ? colors.gray200 : colors.gray100,
-                    },
-                  ]}
-                  hitSlop={8}
-                >
-                  <Ionicons name="close" size={14} color={colors.gray500} />
-                </TouchableOpacity>
-              </Pressable>
-            ) : (
-              <TouchableOpacity
-                onPress={handleExpandSearch}
-                style={[
-                  styles.searchIconBtn,
-                  isRTL && { transform: [{ scaleX: -1 }] },
-                  {
-                    width: isTablet ? 42 : 38,
-                    height: isTablet ? 42 : 38,
-                    borderRadius: isTablet ? 21 : 19,
-                    backgroundColor: query ? colors.primary : (isDark ? colors.gray100 : colors.white),
-                    borderColor: query ? colors.primary : colors.gray200,
-                  },
-                ]}
-                activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons
-                  name="search"
-                  size={16}
-                  color={query ? '#FFFFFF' : (isDark ? colors.gray400 : '#0F172A')}
-                />
-                {query.length > 0 && (
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: 4,
-                      right: 4,
-                      width: 7,
-                      height: 7,
-                      borderRadius: 3.5,
-                      backgroundColor: '#10B981',
-                    }}
-                  />
-                )}
-              </TouchableOpacity>
-            )}
-
             {/* Status Pills: هەمووی, چالاک / ماوە, تەواوبوو, کورتخایەن, درێژخایەن */}
             {statusPills.map((item) => {
               const active = statusFilter === item.key;
@@ -1037,8 +1104,9 @@ export default function InstallmentsScreen() {
                     styles.periodPill,
                     isRTL && { transform: [{ scaleX: -1 }] },
                     {
-                      height: isTablet ? 42 : 38,
-                      borderRadius: isTablet ? 21 : 19,
+                      height: isTablet ? 38 : 34,
+                      borderRadius: isTablet ? 19 : 17,
+                      paddingHorizontal: 14,
                       backgroundColor: active
                         ? (isDark ? colors.primary : '#1E293B')
                         : (isDark ? colors.gray100 : colors.white),
@@ -1057,79 +1125,12 @@ export default function InstallmentsScreen() {
                       {
                         color: active ? '#FFFFFF' : colors.gray600,
                         fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                        fontSize: isTablet ? 13 : 12,
                       },
                     ]}
                     numberOfLines={1}
                   >
                     {item.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* ── Period Filter Horizontal Bar (ONLY in ڕاپۆرت Tab) ── */}
-      {tab === 'report' && (
-        <View
-          style={[
-            styles.filterWrapper,
-            {
-              backgroundColor: colors.white,
-              borderBottomWidth: 1,
-              borderBottomColor: colors.gray200,
-            },
-          ]}
-        >
-          <ScrollView
-            ref={filterScrollRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={[
-              styles.periodScrollView,
-              isRTL ? { transform: [{ scaleX: -1 }] } : undefined,
-            ]}
-            contentContainerStyle={[
-              styles.filterRow,
-              {
-                paddingHorizontal: isTabletLandscape ? 24 : 16,
-                gap: isTablet ? 10 : 8,
-              },
-            ]}
-          >
-            {/* Period Pills: ئەمڕۆ, ئەم هەفتەیە, ئەم مانگە, ئەمساڵ, هەمووی, دیاریکراو */}
-            {periodKeys.map((key) => {
-              const active = periodKey === key;
-              return (
-                <TouchableOpacity
-                  key={key}
-                  style={[
-                    styles.periodPill,
-                    isRTL && { transform: [{ scaleX: -1 }] },
-                    {
-                      height: isTablet ? 42 : 38,
-                      borderRadius: isTablet ? 21 : 19,
-                      backgroundColor: active
-                        ? (isDark ? colors.primary : '#1E293B')
-                        : (isDark ? colors.gray100 : colors.white),
-                      borderColor: active ? (isDark ? colors.primary : '#1E293B') : colors.gray200,
-                    },
-                  ]}
-                  onPress={() => handlePeriodSelect(key)}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.periodPillText,
-                      {
-                        color: active ? '#FFFFFF' : colors.gray600,
-                        fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
-                      },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {periodLabels[key]}
                   </Text>
                 </TouchableOpacity>
               );
