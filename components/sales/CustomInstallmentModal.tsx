@@ -105,8 +105,8 @@ const ENGLISH_MONTHS = [
   'December',
 ];
 
-const KURDISH_WEEKDAYS = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ه'];
-const ENGLISH_WEEKDAYS = ['Sa', 'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr'];
+const KURDISH_WEEKDAYS = ['شەمە', '١شەمە', '٢شەمە', '٣شەمە', '٤شەمە', '٥شەمە', 'هەینی'];
+const ENGLISH_WEEKDAYS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
 const QUICK_MONTH_PRESETS = [1, 2, 3, 6, 9, 12, 18, 24, 36];
 
@@ -531,7 +531,7 @@ export function CustomInstallmentModal({
                   isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
-                {monthName} {viewYear}
+                {`${viewYear} / ${pad2(viewMonth + 1)}`}
               </Text>
 
               <TouchableOpacity
@@ -552,10 +552,11 @@ export function CustomInstallmentModal({
               {weekdays.map((w, idx) => (
                 <View key={idx} style={styles.weekdayCell}>
                   <Text
+                    numberOfLines={1}
                     style={[
                       styles.weekdayText,
                       { color: colors.gray400 },
-                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
                     {w}
@@ -591,27 +592,28 @@ export function CustomInstallmentModal({
                 }
 
                 return (
-                  <TouchableOpacity
-                    key={idx}
-                    onPress={() => handleSelectDay(item.ymd)}
-                    activeOpacity={0.7}
-                    style={[
-                      styles.dayCell,
-                      { backgroundColor: cellBg },
-                      isSelected && styles.dayCellSelected,
-                    ]}
-                  >
-                    <Text
+                  <View key={idx} style={styles.dayCellWrapper}>
+                    <TouchableOpacity
+                      onPress={() => handleSelectDay(item.ymd)}
+                      activeOpacity={0.7}
                       style={[
-                        styles.dayText,
-                        { color: textColor },
-                        (isSelected || inRange) && isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                        !isSelected && !inRange && isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                        styles.dayCell,
+                        { backgroundColor: cellBg },
+                        isSelected && styles.dayCellSelected,
                       ]}
                     >
-                      {item.day}
-                    </Text>
-                  </TouchableOpacity>
+                      <Text
+                        style={[
+                          styles.dayText,
+                          { color: textColor },
+                          (isSelected || inRange) && isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          !isSelected && !inRange && isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                        ]}
+                      >
+                        {item.day}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 );
               })}
             </View>
@@ -648,15 +650,22 @@ export function CustomInstallmentModal({
               activeOpacity={0.85}
               style={[styles.applyBtn, { backgroundColor: colors.primary }]}
             >
-              <Ionicons name="checkmark" size={18} color="#FFFFFF" style={{ marginEnd: 4 }} />
-              <Text
-                style={[
-                  styles.applyBtnText,
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                ]}
-              >
-                {isKurdish ? `جێبەجێکردن (${selectedMonths} مانگ)` : `Apply (${selectedMonths} mo)`}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Ionicons name="checkmark-sharp" size={18} color="#FFFFFF" />
+                <Text
+                  style={[
+                    styles.applyBtnText,
+                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isKurdish ? 'جێبەجێکردن' : 'Apply'}
+                </Text>
+                <View style={styles.applyBtnBadge}>
+                  <Text style={[styles.applyBtnBadgeText, isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {selectedMonths} {isKurdish ? 'مانگ' : 'mo'}
+                  </Text>
+                </View>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -840,28 +849,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   navMonthTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
+    letterSpacing: 1,
   },
   weekdaysRow: {
-    justifyContent: 'space-around',
     paddingVertical: 6,
+    width: '100%',
   },
   weekdayCell: {
-    width: 38,
+    width: '14.2857%',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 2,
   },
   weekdayText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 10.5,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   daysGrid: {
     flexWrap: 'wrap',
-    justifyContent: 'space-around',
     rowGap: 4,
+    width: '100%',
+  },
+  dayCellWrapper: {
+    width: '14.2857%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dayCell: {
-    width: 38,
+    width: 36,
     height: 36,
     borderRadius: 10,
     alignItems: 'center',
@@ -895,7 +913,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 12,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -903,6 +920,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  applyBtnBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginInlineStart: 2,
+  },
+  applyBtnBadgeText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   cancelBtn: {
     paddingHorizontal: 16,

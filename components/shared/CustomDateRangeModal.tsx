@@ -87,9 +87,9 @@ const ENGLISH_MONTHS = [
   'December',
 ];
 
-// In Kurdish / Middle Eastern calendar, the week starts on Saturday (ش)
-const KURDISH_WEEKDAYS = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ه'];
-const ENGLISH_WEEKDAYS = ['Sa', 'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr'];
+// In Kurdish / Middle Eastern calendar, the week starts on Saturday (شەمە)
+const KURDISH_WEEKDAYS = ['شەمە', '١شەمە', '٢شەمە', '٣شەمە', '٤شەمە', '٥شەمە', 'هەینی'];
+const ENGLISH_WEEKDAYS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
 export function CustomDateRangeModal({
   visible,
@@ -551,7 +551,7 @@ export function CustomDateRangeModal({
                       isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                     ]}
                   >
-                    {monthName} {viewYear}
+                    {`${viewYear} / ${pad2(viewMonth + 1)}`}
                   </Text>
                   {(viewYear !== todayDate.getFullYear() || viewMonth !== todayDate.getMonth()) && (
                     <TouchableOpacity
@@ -758,16 +758,25 @@ export function CustomDateRangeModal({
               onPress={handleConfirm}
               activeOpacity={0.85}
             >
-              <Text
-                style={[
-                  styles.modalConfirmText,
-                  { color: '#FFFFFF' },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                ]}
-              >
-                {t('reports.apply')}
-                {selectedDaysCount > 0 ? ` (${selectedDaysCount} ${isKurdish ? 'ڕۆژ' : 'days'})` : ''}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Ionicons name="checkmark-sharp" size={17} color="#FFFFFF" />
+                <Text
+                  style={[
+                    styles.modalConfirmText,
+                    { color: '#FFFFFF' },
+                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                >
+                  {t('reports.apply')}
+                </Text>
+                {selectedDaysCount > 0 && (
+                  <View style={styles.applyBtnBadge}>
+                    <Text style={[styles.applyBtnBadgeText, isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                      {selectedDaysCount} {isKurdish ? 'ڕۆژ' : 'd'}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -948,8 +957,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   weekdayText: {
-    fontSize: 11.5,
-    fontWeight: '600',
+    fontSize: 10.5,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   daysGrid: {
     width: '100%',
@@ -1056,6 +1066,18 @@ const styles = StyleSheet.create({
   },
   modalConfirmText: {
     fontSize: 14,
+    fontWeight: '700',
+  },
+  applyBtnBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginInlineStart: 2,
+  },
+  applyBtnBadgeText: {
+    fontSize: 12,
+    color: '#FFFFFF',
     fontWeight: '700',
   },
 });
