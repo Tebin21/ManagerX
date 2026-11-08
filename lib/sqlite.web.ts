@@ -937,6 +937,44 @@ export async function getAllSalesDebtsDetailed(): Promise<any[]> {
   return getLocal<any[]>(KEYS.debts, []);
 }
 
+export interface InstallmentSaleRow {
+  saleId: number;
+  invoiceNumber: string;
+  customerId: number | null;
+  customerName: string;
+  customerPhone: string | null;
+  customerAddress: string | null;
+  saleDate: string;
+  grandTotal: number;
+  paidAmount: number;
+  remainingDebt: number;
+  installmentMonths: number;
+  installmentDownPayment: number;
+  installmentMonthlyAmount: number;
+  saleStatus: string;
+  exchangeRateUsed: number;
+  debtId: number | null;
+  debtStatus: 'active' | 'settled';
+  lastPaymentAt: string | null;
+  paymentsCount: number;
+  latestPaymentDate: string | null;
+  productsSummary: string | null;
+  itemsCount: number;
+}
+
+export async function getAllInstallmentSales(): Promise<InstallmentSaleRow[]> {
+  return [];
+}
+
+export async function recordInstallmentPayment(
+  saleId: number,
+  amount: number,
+  paymentMethod: string = 'cash',
+  note?: string
+): Promise<any> {
+  return null;
+}
+
 export async function getDebtsByCustomerId(customerId: number): Promise<any[]> {
   const debts = getLocal<any[]>(KEYS.debts, []);
   return debts.filter((d) => d.customer_id === customerId || d.customerId === customerId);

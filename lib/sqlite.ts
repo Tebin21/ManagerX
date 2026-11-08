@@ -5149,6 +5149,176 @@ export async function getSalesDebtBySaleId(saleId: number): Promise<SalesDebtDet
   return row ? rowToSalesDebtDetail(row) : null;
 }
 
+// ─── Installment Sales ────────────────────────────────────────────────────────
+
+export interface InstallmentSaleRow {
+  saleId: number;
+  invoiceNumber: string;
+  customerId: number | null;
+  customerName: string;
+  customerPhone: string | null;
+  customerAddress: string | null;
+  saleDate: string;
+  grandTotal: number;
+  paidAmount: number;
+  remainingDebt: number;
+  installmentMonths: number;
+  installmentDownPayment: number;
+  installmentMonthlyAmount: number;
+  saleStatus: string;
+  exchangeRateUsed: number;
+  debtId: number | null;
+  debtStatus: 'active' | 'settled';
+  lastPaymentAt: string | null;
+  paymentsCount: number;
+  latestPaymentDate: string | null;
+  productsSummary: string | null;
+  itemsCount: number;
+}
+
+export async function getAllInstallmentSales(): Promise<InstallmentSaleRow[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<Record<string, unknown>>(
+    `SELECT 
+      s.id AS sale_id,
+      s.invoice_number,
+      s.customer_id,
+      s.customer_name,
+      s.customer_phone,
+      s.customer_address,
+      COALESCE(s.date, s.created_at) AS sale_date,
+      s.grand_total,
+      s.paid_amount,
+      s.remaining_debt,
+      COALESCE(s.installment_months, 1) AS installment_months,
+      COALESCE(s.installment_down_payment, 0) AS installment_down_payment,
+      COALESCE(s.installment_monthly_amount, 0) AS installment_monthly_amount,
+      s.status AS sale_status,
+      COALESCE(s.exchange_rate, 1310) AS exchange_rate_used,
+      d.id AS debt_id,
+      COALESCE(d.status, CASE WHEN s.remaining_debt <= 0 THEN 'settled' ELSE 'active' END) AS debt_status,
+      d.last_payment_at,
+      (
+        SELECT COUNT(*) 
+        FROM debt_payments dp 
+        WHERE dp.debt_id = d.id AND dp.debt_type = 'sales' AND dp.event_type = 'payment'
+      ) AS payments_count,
+      (
+        SELECT MAX(dp.created_at) 
+        FROM debt_payments dp 
+        WHERE dp.debt_id = d.id AND dp.debt_type = 'sales' AND dp.event_type = 'payment'
+      ) AS latest_payment_date,
+      (
+        SELECT GROUP_CONCAT(si.product_name, ' ، ')
+        FROM sale_items si
+        WHERE si.sale_id = s.id
+      ) AS products_summary,
+      (
+        SELECT COUNT(DISTINCT si.product_id)
+        FROM sale_items si
+        WHERE si.sale_id = s.id
+      ) AS items_count
+    FROM sales s
+    LEFT JOIN debts d ON d.sale_id = s.id
+    WHERE s.payment_method = 'installment'
+    ORDER BY COALESCE(s.date, s.created_at) DESC`
+  );
+
+  return rows.map((r) => ({
+    saleId: Number(r.sale_id),
+    invoiceNumber: (r.invoice_number as string) || '',
+    customerId: r.customer_id != null ? Number(r.customer_id) : null,
+    customerName: (r.customer_name as string) || 'کڕیار',
+    customerPhone: (r.customer_phone as string | null) ?? null,
+    customerAddress: (r.customer_address as string | null) ?? null,
+    saleDate: (r.sale_date as string) || '',
+    grandTotal: Number(r.grand_total || 0),
+    paidAmount: Number(r.paid_amount || 0),
+    remainingDebt: Number(r.remaining_debt || 0),
+    installmentMonths: Number(r.installment_months || 1),
+    installmentDownPayment: Number(r.installment_down_payment || 0),
+    installmentMonthlyAmount: Number(r.installment_monthly_amount || 0),
+    saleStatus: (r.sale_status as string) || 'completed',
+    exchangeRateUsed: Number(r.exchange_rate_used || 1310),
+    debtId: r.debt_id != null ? Number(r.debt_id) : null,
+    debtStatus: (r.debt_status === 'settled' || Number(r.remaining_debt) <= 0) ? 'settled' : 'active',
+    lastPaymentAt: (r.last_payment_at as string | null) ?? null,
+    paymentsCount: Number(r.payments_count || 0),
+    latestPaymentDate: (r.latest_payment_date as string | null) ?? null,
+    productsSummary: (r.products_summary as string | null) ?? null,
+    itemsCount: Number(r.items_count || 0),
+  }));
+}
+
+export async function recordInstallmentPayment(
+  saleId: number,
+  amount: number,
+  paymentMethod: string = 'cash',
+  note?: string
+): Promise<DebtPaymentReceiptData> {
+  const database = await getDatabase();
+  
+  // 1. Find or create linked debt
+  let debt = await database.getFirstAsync<{ id: number; remaining_amount: number }>(
+    'SELECT id, remaining_amount FROM debts WHERE sale_id = ?',
+    [saleId]
+  );
+
+  let debtId: number;
+  if (!debt) {
+    const sale = await database.getFirstAsync<{
+      customer_name: string | null;
+      customer_phone: string | null;
+      customer_address: string | null;
+      grand_total: number;
+      paid_amount: number;
+      remaining_debt: number;
+      installment_months: number | null;
+      installment_monthly_amount: number | null;
+    }>('SELECT customer_name, customer_phone, customer_address, grand_total, paid_amount, remaining_debt, installment_months, installment_monthly_amount FROM sales WHERE id = ?', [saleId]);
+    
+    if (!sale) {
+      throw new Error(`Sale #${saleId} not found`);
+    }
+
+    const ins = await database.runAsync(
+      `INSERT INTO debts (sale_id, customer_name, customer_phone, original_amount, paid_amount, remaining_amount, status, uuid, installment_months, installment_monthly_amount)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        saleId,
+        sale.customer_name || 'کڕیار',
+        sale.customer_phone || null,
+        sale.grand_total,
+        sale.paid_amount,
+        sale.remaining_debt,
+        sale.remaining_debt <= 0 ? 'settled' : 'active',
+        await newUuid(),
+        sale.installment_months ?? null,
+        sale.installment_monthly_amount ?? null,
+      ]
+    );
+    debtId = ins.lastInsertRowId;
+  } else {
+    debtId = debt.id;
+  }
+
+  // 2. Add payment to debt (which updates debts, sales, inserts debt_payments, returns receipt)
+  const receipt = await addPaymentToDebt(debtId, amount, undefined, paymentMethod);
+
+  // 3. Attach custom note if provided
+  if (note && note.trim().length > 0) {
+    try {
+      await database.runAsync(
+        'UPDATE debt_payments SET note = ? WHERE id = ?',
+        [note.trim(), receipt.id]
+      );
+      receipt.note = note.trim();
+    } catch {}
+  }
+
+  return receipt;
+}
+
 // ─── Debt Payments History ────────────────────────────────────────────────────
 
 export async function getDebtPayments(

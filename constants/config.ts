@@ -21,6 +21,7 @@ export type ModuleId =
   | 'dashboard'
   | 'expiry'
   | 'invoices'
+  | 'installments'
   | 'management';
 
 export interface ModuleDefinition {
@@ -101,6 +102,13 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'receipt',
     descriptionKey: 'modules.invoices.description',
     route: '/(app)/invoices',
+  },
+  {
+    id: 'installments',
+    labelKey: 'dashboard.installments',
+    icon: 'calendar-number',
+    descriptionKey: 'modules.installments.description',
+    route: '/(app)/installments',
   },
 ];
 
