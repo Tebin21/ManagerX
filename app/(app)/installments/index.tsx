@@ -58,7 +58,7 @@ export default function InstallmentsScreen() {
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const exchangeRate = useSettingsStore((s) => s.exchangeRate || 1310);
@@ -1468,6 +1468,7 @@ export default function InstallmentsScreen() {
                 {
                   backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
                   borderColor: isDark ? colors.gray200 : '#E2E8F0',
+                  maxHeight: Math.min(windowHeight * 0.90, 750),
                 },
               ]}
               onPress={(e) => e.stopPropagation()}
@@ -1493,12 +1494,13 @@ export default function InstallmentsScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Scrollable Middle Body */}
+              {/* Scrollable Body */}
               <ScrollView
-                showsVerticalScrollIndicator={false}
-                bounces={false}
-                style={{ maxHeight: 380 }}
-                contentContainerStyle={{ paddingBottom: 6 }}
+                showsVerticalScrollIndicator={true}
+                bounces={true}
+                keyboardShouldPersistTaps="handled"
+                style={{ flexShrink: 1 }}
+                contentContainerStyle={{ paddingBottom: 8 }}
               >
                 {/* Real-time Current Timestamp Indicator for دانەوەی تر */}
                 {payMode === 'custom' && (
@@ -1692,8 +1694,8 @@ export default function InstallmentsScreen() {
                   )}
                 </View>
 
-                {/* Payment Method Selector */}
-                <View style={{ marginTop: 12 }}>
+                {/* Payment Method Selector (FIB و کاش) */}
+                <View style={{ marginTop: 10 }}>
                   <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
                     {t('installmentList.paymentMethod')}:
                   </Text>
@@ -1724,7 +1726,7 @@ export default function InstallmentsScreen() {
                           },
                         ]}
                       >
-                        {t('installmentList.cash')}
+                        {t('installmentList.cash', 'کاش')}
                       </Text>
                     </TouchableOpacity>
 
@@ -1754,14 +1756,14 @@ export default function InstallmentsScreen() {
                           },
                         ]}
                       >
-                        {t('installmentList.fib')}
+                        FIB
                       </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
 
                 {/* Optional Note */}
-                <View style={{ marginTop: 12 }}>
+                <View style={{ marginTop: 10 }}>
                   <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
                     {t('installmentList.note')}:
                   </Text>
@@ -1776,7 +1778,7 @@ export default function InstallmentsScreen() {
                         fontFamily: SETTINGS_KURDISH_FONT,
                       },
                     ]}
-                    placeholder={t('installmentList.notePlaceholder')}
+                    placeholder={payMode === 'custom' ? (isKuLanguage ? 'تێبینی (بۆ نموونە: سافکردنی تەواوی قەرز...)' : 'Note...') : t('installmentList.notePlaceholder')}
                     placeholderTextColor={colors.gray400}
                     value={payNote}
                     onChangeText={setPayNote}
@@ -1784,7 +1786,7 @@ export default function InstallmentsScreen() {
                 </View>
 
                 {/* Paper Size for Payment Receipt (4 Formats) */}
-                <View style={{ marginTop: 12 }}>
+                <View style={{ marginTop: 10 }}>
                   <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
                     جۆری وەسڵی چاپکردن (٤ قەبارە):
                   </Text>
@@ -1821,73 +1823,73 @@ export default function InstallmentsScreen() {
                     })}
                   </View>
                 </View>
-              </ScrollView>
 
-              {/* ── Fixed Footer Action Buttons: 1. Normal Complete | 2. Complete & Print ── */}
-              <View style={[styles.payActionsRow, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, marginTop: 14 }]}>
-                {/* 1. Normal Complete (Without Printing) */}
-                <TouchableOpacity
-                  style={[
-                    styles.normalPayBtn,
-                    {
-                      backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
-                      borderColor: isDark ? colors.gray300 : '#CBD5E1',
-                      opacity: isSubmittingPayment ? 0.6 : 1,
-                    },
-                  ]}
-                  onPress={() => handleConfirmPayment(false)}
-                  disabled={isSubmittingPayment}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="checkmark-circle-outline" size={18} color={isDark ? '#FFFFFF' : '#0F172A'} />
-                  <Text
+                {/* ── Action Buttons: 1. Normal Complete | 2. Complete & Print ── */}
+                <View style={[styles.payActionsRow, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, marginTop: 14 }]}>
+                  {/* 1. Normal Complete (Without Printing) */}
+                  <TouchableOpacity
                     style={[
-                      styles.normalPayBtnText,
+                      styles.normalPayBtn,
                       {
-                        color: isDark ? '#FFFFFF' : '#0F172A',
-                        fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                        backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                        borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                        opacity: isSubmittingPayment ? 0.6 : 1,
                       },
                     ]}
-                    numberOfLines={1}
+                    onPress={() => handleConfirmPayment(false)}
+                    disabled={isSubmittingPayment}
+                    activeOpacity={0.8}
                   >
-                    تەواوکردنی ئاسایی
-                  </Text>
-                </TouchableOpacity>
+                    <Ionicons name="checkmark-circle-outline" size={18} color={isDark ? '#FFFFFF' : '#0F172A'} />
+                    <Text
+                      style={[
+                        styles.normalPayBtnText,
+                        {
+                          color: isDark ? '#FFFFFF' : '#0F172A',
+                          fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      تەواوکردنی ئاسایی
+                    </Text>
+                  </TouchableOpacity>
 
-                {/* 2. Complete & Print */}
-                <TouchableOpacity
-                  style={[
-                    styles.printPayBtn,
-                    {
-                      backgroundColor: isDark ? colors.primary : '#1E293B',
-                      opacity: isSubmittingPayment ? 0.6 : 1,
-                    },
-                  ]}
-                  onPress={() => handleConfirmPayment(true)}
-                  disabled={isSubmittingPayment}
-                  activeOpacity={0.8}
-                >
-                  {isSubmittingPayment ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <>
-                      <Ionicons name="print-outline" size={17} color="#FFFFFF" />
-                      <Text
-                        style={[
-                          styles.printPayBtnText,
-                          {
-                            color: '#FFFFFF',
-                            fontFamily: SETTINGS_KURDISH_FONT_BOLD,
-                          },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        تەواوکردن و چاپ ({payReceiptPaperSize})
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
+                  {/* 2. Complete & Print */}
+                  <TouchableOpacity
+                    style={[
+                      styles.printPayBtn,
+                      {
+                        backgroundColor: isDark ? colors.primary : '#1E293B',
+                        opacity: isSubmittingPayment ? 0.6 : 1,
+                      },
+                    ]}
+                    onPress={() => handleConfirmPayment(true)}
+                    disabled={isSubmittingPayment}
+                    activeOpacity={0.8}
+                  >
+                    {isSubmittingPayment ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <>
+                        <Ionicons name="print-outline" size={17} color="#FFFFFF" />
+                        <Text
+                          style={[
+                            styles.printPayBtnText,
+                            {
+                              color: '#FFFFFF',
+                              fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                            },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          تەواوکردن و چاپ ({payReceiptPaperSize})
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
             </Pressable>
           </KeyboardAvoidingView>
         </Pressable>
@@ -1905,17 +1907,17 @@ export default function InstallmentsScreen() {
           style={styles.modalOverlay}
           onPress={() => setScheduleModalVisible(false)}
         >
-          <Pressable
-            style={[
-              styles.modalCard,
-              {
-                backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-                borderColor: isDark ? colors.gray200 : '#E2E8F0',
-                maxHeight: '80%',
-              },
-            ]}
-            onPress={(e) => e.stopPropagation()}
-          >
+            <Pressable
+              style={[
+                styles.modalCard,
+                {
+                  backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                  borderColor: isDark ? colors.gray200 : '#E2E8F0',
+                  maxHeight: Math.min(windowHeight * 0.85, 680),
+                },
+              ]}
+              onPress={(e) => e.stopPropagation()}
+            >
             {/* Header */}
             <View style={[styles.modalHeader, { flexDirection }]}>
               <View style={{ flex: 1 }}>
@@ -2552,10 +2554,12 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 440,
-    borderRadius: 22,
+    borderRadius: 20,
     borderWidth: 1,
-    padding: 20,
-    maxHeight: '85%',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 16,
+    maxHeight: '90%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.16,
@@ -2565,103 +2569,104 @@ const styles = StyleSheet.create({
   modalHeader: {
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 14,
+    marginBottom: 8,
   },
   modalTitle: {
-    fontSize: 17,
+    fontSize: 16,
   },
   modalSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 2,
   },
   modalCloseBtn: {
-    padding: 6,
+    padding: 4,
   },
   modalBanner: {
-    padding: 12,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
     borderWidth: 1,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   modalBannerLabel: {
-    fontSize: 13,
+    fontSize: 12,
   },
   modalBannerValue: {
-    fontSize: 16,
+    fontSize: 15,
   },
   realTimeBadge: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
+    gap: 6,
+    marginBottom: 8,
   },
   realTimeBadgeText: {
-    fontSize: 12.5,
+    fontSize: 11.5,
   },
   quickAmountRow: {
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   quickPill: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 8,
-    borderRadius: 10,
+    borderRadius: 9,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   quickPillText: {
-    fontSize: 12,
+    fontSize: 11.5,
   },
   inputLabel: {
-    fontSize: 12,
-    marginBottom: 6,
+    fontSize: 11.5,
+    marginBottom: 4,
   },
   inputBox: {
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     alignItems: 'center',
   },
   inputControl: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     padding: 0,
   },
   inputCurrency: {
-    fontSize: 14,
+    fontSize: 13,
   },
   conversionHint: {
-    fontSize: 11,
-    marginTop: 4,
+    fontSize: 10.5,
+    marginTop: 2,
   },
   methodRow: {
-    gap: 10,
+    gap: 8,
   },
   methodBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 12,
+    gap: 5,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
   },
   methodBtnText: {
-    fontSize: 13,
+    fontSize: 12,
   },
   noteInput: {
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 12,
   },
   payActionsRow: {
     alignItems: 'center',
@@ -2669,27 +2674,27 @@ const styles = StyleSheet.create({
   },
   normalPayBtn: {
     flex: 1,
-    height: 44,
-    borderRadius: 12,
+    height: 42,
+    borderRadius: 10,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 8,
+    gap: 5,
+    paddingHorizontal: 6,
   },
   normalPayBtnText: {
-    fontSize: 13,
+    fontSize: 12,
   },
   printPayBtn: {
     flex: 1.35,
-    height: 44,
-    borderRadius: 12,
+    height: 42,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 8,
+    gap: 5,
+    paddingHorizontal: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
@@ -2697,7 +2702,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   printPayBtnText: {
-    fontSize: 13,
+    fontSize: 12,
   },
   confirmPayBtn: {
     flexDirection: 'row',

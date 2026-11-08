@@ -112,12 +112,12 @@ interface WeekdayHeaderItem {
 }
 
 const KURDISH_WEEKDAYS: WeekdayHeaderItem[] = [
-  { id: 'sat', label: 'شەمە' },
-  { id: 'sun', num: '١', label: 'شەمە' },
-  { id: 'mon', num: '٢', label: 'شەمە' },
-  { id: 'tue', num: '٣', label: 'شەمە' },
-  { id: 'wed', num: '٤', label: 'شەمە' },
-  { id: 'thu', num: '٥', label: 'شەمە' },
+  { id: 'sat', label: 'شەممە' },
+  { id: 'sun', num: '١', label: 'شەممە' },
+  { id: 'mon', num: '٢', label: 'شەممە' },
+  { id: 'tue', num: '٣', label: 'شەممە' },
+  { id: 'wed', num: '٤', label: 'شەممە' },
+  { id: 'thu', num: '٥', label: 'شەممە' },
   { id: 'fri', label: 'هەینی' },
 ];
 
@@ -574,7 +574,7 @@ export function CustomInstallmentModal({
             <View style={[styles.weekdaysRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               {weekdays.map((item, idx) => (
                 <View key={item.id || idx} style={styles.weekdayCell}>
-                  <View style={styles.weekdayInnerRow}>
+                  <View style={[styles.weekdayInnerRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                     <Text
                       numberOfLines={1}
                       adjustsFontSizeToFit
