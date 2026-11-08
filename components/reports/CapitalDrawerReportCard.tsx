@@ -141,7 +141,47 @@ export function CapitalDrawerReportCard() {
             />
           </View>
 
-          {/* Cash Purchases */}
+          {/* Sales Cash (+) */}
+          <View style={[
+            styles.gridItem,
+            {
+              backgroundColor: isDark ? colors.gray100 : colors.gray50,
+              borderColor: colors.gray200,
+              minWidth: isTablet ? '30%' : '47%',
+              padding: isTablet ? 16 : 10,
+              borderRadius: isTablet ? 14 : 12,
+            }
+          ]}>
+            <Text style={[styles.gridLabel, { color: colors.gray400, textAlign, fontSize: isTablet ? 13 : 11 }]}>
+              {t('capital.salesCash')}
+            </Text>
+            <AmountText
+              value={stats.salesCash}
+              style={[styles.gridValue, { color: '#10B981', textAlign, fontSize: isTablet ? 16 : 13.5 }]}
+            />
+          </View>
+
+          {/* Customer Debt & Installments (+) */}
+          <View style={[
+            styles.gridItem,
+            {
+              backgroundColor: isDark ? colors.gray100 : colors.gray50,
+              borderColor: colors.gray200,
+              minWidth: isTablet ? '30%' : '47%',
+              padding: isTablet ? 16 : 10,
+              borderRadius: isTablet ? 14 : 12,
+            }
+          ]}>
+            <Text style={[styles.gridLabel, { color: colors.gray400, textAlign, fontSize: isTablet ? 13 : 11 }]}>
+              {t('capital.customerDebtCash')}
+            </Text>
+            <AmountText
+              value={stats.customerDebtCash}
+              style={[styles.gridValue, { color: '#0EA5E9', textAlign, fontSize: isTablet ? 16 : 13.5 }]}
+            />
+          </View>
+
+          {/* Cash Purchases (-) */}
           <View style={[
             styles.gridItem,
             {
@@ -161,7 +201,27 @@ export function CapitalDrawerReportCard() {
             />
           </View>
 
-          {/* Expenses */}
+          {/* Supplier Debt Paid (-) */}
+          <View style={[
+            styles.gridItem,
+            {
+              backgroundColor: isDark ? colors.gray100 : colors.gray50,
+              borderColor: colors.gray200,
+              minWidth: isTablet ? '30%' : '47%',
+              padding: isTablet ? 16 : 10,
+              borderRadius: isTablet ? 14 : 12,
+            }
+          ]}>
+            <Text style={[styles.gridLabel, { color: colors.gray400, textAlign, fontSize: isTablet ? 13 : 11 }]}>
+              {t('capital.supplierDebtCash')}
+            </Text>
+            <AmountText
+              value={stats.supplierDebtCash}
+              style={[styles.gridValue, { color: '#8B5CF6', textAlign, fontSize: isTablet ? 16 : 13.5 }]}
+            />
+          </View>
+
+          {/* Expenses (-) */}
           <View style={[
             styles.gridItem,
             {

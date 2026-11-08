@@ -1073,20 +1073,18 @@ export async function getExchangeRateHistory(): Promise<any[]> {
 }
 
 export async function getCashDrawerStats(): Promise<{
-  totalCashInIQD: number;
-  totalCashInUSD: number;
-  totalCashOutIQD: number;
-  totalCashOutUSD: number;
-  netCashIQD: number;
-  netCashUSD: number;
+  salesCash: number;
+  customerDebtCash: number;
+  purchasesCash: number;
+  supplierDebtCash: number;
+  expensesCash: number;
 }> {
   return {
-    totalCashInIQD: 0,
-    totalCashInUSD: 0,
-    totalCashOutIQD: 0,
-    totalCashOutUSD: 0,
-    netCashIQD: 0,
-    netCashUSD: 0,
+    salesCash: 0,
+    customerDebtCash: 0,
+    purchasesCash: 0,
+    supplierDebtCash: 0,
+    expensesCash: 0,
   };
 }
 

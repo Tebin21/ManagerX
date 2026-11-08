@@ -70,7 +70,6 @@ export function CapitalView() {
   const [adjNoteInput, setAdjNoteInput] = useState('');
 
   const refreshStats = useCallback(async () => {
-    if (!isEnabled) return;
     setLoadingStats(true);
     try {
       const data = await loadDrawerStats();
@@ -80,7 +79,7 @@ export function CapitalView() {
     } finally {
       setLoadingStats(false);
     }
-  }, [isEnabled, loadDrawerStats]);
+  }, [loadDrawerStats]);
 
   useEffect(() => {
     refreshStats();
@@ -96,7 +95,7 @@ export function CapitalView() {
 
   const handleConfirmActivate = () => {
     const amt = parseFloat(toEnglishDigits(initialAmountInput).replace(/[^0-9.]/g, '')) || 0;
-    if (amt <= 0) {
+    if (amt < 0) {
       Alert.alert(t('common.required'), t('capital.amountPlaceholder'));
       return;
     }
@@ -171,7 +170,7 @@ export function CapitalView() {
     );
   };
 
-  const QUICK_AMOUNTS = [500000, 1000000, 2000000, 5000000];
+  const QUICK_AMOUNTS = [0, 500000, 1000000, 2000000, 5000000];
 
   // ─── STATE A: INACTIVE / ONBOARDING ──────────────────────────────────────
   if (!isEnabled) {
@@ -202,6 +201,59 @@ export function CapitalView() {
             <Text style={[styles.heroSub, { color: colors.gray500, textAlign }]}>
               {t('capital.subtitle')}
             </Text>
+          </View>
+
+          {/* Automatic System Link Banner */}
+          <View
+            style={[
+              styles.pointCard,
+              {
+                backgroundColor: colors.primary + '10',
+                borderColor: colors.primary + '40',
+                borderWidth: 1.5,
+              },
+            ]}
+          >
+            <View style={[styles.pointHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={[styles.pointBadge, { backgroundColor: colors.primary + '25' }]}>
+                <Ionicons name="link" size={20} color={colors.primary} />
+              </View>
+              <Text
+                style={[
+                  styles.pointTitle,
+                  { color: colors.darkBlue, textAlign },
+                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                ]}
+              >
+                {isKurdish ? 'بەستنەوەی تەواوی کڕین و فرۆشتن بە دەخیلە' : 'Complete Store Cash Integration'}
+              </Text>
+            </View>
+            <Text style={[styles.pointDesc, { color: colors.gray600, textAlign, marginBottom: 8 }]}>
+              {isKurdish
+                ? 'ئەگەر پێشتر کار و کڕین و فرۆشتنت کردبێت، لەگەڵ چالاککردندا هەموو وەسڵە نەختینەییەکان، کڕینەکان، قیست و مەسروفاتەکان ڕاستەوخۆ دەبەسترێنەوە بە دەخیلەوە.'
+                : 'If you already made sales or purchases, upon activation all cash transactions, purchases, installments, and expenses link directly into the cash drawer.'}
+            </Text>
+            <View
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                backgroundColor: colors.white,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: colors.gray200,
+              }}
+            >
+              <Text style={{ fontSize: 13, color: colors.gray500, fontFamily: isKurdish ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
+                {isKurdish ? 'باڵانسی ئێستای سیستەم:' : 'Current System Balance:'}
+              </Text>
+              <AmountText
+                value={stats.currentBalance}
+                style={{ fontSize: 16, fontWeight: '700', color: stats.currentBalance >= 0 ? colors.success : colors.error }}
+              />
+            </View>
           </View>
 
           {/* Explanation Section */}
@@ -377,8 +429,10 @@ export function CapitalView() {
               {/* Quick Select Chips */}
               <View style={[styles.chipsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 {QUICK_AMOUNTS.map((amt) => {
-                  const numValue = amt >= 1000000 ? String(amt / 1000000) : String(amt / 1000);
-                  const unitText = amt >= 1000000
+                  const numValue = amt === 0 ? '0' : amt >= 1000000 ? String(amt / 1000000) : String(amt / 1000);
+                  const unitText = amt === 0
+                    ? (isKurdish ? 'بێ سەرمایە' : 'Zero')
+                    : amt >= 1000000
                     ? (isKurdish ? 'ملیۆن' : 'M')
                     : (isKurdish ? 'هەزار' : 'K');
                   const isSelected = initialAmountInput === String(amt);
@@ -597,7 +651,7 @@ export function CapitalView() {
           </View>
         </View>
 
-        {/* Breakdown Grid - Injected Capital, Cash Purchases (-), Expenses (-) */}
+        {/* Breakdown Grid - 6 components: Injected Capital, Sales Cash (+), Customer Debt (+), Purchases (-), Supplier Debt (-), Expenses (-) */}
         <View style={[styles.gridContainer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           {/* 1. Injected Capital */}
           <View
@@ -645,7 +699,99 @@ export function CapitalView() {
             />
           </View>
 
-          {/* 2. Cash Purchases (-) */}
+          {/* 2. Sales Cash (+) */}
+          <View
+            style={[
+              styles.gridCell,
+              {
+                flex: 1,
+                minWidth: cellMinWidth,
+                minHeight: cellMinHeight,
+                backgroundColor: colors.white,
+                borderColor: colors.lightBlue,
+                padding: isTabletLandscape ? 20 : isTablet ? 18 : 14,
+              },
+            ]}
+          >
+            <View style={[styles.gridCellTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View
+                style={[
+                  styles.miniIconBox,
+                  {
+                    backgroundColor: '#10B98118',
+                    width: miniIconDim,
+                    height: miniIconDim,
+                    borderRadius: isTablet ? 10 : 8,
+                  },
+                ]}
+              >
+                <Ionicons name="trending-up" size={miniIconSize} color="#10B981" />
+              </View>
+              <Text
+                style={[
+                  styles.gridCellLabel,
+                  { color: colors.gray500, textAlign, fontSize: cellLabelFontSize },
+                ]}
+              >
+                {t('capital.salesCash')}
+              </Text>
+            </View>
+            <AmountText
+              value={stats.salesCash}
+              style={[
+                styles.gridCellAmt,
+                { color: '#10B981', textAlign, fontSize: cellAmtFontSize },
+              ]}
+            />
+          </View>
+
+          {/* 3. Customer Debt Collected (+) */}
+          <View
+            style={[
+              styles.gridCell,
+              {
+                flex: 1,
+                minWidth: cellMinWidth,
+                minHeight: cellMinHeight,
+                backgroundColor: colors.white,
+                borderColor: colors.lightBlue,
+                padding: isTabletLandscape ? 20 : isTablet ? 18 : 14,
+              },
+            ]}
+          >
+            <View style={[styles.gridCellTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View
+                style={[
+                  styles.miniIconBox,
+                  {
+                    backgroundColor: '#0EA5E918',
+                    width: miniIconDim,
+                    height: miniIconDim,
+                    borderRadius: isTablet ? 10 : 8,
+                  },
+                ]}
+              >
+                <Ionicons name="people" size={miniIconSize} color="#0EA5E9" />
+              </View>
+              <Text
+                style={[
+                  styles.gridCellLabel,
+                  { color: colors.gray500, textAlign, fontSize: cellLabelFontSize },
+                ]}
+              >
+                {t('capital.customerDebtCash')}
+              </Text>
+            </View>
+            <AmountText
+              value={stats.customerDebtCash}
+              style={[
+                styles.gridCellAmt,
+                { color: '#0EA5E9', textAlign, fontSize: cellAmtFontSize },
+              ]}
+            />
+          </View>
+
+          {/* 4. Cash Purchases (-) */}
           <View
             style={[
               styles.gridCell,
@@ -691,7 +837,53 @@ export function CapitalView() {
             />
           </View>
 
-          {/* 3. Expenses (-) */}
+          {/* 5. Supplier Debt Paid (-) */}
+          <View
+            style={[
+              styles.gridCell,
+              {
+                flex: 1,
+                minWidth: cellMinWidth,
+                minHeight: cellMinHeight,
+                backgroundColor: colors.white,
+                borderColor: colors.lightBlue,
+                padding: isTabletLandscape ? 20 : isTablet ? 18 : 14,
+              },
+            ]}
+          >
+            <View style={[styles.gridCellTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View
+                style={[
+                  styles.miniIconBox,
+                  {
+                    backgroundColor: '#8B5CF618',
+                    width: miniIconDim,
+                    height: miniIconDim,
+                    borderRadius: isTablet ? 10 : 8,
+                  },
+                ]}
+              >
+                <Ionicons name="arrow-undo" size={miniIconSize} color="#8B5CF6" />
+              </View>
+              <Text
+                style={[
+                  styles.gridCellLabel,
+                  { color: colors.gray500, textAlign, fontSize: cellLabelFontSize },
+                ]}
+              >
+                {t('capital.supplierDebtCash')}
+              </Text>
+            </View>
+            <AmountText
+              value={stats.supplierDebtCash}
+              style={[
+                styles.gridCellAmt,
+                { color: '#8B5CF6', textAlign, fontSize: cellAmtFontSize },
+              ]}
+            />
+          </View>
+
+          {/* 6. Expenses (-) */}
           <View
             style={[
               styles.gridCell,

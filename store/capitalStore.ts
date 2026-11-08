@@ -47,18 +47,21 @@ export const useCapitalStore = create<CapitalState>()(
 
       activate: (amount: number, note?: string) => {
         const now = new Date().toISOString();
-        const initialTx: CapitalTransaction = {
-          id: `cap_init_${Date.now()}`,
-          type: 'initial',
-          amount,
-          date: now,
-          note: note?.trim() || undefined,
-        };
+        const deposits: CapitalTransaction[] = [];
+        if (amount > 0) {
+          deposits.push({
+            id: `cap_init_${Date.now()}`,
+            type: 'initial',
+            amount,
+            date: now,
+            note: note?.trim() || undefined,
+          });
+        }
         set({
           isEnabled: true,
           initialCapital: amount,
           activatedAt: now,
-          deposits: [initialTx],
+          deposits,
         });
       },
 
@@ -113,8 +116,11 @@ export const useCapitalStore = create<CapitalState>()(
         try {
           const stats = await getCashDrawerStats();
           return (
-            netCapital -
+            netCapital +
+            stats.salesCash +
+            stats.customerDebtCash -
             stats.purchasesCash -
+            stats.supplierDebtCash -
             stats.expensesCash
           );
         } catch (err) {
@@ -132,28 +138,18 @@ export const useCapitalStore = create<CapitalState>()(
           return sum - tx.amount;
         }, 0);
 
-        if (!state.isEnabled) {
-          return {
-            initialCapital: 0,
-            netCapital: 0,
-            salesCash: 0,
-            customerDebtCash: 0,
-            purchasesCash: 0,
-            supplierDebtCash: 0,
-            expensesCash: 0,
-            currentBalance: 0,
-          };
-        }
-
         try {
           const stats = await getCashDrawerStats();
           const currentBalance =
-            netCapital -
+            (state.isEnabled ? netCapital : 0) +
+            stats.salesCash +
+            stats.customerDebtCash -
             stats.purchasesCash -
+            stats.supplierDebtCash -
             stats.expensesCash;
           return {
             initialCapital: state.initialCapital,
-            netCapital,
+            netCapital: state.isEnabled ? netCapital : 0,
             salesCash: stats.salesCash,
             customerDebtCash: stats.customerDebtCash,
             purchasesCash: stats.purchasesCash,
@@ -165,13 +161,13 @@ export const useCapitalStore = create<CapitalState>()(
           console.error('[capitalStore] Error loading drawer stats:', err);
           return {
             initialCapital: state.initialCapital,
-            netCapital,
+            netCapital: state.isEnabled ? netCapital : 0,
             salesCash: 0,
             customerDebtCash: 0,
             purchasesCash: 0,
             supplierDebtCash: 0,
             expensesCash: 0,
-            currentBalance: netCapital,
+            currentBalance: state.isEnabled ? netCapital : 0,
           };
         }
       },
