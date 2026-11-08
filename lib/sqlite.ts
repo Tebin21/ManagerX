@@ -5174,6 +5174,7 @@ export interface InstallmentSaleRow {
   latestPaymentDate: string | null;
   productsSummary: string | null;
   itemsCount: number;
+  printCount: number;
 }
 
 export async function getAllInstallmentSales(): Promise<InstallmentSaleRow[]> {
@@ -5195,6 +5196,7 @@ export async function getAllInstallmentSales(): Promise<InstallmentSaleRow[]> {
       COALESCE(s.installment_monthly_amount, 0) AS installment_monthly_amount,
       s.status AS sale_status,
       COALESCE(s.exchange_rate, 1310) AS exchange_rate_used,
+      COALESCE(s.print_count, 0) AS print_count,
       d.id AS debt_id,
       COALESCE(d.status, CASE WHEN s.remaining_debt <= 0 THEN 'settled' ELSE 'active' END) AS debt_status,
       d.last_payment_at,
@@ -5220,7 +5222,7 @@ export async function getAllInstallmentSales(): Promise<InstallmentSaleRow[]> {
       ) AS items_count
     FROM sales s
     LEFT JOIN debts d ON d.sale_id = s.id
-    WHERE s.payment_method = 'installment'
+    WHERE s.payment_method = 'installment' OR (s.installment_months IS NOT NULL AND s.installment_months > 0)
     ORDER BY COALESCE(s.date, s.created_at) DESC`
   );
 
@@ -5247,6 +5249,7 @@ export async function getAllInstallmentSales(): Promise<InstallmentSaleRow[]> {
     latestPaymentDate: (r.latest_payment_date as string | null) ?? null,
     productsSummary: (r.products_summary as string | null) ?? null,
     itemsCount: Number(r.items_count || 0),
+    printCount: Number(r.print_count || 0),
   }));
 }
 
@@ -6578,6 +6581,12 @@ export interface DashboardOverviewStats {
   depletedBatchesCount: number;
   multiBatchProductsCount: number;
   expiringBatchesCount: number;
+  // Installment analytics
+  totalInstallmentSales: number;
+  totalInstallmentCollected: number;
+  totalInstallmentRemaining: number;
+  activeInstallmentAccounts: number;
+  totalInstallmentAccounts: number;
 }
 
 export interface DashboardActivityItem {
@@ -6640,6 +6649,7 @@ export async function getDashboardOverviewStats(
     lowStockRow,
     custDebtRow,
     supDebtRow,
+    installmentRow,
     allProductsRows,
     allPurchasesRows,
   ] = await Promise.all([
@@ -6704,6 +6714,25 @@ export async function getDashboardOverviewStats(
       SELECT COALESCE(SUM(remaining_amount), 0) AS total
       FROM purchase_debts WHERE status = 'active'
     `),
+    // Installment Sales & Collections
+    database.getFirstAsync<{
+      totalInstallmentSales: number;
+      totalInstallmentCollected: number;
+      totalInstallmentRemaining: number;
+      activeInstallmentAccounts: number;
+      totalInstallmentAccounts: number;
+    }>(`
+      SELECT
+        COALESCE(SUM(grand_total), 0) AS totalInstallmentSales,
+        COALESCE(SUM(paid_amount), 0) AS totalInstallmentCollected,
+        COALESCE(SUM(remaining_debt), 0) AS totalInstallmentRemaining,
+        COUNT(CASE WHEN remaining_debt > 0 THEN 1 END) AS activeInstallmentAccounts,
+        COUNT(*) AS totalInstallmentAccounts
+      FROM sales
+      ${hasRange
+        ? `WHERE (payment_method = 'installment' OR (installment_months IS NOT NULL AND installment_months > 0)) AND status != 'cancelled' AND datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)`
+        : `WHERE (payment_method = 'installment' OR (installment_months IS NOT NULL AND installment_months > 0)) AND status != 'cancelled'`}
+    `, dateParams),
     // Active Products with quantity for batch depletion calculation
     database.getAllAsync<{ id: number; name: string; quantity: number }>(`
       SELECT id, LOWER(TRIM(name)) AS name, quantity FROM products WHERE is_active = 1
@@ -6809,6 +6838,90 @@ export async function getDashboardOverviewStats(
     depletedBatchesCount,
     multiBatchProductsCount,
     expiringBatchesCount,
+    totalInstallmentSales: installmentRow?.totalInstallmentSales ?? 0,
+    totalInstallmentCollected: installmentRow?.totalInstallmentCollected ?? 0,
+    totalInstallmentRemaining: installmentRow?.totalInstallmentRemaining ?? 0,
+    activeInstallmentAccounts: installmentRow?.activeInstallmentAccounts ?? 0,
+    totalInstallmentAccounts: installmentRow?.totalInstallmentAccounts ?? 0,
+  };
+}
+
+export interface InstallmentReportData {
+  totalInstallmentSales: number;
+  totalCollected: number;
+  totalRemaining: number;
+  activeAccountsCount: number;
+  settledAccountsCount: number;
+  totalAccountsCount: number;
+  collectionRate: number;
+  periodPaymentsCollected: number;
+  periodSalesTotal: number;
+  totalPrintsCount: number;
+}
+
+export async function getInstallmentReportData(from?: string, to?: string): Promise<InstallmentReportData> {
+  const database = await getDatabase();
+  const hasRange = Boolean(from && to);
+  const dateParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!] : [];
+
+  // Overall installment accounts
+  const overallRow = await database.getFirstAsync<{
+    totalSales: number;
+    totalCollected: number;
+    totalRemaining: number;
+    activeAccounts: number;
+    settledAccounts: number;
+    totalAccounts: number;
+    totalPrints: number;
+  }>(`
+    SELECT
+      COALESCE(SUM(grand_total), 0) AS totalSales,
+      COALESCE(SUM(paid_amount), 0) AS totalCollected,
+      COALESCE(SUM(remaining_debt), 0) AS totalRemaining,
+      COUNT(CASE WHEN remaining_debt > 0 THEN 1 END) AS activeAccounts,
+      COUNT(CASE WHEN remaining_debt <= 0 THEN 1 END) AS settledAccounts,
+      COUNT(*) AS totalAccounts,
+      COALESCE(SUM(print_count), 0) AS totalPrints
+    FROM sales
+    WHERE (payment_method = 'installment' OR (installment_months IS NOT NULL AND installment_months > 0))
+      AND status != 'cancelled'
+  `);
+
+  // Period sales
+  const periodSalesRow = await database.getFirstAsync<{ periodSales: number }>(`
+    SELECT COALESCE(SUM(grand_total), 0) AS periodSales
+    FROM sales
+    WHERE (payment_method = 'installment' OR (installment_months IS NOT NULL AND installment_months > 0))
+      AND status != 'cancelled'
+      ${hasRange ? 'AND datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)' : ''}
+  `, dateParams);
+
+  // Period collections (payments made in this period for installment debts)
+  const periodPaymentsRow = await database.getFirstAsync<{ periodCollected: number }>(`
+    SELECT COALESCE(SUM(dp.amount), 0) AS periodCollected
+    FROM debt_payments dp
+    JOIN debts d ON dp.debt_id = d.id AND dp.debt_type = 'sales'
+    JOIN sales s ON d.sale_id = s.id
+    WHERE (s.payment_method = 'installment' OR (s.installment_months IS NOT NULL AND s.installment_months > 0))
+      AND dp.event_type = 'payment'
+      ${hasRange ? 'AND datetime(dp.created_at) >= datetime(?) AND datetime(dp.created_at) <= datetime(?)' : ''}
+  `, dateParams);
+
+  const totalSales = overallRow?.totalSales ?? 0;
+  const totalCollected = overallRow?.totalCollected ?? 0;
+  const collectionRate = totalSales > 0 ? Math.round((totalCollected / totalSales) * 100) : 100;
+
+  return {
+    totalInstallmentSales: totalSales,
+    totalCollected,
+    totalRemaining: overallRow?.totalRemaining ?? 0,
+    activeAccountsCount: overallRow?.activeAccounts ?? 0,
+    settledAccountsCount: overallRow?.settledAccounts ?? 0,
+    totalAccountsCount: overallRow?.totalAccounts ?? 0,
+    collectionRate,
+    periodPaymentsCollected: periodPaymentsRow?.periodCollected ?? 0,
+    periodSalesTotal: periodSalesRow?.periodSales ?? 0,
+    totalPrintsCount: overallRow?.totalPrints ?? 0,
   };
 }
 

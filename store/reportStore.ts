@@ -48,6 +48,7 @@ interface ReportState {
   plData:        ProfitLossData      | null;
   inventoryData: InventoryReportSummary | null;
   debtData:      DebtReportData      | null;
+  installmentData: import('@/lib/sqlite').InstallmentReportData | null;
   topProfitable: ProfitableProduct[];
   monthlyRevenue: RevenuePoint[];
   expenses:      Expense[];
@@ -69,6 +70,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
   plData:        null,
   inventoryData: null,
   debtData:      null,
+  installmentData: null,
   topProfitable: [],
   monthlyRevenue: [],
   expenses:      [],
@@ -99,6 +101,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
         getAllExpenses,
         getNetCashBalance,
         getDashboardExpenseTotals,
+        getInstallmentReportData,
         getCachedReport,
         setCachedReport,
       } = await import('@/lib/sqlite');
@@ -122,6 +125,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
         expenses,
         cashBalance,
         dashboardExpenseTotals,
+        installmentData,
       ] = await Promise.all([
         getFinancialSummaryCards(from, to),
         getSalesReportData(from, to),
@@ -134,6 +138,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
         getAllExpenses(),
         getNetCashBalance(),
         getDashboardExpenseTotals(),
+        getInstallmentReportData(from, to),
       ]);
 
       const newState = {
@@ -143,6 +148,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
         plData,
         inventoryData,
         debtData,
+        installmentData,
         topProfitable,
         monthlyRevenue,
         expenses,

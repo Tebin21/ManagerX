@@ -56,6 +56,11 @@ const DEFAULT_DASHBOARD_STATS: DashboardOverviewStats = {
   depletedBatchesCount: 0,
   multiBatchProductsCount: 0,
   expiringBatchesCount: 0,
+  totalInstallmentSales: 0,
+  totalInstallmentCollected: 0,
+  totalInstallmentRemaining: 0,
+  activeInstallmentAccounts: 0,
+  totalInstallmentAccounts: 0,
 };
 
 export default function DashboardViewScreen() {
@@ -99,27 +104,7 @@ export default function DashboardViewScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [stats, setStats] = useState<DashboardOverviewStats>({
-    totalRevenue: 0,
-    totalSales: 0,
-    totalInvoices: 0,
-    totalPurchasesCost: 0,
-    totalPurchasesCount: 0,
-    expectedProfit: 0,
-    totalDiscount: 0,
-    totalExpenses: 0,
-    totalCustomers: 0,
-    totalSuppliers: 0,
-    totalItems: 0,
-    lowStockCount: 0,
-    customerDebtTotal: 0,
-    supplierDebtTotal: 0,
-    totalBatchesCount: 0,
-    activeBatchesCount: 0,
-    depletedBatchesCount: 0,
-    multiBatchProductsCount: 0,
-    expiringBatchesCount: 0,
-  });
+  const [stats, setStats] = useState<DashboardOverviewStats>(DEFAULT_DASHBOARD_STATS);
 
   const [activities, setActivities] = useState<DashboardActivityItem[]>([]);
   const [isExporting, setIsExporting] = useState(false);
@@ -592,7 +577,58 @@ export default function DashboardViewScreen() {
               />
             )}
 
-            {/* 17. Total Discounts / کۆی داشکاندن - spans 100% full width to fill the row seamlessly */}
+            {/* 17. Total Installment Sales / کۆی فرۆشتنی بەقیست */}
+            {showSales && (
+              <DashboardMetricSquare
+                title={isKurdish ? 'کۆی فرۆشتنی قیست' : 'Installment Sales'}
+                value={safeStats.totalInstallmentSales}
+                isCurrency
+                icon="calendar-number"
+                color="#6366F1"
+                subtitle={isKurdish ? 'فرۆشتنی قیست' : 'Installments'}
+                delay={400}
+              />
+            )}
+
+            {/* 18. Installment Collected / قیستی وەرگیراو */}
+            {showSales && (
+              <DashboardMetricSquare
+                title={isKurdish ? 'قیستی وەرگیراو' : 'Collected Installments'}
+                value={safeStats.totalInstallmentCollected}
+                isCurrency
+                icon="checkmark-circle"
+                color="#10B981"
+                subtitle={isKurdish ? 'پێشەکی + دراو' : 'Collected'}
+                delay={410}
+              />
+            )}
+
+            {/* 19. Remaining Installment Debt / قەرزی ماوەی قیستەکان */}
+            {showDebts && (
+              <DashboardMetricSquare
+                title={isKurdish ? 'قەرزی ماوەی قیست' : 'Remaining Installments'}
+                value={safeStats.totalInstallmentRemaining}
+                isCurrency
+                icon="hourglass"
+                color="#EA580C"
+                subtitle={isKurdish ? 'قەرزی ماوە' : 'Remaining'}
+                delay={420}
+              />
+            )}
+
+            {/* 20. Active Installment Accounts / قیستە چالاکەکان */}
+            {showDebts && (
+              <DashboardMetricSquare
+                title={isKurdish ? 'قیستی چالاک' : 'Active Installments'}
+                value={safeStats.activeInstallmentAccounts}
+                icon="people"
+                color="#EC4899"
+                subtitle={isKurdish ? 'کڕیار' : 'Customers'}
+                delay={430}
+              />
+            )}
+
+            {/* 21. Total Discounts / کۆی داشکاندن - spans 100% full width to fill the row seamlessly */}
             {showExpenses && (
               <DashboardMetricSquare
                 title={t('dashboard.totalDiscounts')}
@@ -601,7 +637,7 @@ export default function DashboardViewScreen() {
                 icon="pricetag"
                 color="#8B5CF6"
                 subtitle={isKurdish ? 'داشکاندن' : 'Discounts'}
-                delay={410}
+                delay={440}
                 isFullWidth
                 isLocked={lockExpenses}
               />

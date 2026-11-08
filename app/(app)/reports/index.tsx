@@ -833,9 +833,10 @@ export default function ReportsScreen() {
     dateRange, isLoading, financialCards,
     salesData, purchaseData, plData, inventoryData,
     debtData, topProfitable, monthlyRevenue, expenses,
-    cashBalance, dashboardExpenseTotals,
+    cashBalance, dashboardExpenseTotals, installmentData,
     setDateRange, reload,
   } = useReportStore();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const baseCurrency = useSettingsStore((s) => s.baseCurrency);
   const isCapitalEnabled = useCapitalStore((s) => s.isEnabled);
@@ -1119,6 +1120,62 @@ export default function ReportsScreen() {
     </View>
   );
 
+  const renderInstallmentOverview = (isGridCol = false) => (
+    <View style={isGridCol ? styles.gridCol : undefined}>
+      <SectionHeader
+        title={isKuLanguage ? 'شیکاری و ڕاپۆرتی قیستەکان' : 'Installments Analytics'}
+        icon="calendar-number"
+        action={isKuLanguage ? 'قیستەکان' : 'Installments'}
+        route="/(app)/installments"
+        compact={isGridCol}
+      />
+      <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 150 }}>
+        <PremiumCard style={isGridCol ? styles.gridCard : styles.card}>
+          <BigMetricRow
+            label={isKuLanguage ? 'کۆی فرۆشتنی بەقیست' : 'Total Installment Sales'}
+            amount={installmentData?.totalInstallmentSales ?? 0}
+            color="#6366F1"
+            icon="calendar-number-outline"
+            isGrid={isGridCol}
+          />
+          <BigMetricRow
+            label={isKuLanguage ? 'پارەی وەرگیراو (پێشەکی + قیستەکان)' : 'Collected (Down Payment + Dues)'}
+            amount={installmentData?.totalCollected ?? 0}
+            color="#10B981"
+            icon="checkmark-circle-outline"
+            isGrid={isGridCol}
+          />
+          <BigMetricRow
+            label={isKuLanguage ? 'قەرزی ماوەی قیستەکان' : 'Remaining Installment Debt'}
+            amount={installmentData?.totalRemaining ?? 0}
+            color="#EA580C"
+            icon="hourglass-outline"
+            isGrid={isGridCol}
+          />
+          <StatChipsRow
+            chips={[
+              {
+                value: `${installmentData?.collectionRate ?? 0}%`,
+                label: isKuLanguage ? 'ڕێژەی وەرگرتن' : 'Collection Rate',
+                color: '#10B981',
+              },
+              {
+                value: String(installmentData?.activeAccountsCount ?? 0),
+                label: isKuLanguage ? 'قیستی چالاک' : 'Active Accounts',
+                color: '#6366F1',
+              },
+              {
+                value: String(installmentData?.settledAccountsCount ?? 0),
+                label: isKuLanguage ? 'تەواوبوو' : 'Settled',
+                color: '#64748B',
+              },
+            ]}
+          />
+        </PremiumCard>
+      </MotiView>
+    </View>
+  );
+
   const renderInventoryPotential = (isGridCol = false) => (
     <View style={isGridCol ? styles.gridCol : undefined}>
       <SectionHeader title={t('reports.inventoryPotential')} icon="cube" action={t('inventory.title')} route="/(app)/inventory" compact={isGridCol} />
@@ -1319,13 +1376,14 @@ export default function ReportsScreen() {
               </View>
               <View style={[styles.gridPairRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 {renderDebtOverview(true)}
+                {renderInstallmentOverview(true)}
+              </View>
+              <View style={[styles.gridPairRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 {renderInventoryPotential(true)}
-              </View>
-              <View style={[styles.gridPairRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 {renderProfitSummary(true)}
-                {renderTopProducts(true)}
               </View>
               <View style={[styles.gridPairRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                {renderTopProducts(true)}
                 {renderCustomerSupplier(true)}
               </View>
             </>
@@ -1338,6 +1396,7 @@ export default function ReportsScreen() {
               {renderSalesRevenue(false)}
               {renderPurchaseCosts(false)}
               {renderDebtOverview(false)}
+              {renderInstallmentOverview(false)}
               {renderInventoryPotential(false)}
               {renderProfitSummary(false)}
               {renderTopProducts(false)}
@@ -1350,6 +1409,7 @@ export default function ReportsScreen() {
               {renderSalesRevenue(false)}
               {renderPurchaseCosts(false)}
               {renderDebtOverview(false)}
+              {renderInstallmentOverview(false)}
               {renderInventoryPotential(false)}
               {renderProfitSummary(false)}
               {renderTopProducts(false)}

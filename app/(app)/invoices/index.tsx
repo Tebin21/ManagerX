@@ -56,6 +56,8 @@ import {
   getAllPurchases,
   getAllPurchaseDebts,
   getAllDebtPaymentReceipts,
+  getAllInstallmentSales,
+  type InstallmentSaleRow,
   getDebtPaymentReceiptById,
   incrementDebtReceiptPrintCount,
   incrementDebtReceiptViewCount,
@@ -84,7 +86,7 @@ import type { Quotation } from '@/types/quotation';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 import type { ReceiptPaperSize } from '@/store/settingsStore';
 
-type TabKey = 'reports' | 'purchases' | 'sales' | 'quotations' | 'debts';
+type TabKey = 'reports' | 'purchases' | 'sales' | 'installments' | 'quotations' | 'debts';
 
 export default function InvoicesHubScreen() {
   const router = useRouter();
@@ -105,7 +107,7 @@ export default function InvoicesHubScreen() {
 
   // ─── Active Tab State ───
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
-    if (params.tab && (['reports', 'purchases', 'sales', 'quotations', 'debts'] as TabKey[]).includes(params.tab)) {
+    if (params.tab && (['reports', 'purchases', 'sales', 'installments', 'quotations', 'debts'] as TabKey[]).includes(params.tab)) {
       return params.tab;
     }
     return 'reports';
@@ -114,7 +116,7 @@ export default function InvoicesHubScreen() {
 
   useEffect(() => {
     if (!tabScrollRef.current) return;
-    const tabKeys: TabKey[] = ['reports', 'purchases', 'sales', 'quotations', 'debts'];
+    const tabKeys: TabKey[] = ['reports', 'purchases', 'sales', 'installments', 'quotations', 'debts'];
     const idx = tabKeys.indexOf(activeTab);
     if (idx >= 3) {
       tabScrollRef.current.scrollTo({ x: (idx - 1) * 95, animated: true });
@@ -242,6 +244,7 @@ export default function InvoicesHubScreen() {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [purchaseDebtsMap, setPurchaseDebtsMap] = useState<Record<number, PurchaseDebt>>({});
   const [debtReceipts, setDebtReceipts] = useState<DebtPaymentReceiptData[]>([]);
+  const [installmentSales, setInstallmentSales] = useState<InstallmentSaleRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -256,6 +259,8 @@ export default function InvoicesHubScreen() {
   const [salesSearch, setSalesSearch] = useState('');
   const [quotationSearch, setQuotationSearch] = useState('');
   const [debtSearch, setDebtSearch] = useState('');
+  const [installmentSearch, setInstallmentSearch] = useState('');
+  const [installmentTypeFilter, setInstallmentTypeFilter] = useState<'all' | 'sales' | 'payments'>('all');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
 
@@ -330,11 +335,12 @@ export default function InvoicesHubScreen() {
   // ─── Load Data ───
   const loadData = useCallback(async () => {
     try {
-      const [salesData, purchasesData, debtsData, debtReceiptsData] = await Promise.all([
+      const [salesData, purchasesData, debtsData, debtReceiptsData, installmentSalesData] = await Promise.all([
         getAllSales(),
         getAllPurchases(),
         getAllPurchaseDebts(),
         getAllDebtPaymentReceipts(),
+        getAllInstallmentSales(),
       ]);
 
       const debtMap: Record<number, PurchaseDebt> = {};
@@ -348,6 +354,7 @@ export default function InvoicesHubScreen() {
       setPurchases(purchasesData);
       setPurchaseDebtsMap(debtMap);
       setDebtReceipts(debtReceiptsData);
+      setInstallmentSales(installmentSalesData);
     } catch (err) {
       console.error('[InvoicesHub] Failed to load data:', err);
     } finally {
@@ -391,6 +398,18 @@ export default function InvoicesHubScreen() {
     if (periodKey === 'all') return debtReceipts;
     return debtReceipts.filter((d) => isDateWithinRange(d.createdAt, periodBounds.from, periodBounds.to));
   }, [debtReceipts, periodKey, periodBounds]);
+
+  const filteredInstallmentSalesByPeriod = useMemo(() => {
+    if (periodKey === 'all') return installmentSales;
+    return installmentSales.filter((s) => isDateWithinRange(s.saleDate, periodBounds.from, periodBounds.to));
+  }, [installmentSales, periodKey, periodBounds]);
+
+  const filteredInstallmentPaymentsByPeriod = useMemo(() => {
+    const installmentDebtIds = new Set(installmentSales.map((s) => s.debtId).filter(Boolean));
+    return filteredDebtsByPeriod.filter(
+      (d) => d.debtType === 'sales' && (installmentDebtIds.has(d.debtId) || (d.note && d.note.includes('قیست')))
+    );
+  }, [filteredDebtsByPeriod, installmentSales]);
 
   // ─── Formatter Helper ───
   const formatMoney = useCallback((amountIQD: number) => {
@@ -478,6 +497,21 @@ export default function InvoicesHubScreen() {
       if (disc > 0) discountedSalesCount++;
     });
 
+    // 11. Total Installments Invoices (وەسڵەکانی قیست)
+    const installmentCount = filteredInstallmentSalesByPeriod.length + filteredInstallmentPaymentsByPeriod.length;
+    let totalInstallmentSalesAmount = 0;
+    let totalInstallmentCollected = 0;
+    let installmentPrintsCount = 0;
+    filteredInstallmentSalesByPeriod.forEach((s) => {
+      totalInstallmentSalesAmount += s.grandTotal || 0;
+      totalInstallmentCollected += s.paidAmount || 0;
+      installmentPrintsCount += s.printCount || 0;
+    });
+    filteredInstallmentPaymentsByPeriod.forEach((p) => {
+      totalInstallmentCollected += p.amount || 0;
+      installmentPrintsCount += p.printCount || 0;
+    });
+
     return {
       purchaseCount,
       salesCount,
@@ -489,8 +523,12 @@ export default function InvoicesHubScreen() {
       cashCount,
       debtCount,
       discountedSalesCount,
+      installmentCount,
+      totalInstallmentSalesAmount,
+      totalInstallmentCollected,
+      installmentPrintsCount,
     };
-  }, [filteredPurchasesByPeriod, filteredSalesByPeriod, filteredQuotationsByPeriod, purchaseDebtsMap]);
+  }, [filteredPurchasesByPeriod, filteredSalesByPeriod, filteredQuotationsByPeriod, filteredInstallmentSalesByPeriod, filteredInstallmentPaymentsByPeriod, purchaseDebtsMap]);
 
   // ─── TAB 2: Filtered Purchases by Search ───
   const searchedPurchases = useMemo(() => {
@@ -542,6 +580,62 @@ export default function InvoicesHubScreen() {
       return numMatch || nameMatch || phoneMatch || refMatch;
     });
   }, [filteredDebtsByPeriod, debtSearch]);
+
+  // ─── TAB: Filtered Installments by Search ───
+  const searchedInstallmentItems = useMemo(() => {
+    const q = toEnglishDigits(installmentSearch.trim().toLowerCase());
+
+    const saleItems = (installmentTypeFilter === 'payments' ? [] : filteredInstallmentSalesByPeriod).map((s) => ({
+      kind: 'sale' as const,
+      id: `inst-sale-${s.saleId}`,
+      saleId: s.saleId,
+      invoiceNumber: s.invoiceNumber,
+      partyName: s.customerName,
+      partyPhone: s.customerPhone,
+      date: s.saleDate,
+      grandTotal: s.grandTotal,
+      paidAmount: s.paidAmount,
+      remainingDebt: s.remainingDebt,
+      installmentMonths: s.installmentMonths,
+      installmentMonthlyAmount: s.installmentMonthlyAmount,
+      productsSummary: s.productsSummary,
+      printCount: s.printCount || 0,
+      status: s.debtStatus,
+    }));
+
+    const paymentItems = (installmentTypeFilter === 'sales' ? [] : filteredInstallmentPaymentsByPeriod).map((d) => ({
+      kind: 'payment' as const,
+      id: `inst-pay-${d.id}`,
+      paymentId: d.id,
+      invoiceNumber: d.paymentNumber,
+      refNumber: d.referenceNumber,
+      partyName: d.partyName,
+      partyPhone: d.partyPhone,
+      date: d.createdAt,
+      grandTotal: d.originalAmount || (d.amount + d.remainingAfter),
+      paidAmount: d.amount,
+      remainingDebt: d.remainingAfter,
+      installmentMonths: 0,
+      installmentMonthlyAmount: 0,
+      productsSummary: d.note || (isKu ? 'دانەوەی قیست' : 'Installment Payment'),
+      printCount: d.printCount || 0,
+      status: d.remainingAfter <= 0 ? 'settled' : 'active',
+      receiptData: d,
+    }));
+
+    const combined = [...saleItems, ...paymentItems].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    if (!q) return combined;
+    return combined.filter(
+      (item) =>
+        (item.invoiceNumber || '').toLowerCase().includes(q) ||
+        (item.partyName || '').toLowerCase().includes(q) ||
+        toEnglishDigits(item.partyPhone || '').includes(q) ||
+        (item.productsSummary || '').toLowerCase().includes(q)
+    );
+  }, [filteredInstallmentSalesByPeriod, filteredInstallmentPaymentsByPeriod, installmentTypeFilter, installmentSearch, isKu]);
 
   // ─── Purchase Actions ───
   const handleOpenPurchaseDetails = useCallback(async (purchase: Purchase) => {
@@ -1364,6 +1458,12 @@ export default function InvoicesHubScreen() {
                 count: filteredSalesByPeriod.length,
               },
               {
+                key: 'installments' as TabKey,
+                label: isKu ? (isTablet ? 'وەسڵی قیست' : 'قیست') : 'Installments',
+                icon: 'calendar-number-outline' as const,
+                count: filteredInstallmentSalesByPeriod.length + filteredInstallmentPaymentsByPeriod.length,
+              },
+              {
                 key: 'quotations' as TabKey,
                 label: isKu ? (isTablet ? 'وەسڵی عەرز' : 'عەرز') : 'Quotes',
                 icon: 'document-text-outline' as const,
@@ -1582,6 +1682,17 @@ export default function InvoicesHubScreen() {
                     borderLight: '#BAE6FD',
                     label: isKu ? 'وەسڵەکانی پارەدانی قەرز' : 'Debt Payment Receipts',
                     count: filteredDebtsByPeriod.length,
+                  },
+                  {
+                    id: 'installments',
+                    icon: 'calendar-number-outline' as const,
+                    color: '#6366F1',
+                    bgDark: 'rgba(99, 102, 241, 0.14)',
+                    bgLight: '#EEF2FF',
+                    borderDark: 'rgba(99, 102, 241, 0.35)',
+                    borderLight: '#C7D2FE',
+                    label: isKu ? 'کۆی گشتی وەسڵی قیست' : 'Installment Invoices',
+                    count: reportStats.installmentCount,
                   },
                   {
                     id: 'discount',
@@ -1985,6 +2096,286 @@ export default function InvoicesHubScreen() {
                         item.printCount || 0,
                         () => handleOpenSaleDetails(item),
                         () => requestPrintSale(item)
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            </View>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════
+              TAB: وەسڵی قیست (INSTALLMENT INVOICES & RECEIPTS)
+             ══════════════════════════════════════════════════════════════ */}
+          {activeTab === 'installments' && (
+            <View style={styles.flexOne}>
+              {/* Period Filter Pills & Expanding Search */}
+              <View style={[styles.tabPeriodSectionWrap, isTablet && { maxWidth: isTabletLandscape ? 1320 : 1040, alignSelf: 'center', width: '100%', paddingHorizontal: isTabletLandscape ? 32 : 24 }]}>
+                {renderPeriodFilterSection({
+                  query: installmentSearch,
+                  setQuery: setInstallmentSearch,
+                  placeholder: isKu ? 'گەڕان بە ناوی کڕیار، ژمارەی وەسڵ...' : 'Search customer, invoice #...',
+                })}
+              </View>
+
+              {/* Sub-Filter Pills (All, Installment Sales, Payment Receipts) */}
+              <View
+                style={[
+                  styles.installmentSubFilterRow,
+                  {
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                  isTablet && { maxWidth: isTabletLandscape ? 1320 : 1040, alignSelf: 'center', width: '100%', paddingHorizontal: isTabletLandscape ? 32 : 24 },
+                ]}
+              >
+                {[
+                  { key: 'all' as const, label: isKu ? `هەمووی (${filteredInstallmentSalesByPeriod.length + filteredInstallmentPaymentsByPeriod.length})` : `All` },
+                  { key: 'sales' as const, label: isKu ? `فرۆشتنی قیست (${filteredInstallmentSalesByPeriod.length})` : `Sales` },
+                  { key: 'payments' as const, label: isKu ? `وەسڵی دانەوە (${filteredInstallmentPaymentsByPeriod.length})` : `Payments` },
+                ].map((flt) => {
+                  const isActive = installmentTypeFilter === flt.key;
+                  return (
+                    <TouchableOpacity
+                      key={flt.key}
+                      onPress={() => {
+                        try { Haptics.selectionAsync().catch(() => {}); } catch {}
+                        setInstallmentTypeFilter(flt.key);
+                      }}
+                      style={[
+                        styles.installmentSubPill,
+                        {
+                          backgroundColor: isActive ? (isDark ? colors.primary : '#1E293B') : (isDark ? colors.gray200 : '#F1F5F9'),
+                          borderColor: isActive ? (isDark ? colors.primary : '#1E293B') : (isDark ? colors.gray300 : '#CBD5E1'),
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.installmentSubPillText,
+                          {
+                            color: isActive ? '#FFFFFF' : (isDark ? colors.gray400 : '#475569'),
+                            fontFamily: isActive ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                          },
+                        ]}
+                      >
+                        {flt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Invoices List / Grid */}
+              <FlatList
+                data={searchedInstallmentItems}
+                key={`installments-${numColumns}-${viewMode}-${isRTL ? 'rtl' : 'ltr'}`}
+                numColumns={numColumns}
+                onScrollBeginDrag={handleCloseSearch}
+                keyboardShouldPersistTaps="handled"
+                columnWrapperStyle={
+                  numColumns > 1
+                    ? [styles.columnWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]
+                    : undefined
+                }
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={[
+                  styles.listContent,
+                  isTablet && { maxWidth: isTabletLandscape ? 1320 : 1040, alignSelf: 'center', width: '100%', paddingHorizontal: isTabletLandscape ? 32 : 24 },
+                  searchedInstallmentItems.length === 0 && styles.emptyListContent,
+                ]}
+                refreshControl={
+                  <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
+                }
+                ListEmptyComponent={
+                  <View style={styles.emptyWrap}>
+                    <Ionicons name="calendar-number-outline" size={48} color={colors.gray300} />
+                    <Text style={[styles.emptyText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                      {isKu ? 'هیچ پسوڵەیەکی قیست نەدۆزرایەوە' : 'No installment invoices found'}
+                    </Text>
+                  </View>
+                }
+                renderItem={({ item }) => {
+                  const isSale = item.kind === 'sale';
+                  const badgeLabel = isSale ? (isKu ? 'فرۆشتنی قیست' : 'Installment Sale') : (isKu ? 'دانەوەی قیست' : 'Installment Payment');
+                  const badgeColor = isSale ? '#6366F1' : '#10B981';
+
+                  const onOpen = () => {
+                    if (isSale) {
+                      const matchedSale = sales.find((s) => s.id === item.saleId);
+                      if (matchedSale) handleOpenSaleDetails(matchedSale);
+                      else getSaleById(item.saleId!).then((s) => s && handleOpenSaleDetails(s));
+                    } else if (item.receiptData) {
+                      handleOpenDebtReceipt(item.receiptData);
+                    }
+                  };
+
+                  const onPrint = () => {
+                    if (isSale) {
+                      const matchedSale = sales.find((s) => s.id === item.saleId);
+                      if (matchedSale) {
+                        requestPrintSale(matchedSale);
+                      } else {
+                        getSaleById(item.saleId!).then((s) => s && requestPrintSale(s));
+                      }
+                      setInstallmentSales((prev) =>
+                        prev.map((s) => (s.saleId === item.saleId ? { ...s, printCount: (s.printCount || 0) + 1 } : s))
+                      );
+                    } else if (item.receiptData) {
+                      handleDirectPrintDebtReceipt(item.receiptData);
+                    }
+                  };
+
+                  return (
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={onOpen}
+                      style={[
+                        numColumns > 1 ? styles.invoiceCard : styles.listCard,
+                        numColumns > 1 && {
+                          flex: 1,
+                          maxWidth: numColumns === 3 ? '32.5%' : '49%',
+                          padding: isMobileGrid ? 10 : (isTabletLandscape ? 16 : 14),
+                        },
+                        {
+                          backgroundColor: isDark ? colors.gray100 : colors.white,
+                          borderColor: colors.gray200,
+                        },
+                      ]}
+                    >
+                      {/* Top Row: Invoice Number & Badges */}
+                      <View style={[styles.cardHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 4 }]}>
+                        <View
+                          style={[
+                            styles.invoiceNumberBadge,
+                            isMobileGrid && { paddingHorizontal: 6, paddingVertical: 2.5 },
+                            { backgroundColor: isDark ? colors.gray200 : '#F1F5F9' },
+                          ]}
+                        >
+                          <IdText
+                            style={[
+                              styles.invoiceNumberText,
+                              isMobileGrid && { fontSize: 11 },
+                              { color: colors.primary },
+                            ]}
+                          >
+                            {item.invoiceNumber}
+                          </IdText>
+                        </View>
+                        <View
+                          style={{
+                            flexDirection: isRTL ? 'row-reverse' : 'row',
+                            gap: 4,
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            justifyContent: isRTL ? 'flex-start' : 'flex-end',
+                            flexShrink: 1,
+                          }}
+                        >
+                          <View
+                            style={[
+                              styles.statusBadge,
+                              isMobileGrid && { paddingHorizontal: 6, paddingVertical: 2.5 },
+                              { backgroundColor: hexToRgba(badgeColor, 0.15) },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.statusBadgeText,
+                                isMobileGrid && { fontSize: 10.5 },
+                                { color: badgeColor },
+                                isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                              ]}
+                            >
+                              {badgeLabel}
+                            </Text>
+                          </View>
+                          {isSale && item.installmentMonths > 0 && (
+                            <View
+                              style={[
+                                styles.discountPill,
+                                isMobileGrid && { paddingHorizontal: 5, paddingVertical: 2.5 },
+                                { backgroundColor: hexToRgba('#8B5CF6', 0.15) },
+                              ]}
+                            >
+                              <Ionicons name="calendar-outline" size={isMobileGrid ? 9.5 : 10} color="#8B5CF6" />
+                              <Text
+                                numberOfLines={1}
+                                style={[
+                                  styles.discountPillText,
+                                  isMobileGrid && { fontSize: 9.5 },
+                                  { color: '#8B5CF6' },
+                                  isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                                ]}
+                              >
+                                {item.installmentMonths} {isKu ? 'مانگ' : 'mo'}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+
+                      {/* Customer Info */}
+                      <View style={styles.cardInfoWrap}>
+                        <Text
+                          numberOfLines={1}
+                          style={[
+                            styles.partyName,
+                            { color: colors.black, textAlign, fontSize: isTablet ? 16.5 : 14 },
+                            isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          ]}
+                        >
+                          {item.partyName || (isKu ? 'کڕیار' : 'Customer')}
+                        </Text>
+                        {!!item.partyPhone && (
+                          <View style={[styles.phoneRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                            <Ionicons name="call-outline" size={12} color={colors.gray400} />
+                            <Text style={[styles.partyPhone, { color: colors.gray500, fontSize: isTablet ? 12.5 : 11.5 }]}>{item.partyPhone}</Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Summary / Products */}
+                      {!!item.productsSummary && (
+                        <Text
+                          numberOfLines={1}
+                          style={[
+                            styles.productsSummaryText,
+                            { color: colors.gray500, textAlign, fontSize: 11.5, marginVertical: 3 },
+                            isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+                          ]}
+                        >
+                          {item.productsSummary}
+                        </Text>
+                      )}
+
+                      {/* Amount Details */}
+                      <View style={[styles.installmentAmountRow, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', marginTop: 4 }]}>
+                        <View>
+                          <Text style={{ fontSize: 10.5, color: colors.gray400, textAlign }}>
+                            {isSale ? (isKu ? 'کۆی گشتی' : 'Total') : (isKu ? 'بڕی دراو' : 'Paid')}
+                          </Text>
+                          <Text style={{ fontSize: 13, color: colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
+                            {formatMoney(isSale ? item.grandTotal : item.paidAmount)}
+                          </Text>
+                        </View>
+                        {item.remainingDebt > 0 && (
+                          <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
+                            <Text style={{ fontSize: 10.5, color: '#EA580C', textAlign }}>
+                              {isKu ? 'ماوەی قەرز' : 'Remaining'}
+                            </Text>
+                            <Text style={{ fontSize: 13, color: '#EA580C', fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
+                              {formatMoney(item.remainingDebt)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Print and View Counts Indicator */}
+                      {renderCountBadges(
+                        0,
+                        item.printCount || 0,
+                        onOpen,
+                        onPrint
                       )}
                     </TouchableOpacity>
                   );
@@ -3478,5 +3869,30 @@ const styles = StyleSheet.create({
   modalSecondaryBtnText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  installmentSubFilterRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    gap: 8,
+  },
+  installmentSubPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  installmentSubPillText: {
+    fontSize: 12,
+  },
+  installmentAmountRow: {
+    paddingTop: 6,
+    paddingBottom: 2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(150, 150, 150, 0.15)',
+  },
+  productsSummaryText: {
+    lineHeight: 16,
   },
 });
