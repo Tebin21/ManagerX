@@ -527,7 +527,7 @@ export function buildInvoiceHTML(
     ? 'pill-partial'
     : (paymentStatus === 'paid' ? 'pill-paid' : paymentStatus === 'partial' ? 'pill-partial' : 'pill-debt');
   const statusBadge = isInstallment
-    ? `<span class="pill" style="background:#e0f2fe;color:#0284c7;border:1px solid #bae6fd;">${ku(statusKey)}</span>`
+    ? `<span class="pill" style="background:#ffffff;color:#000000;border:1.5px solid #000000;font-weight:800;">${ku(statusKey)}</span>`
     : `<span class="pill ${pillClass}">${ku(t(statusKey))}</span>`;
 
   // ── Customer (rendered inside the header's middle column) ──
@@ -600,20 +600,20 @@ export function buildInvoiceHTML(
 
   const installmentRows = isInstallment ? `
     <div class="fin-row" style="margin-top:4px;">
-      <span style="color:#047857;font-weight:600;">${ku(isAr ? 'الدفعة الأولى (المقدمة):' : isKu ? 'پێشەکی:' : 'Down Payment:')}${initialMethodTag}</span>
-      <span class="fin-amount fin-amount-paid en-num" dir="ltr">${sale.paidAmount > 0 ? fmtRow(sale.paidAmount) : ku(isAr ? 'بدون مقدمة (0)' : isKu ? 'بێ پێشەکی (0)' : 'None (0)')}</span>
+      <span style="color:#000000;font-weight:700;">${ku(isAr ? 'الدفعة الأولى (المقدمة):' : isKu ? 'پێشەکی:' : 'Down Payment:')}${initialMethodTag}</span>
+      <span class="fin-amount en-num" dir="ltr" style="color:#000000;font-weight:800;">${sale.paidAmount > 0 ? fmtRow(sale.paidAmount) : ku(isAr ? 'بدون مقدمة (0)' : isKu ? 'بێ پێشەکی (0)' : 'None (0)')}</span>
     </div>
     <div class="fin-row" style="margin-top:2px;">
-      <span style="color:#b91c1c;font-weight:700;">${ku(isAr ? 'المتبقي بالتقسيط:' : isKu ? 'بڕی ماوە بە قیست:' : 'Remaining Balance:')}</span>
-      <span class="fin-amount fin-amount-debt en-num" dir="ltr">${fmtRow(sale.remainingDebt)}</span>
+      <span style="color:#000000;font-weight:700;">${ku(isAr ? 'المتبقي بالتقسيط:' : isKu ? 'بڕی ماوە بە قیست:' : 'Remaining Balance:')}</span>
+      <span class="fin-amount en-num" dir="ltr" style="color:#000000;font-weight:800;">${fmtRow(sale.remainingDebt)}</span>
     </div>
     <div class="fin-row" style="margin-top:2px;">
-      <span style="color:#0369a1;font-weight:600;">${ku(isAr ? 'مدة التقسيط:' : isKu ? 'ماوەی قیست:' : 'Duration:')}</span>
-      <span class="fin-amount en-num" dir="ltr">${sale.installmentMonths || 1} ${ku(isAr ? 'أشهر' : isKu ? 'مانگ' : 'Months')}</span>
+      <span style="color:#000000;font-weight:700;">${ku(isAr ? 'مدة التقسيط:' : isKu ? 'ماوەی قیست:' : 'Duration:')}</span>
+      <span class="fin-amount en-num" dir="ltr" style="color:#000000;font-weight:800;">${sale.installmentMonths || 1} ${ku(isAr ? 'أشهر' : isKu ? 'مانگ' : 'Months')}</span>
     </div>
-    <div class="fin-row" style="margin-top:4px;border-top:1px dashed #cbd5e1;padding-top:4px;">
-      <span style="color:#0f172a;font-weight:800;">${ku(isAr ? 'القسط الشهري:' : isKu ? 'قیستی مانگانە:' : 'Monthly Installment:')}</span>
-      <span class="fin-amount en-num" dir="ltr" style="font-weight:800;color:#0284c7;">${fmtRow(sale.installmentMonthlyAmount || Math.round((sale.remainingDebt / (sale.installmentMonths || 1)) * 100) / 100)}</span>
+    <div class="fin-row" style="margin-top:4px;border-top:1.5px dashed #000000;padding-top:4px;">
+      <span style="color:#000000;font-weight:900;">${ku(isAr ? 'القسط الشهري:' : isKu ? 'قیستی مانگانە:' : 'Monthly Installment:')}</span>
+      <span class="fin-amount en-num" dir="ltr" style="font-weight:900;color:#000000;">${fmtRow(sale.installmentMonthlyAmount || Math.round((sale.remainingDebt / (sale.installmentMonths || 1)) * 100) / 100)}</span>
     </div>` : '';
 
   const financialCard = `

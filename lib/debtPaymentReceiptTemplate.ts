@@ -26,8 +26,6 @@ export function buildDebtPaymentA4HTML(
   const docTitle = isCustomerPayment ? 'وەسڵی وەرگرتنی پارەی قەرز' : 'وەسڵی دانەوەی قەرزی دابینکەر';
   const partyRoleLabel = isCustomerPayment ? 'کڕیار' : 'دابینکەر';
   const statusLabel = isSettled ? 'تەواوبوو (بێ باڵانس)' : 'بەشێکی دراوە (قەرز ماوە)';
-  const statusColor = isSettled ? '#059669' : '#D97706';
-  const statusBg = isSettled ? '#ECFDF5' : '#FEF3C7';
 
   const paymentMethodLabel = receipt.paymentMethod?.toLowerCase() === 'fib' ? 'FIB (ئۆنلاین)' : 'کاش (نەقد)';
 
@@ -59,7 +57,7 @@ export function buildDebtPaymentA4HTML(
       font-family: 'Bahij Janna', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       direction: rtl;
       background: #FFFFFF;
-      color: #0F172A;
+      color: #000000;
       font-size: 13px;
       line-height: 1.5;
       padding: 0;
@@ -79,57 +77,57 @@ export function buildDebtPaymentA4HTML(
       border-collapse: collapse;
       margin-bottom: 22px;
       padding-bottom: 16px;
-      border-bottom: 2px solid #E2E8F0;
+      border-bottom: 2px solid #000000;
     }
     .header-table td { vertical-align: middle; }
     .logo-td { width: 75px; text-align: right; }
-    .logo-img { max-height: 65px; max-width: 130px; object-fit: contain; }
+    .logo-img { max-height: 65px; max-width: 130px; object-fit: contain; filter: grayscale(100%); }
     .logo-mono {
-      width: 55px; height: 55px; border-radius: 12px;
-      background: #F1F5F9; color: #475569;
+      width: 55px; height: 55px; border-radius: 8px;
+      background: #FFFFFF; color: #000000;
       display: inline-flex; align-items: center; justify-content: center;
-      font-size: 24px; font-weight: 800; border: 1px solid #CBD5E1;
+      font-size: 24px; font-weight: 900; border: 1.5px solid #000000;
     }
     .biz-info-td { padding-right: 14px; text-align: right; }
-    .biz-name { font-size: 20px; font-weight: 800; color: #0F172A; margin-bottom: 3px; }
-    .biz-meta { font-size: 12px; color: #64748B; font-weight: 600; }
+    .biz-name { font-size: 20px; font-weight: 900; color: #000000; margin-bottom: 3px; }
+    .biz-meta { font-size: 12px; color: #000000; font-weight: 600; }
 
     .doc-meta-td { text-align: left; vertical-align: top; }
-    .doc-title { font-size: 17px; font-weight: 800; color: #B45309; margin-bottom: 4px; }
-    .doc-number { font-size: 14px; font-weight: 800; color: #0F172A; font-family: monospace; letter-spacing: 0.5px; }
-    .doc-date-time { font-size: 11.5px; color: #64748B; font-weight: 600; margin-top: 3px; }
+    .doc-title { font-size: 17px; font-weight: 900; color: #000000; margin-bottom: 4px; }
+    .doc-number { font-size: 14px; font-weight: 800; color: #000000; font-family: monospace; letter-spacing: 0.5px; }
+    .doc-date-time { font-size: 11.5px; color: #000000; font-weight: 600; margin-top: 3px; }
     .status-pill {
       display: inline-block;
       padding: 3px 10px;
-      border-radius: 8px;
+      border-radius: 6px;
       font-size: 11px;
       font-weight: 800;
-      color: ${statusColor};
-      background: ${statusBg};
+      color: #000000;
+      background: #FFFFFF;
       margin-top: 5px;
-      border: 1px solid ${statusColor}40;
+      border: 1.5px solid #000000;
     }
 
     /* ── Party Card ── */
     .party-card {
-      background: #F8FAFC;
-      border: 1px solid #E2E8F0;
-      border-radius: 14px;
+      background: #FFFFFF;
+      border: 1.5px solid #000000;
+      border-radius: 8px;
       padding: 14px 18px;
       margin-bottom: 22px;
     }
     .party-card-title {
       font-size: 11px;
       font-weight: 800;
-      color: #94A3B8;
+      color: #000000;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 8px;
     }
     .party-name {
       font-size: 17px;
-      font-weight: 800;
-      color: #0F172A;
+      font-weight: 900;
+      color: #000000;
       margin-bottom: 4px;
     }
     .party-details-grid {
@@ -138,7 +136,7 @@ export function buildDebtPaymentA4HTML(
       gap: 16px;
       margin-top: 6px;
       font-size: 12px;
-      color: #475569;
+      color: #000000;
       font-weight: 600;
     }
     .party-details-item { display: inline-flex; align-items: center; gap: 5px; }
@@ -151,39 +149,40 @@ export function buildDebtPaymentA4HTML(
       margin-bottom: 24px;
     }
     .fin-box {
-      border-radius: 14px;
+      border-radius: 8px;
       padding: 16px;
       text-align: center;
-      border: 1px solid #E2E8F0;
+      border: 1.5px solid #000000;
+      background: #FFFFFF;
     }
-    .fin-box-prev { background: #F8FAFC; border-color: #E2E8F0; }
-    .fin-box-paid { background: #ECFDF5; border-color: #A7F3D0; }
-    .fin-box-rem { background: ${isSettled ? '#F8FAFC' : '#FEF3C7'}; border-color: ${isSettled ? '#E2E8F0' : '#FDE68A'}; }
-    .fin-label { font-size: 11.5px; font-weight: 700; color: #64748B; margin-bottom: 6px; }
-    .fin-value { font-size: 18px; font-weight: 900; line-height: 1.2; }
-    .fin-value-prev { color: #334155; }
-    .fin-value-paid { color: #059669; }
-    .fin-value-rem { color: ${isSettled ? '#059669' : '#D97706'}; }
-    .fin-sub { font-size: 11px; font-weight: 600; color: #94A3B8; margin-top: 3px; }
+    .fin-box-prev { background: #FFFFFF; border-color: #000000; }
+    .fin-box-paid { background: #F4F4F5; border: 2px solid #000000; }
+    .fin-box-rem { background: #FFFFFF; border-color: #000000; }
+    .fin-label { font-size: 12px; font-weight: 800; color: #000000; margin-bottom: 6px; }
+    .fin-value { font-size: 19px; font-weight: 900; line-height: 1.2; color: #000000; }
+    .fin-value-prev { color: #000000; }
+    .fin-value-paid { color: #000000; }
+    .fin-value-rem { color: #000000; }
+    .fin-sub { font-size: 11px; font-weight: 700; color: #000000; margin-top: 3px; }
 
     /* ── Meta details row ── */
     .meta-table {
       width: 100%;
       border-collapse: collapse;
       background: #FFFFFF;
-      border: 1px solid #E2E8F0;
-      border-radius: 12px;
+      border: 1.5px solid #000000;
+      border-radius: 8px;
       overflow: hidden;
       margin-bottom: 30px;
     }
     .meta-table td {
       padding: 10px 16px;
-      border-bottom: 1px solid #F1F5F9;
+      border-bottom: 1px solid #000000;
       font-size: 12.5px;
     }
     .meta-table tr:last-child td { border-bottom: none; }
-    .meta-label { color: #64748B; font-weight: 700; width: 35%; text-align: right; }
-    .meta-val { color: #0F172A; font-weight: 800; text-align: left; }
+    .meta-label { color: #000000; font-weight: 800; width: 35%; text-align: right; }
+    .meta-val { color: #000000; font-weight: 800; text-align: left; }
 
     /* ── Signatures ── */
     .signatures-table {
@@ -199,22 +198,22 @@ export function buildDebtPaymentA4HTML(
       padding: 0 20px;
     }
     .sig-line {
-      border-top: 1.5px dashed #CBD5E1;
+      border-top: 1.5px dashed #000000;
       margin-top: 45px;
       padding-top: 8px;
       font-size: 12px;
       font-weight: 800;
-      color: #64748B;
+      color: #000000;
     }
 
     /* ── Footer ── */
     .footer {
-      border-top: 1px solid #E2E8F0;
+      border-top: 1px solid #000000;
       padding-top: 12px;
       text-align: center;
       font-size: 11px;
-      color: #94A3B8;
-      font-weight: 600;
+      color: #000000;
+      font-weight: 700;
     }
   </style>
 </head>
@@ -392,17 +391,19 @@ export function buildDebtPaymentThermalHTML(
     }
 
     .biz-header { text-align: center; margin-bottom: 4px; }
-    .biz-name { font-size: ${titleFontSizePx}px; font-weight: 900; }
-    .biz-sub { font-size: ${baseFontSizePx - 1}px; color: #333; margin-top: 1px; }
+    .biz-name { font-size: ${titleFontSizePx}px; font-weight: 900; color: #000; }
+    .biz-sub { font-size: ${baseFontSizePx - 1}px; color: #000; margin-top: 1px; }
 
     .doc-badge {
       display: inline-block;
       padding: 2px 8px;
-      border: 1px solid #000;
+      border: 1.5px solid #000;
       border-radius: 4px;
       font-weight: 800;
       font-size: ${baseFontSizePx}px;
       margin: 4px 0;
+      color: #000;
+      background: #FFF;
     }
 
     .row {
@@ -413,25 +414,26 @@ export function buildDebtPaymentThermalHTML(
       margin: 3px 0;
       font-size: ${baseFontSizePx}px;
     }
-    .row-label { color: #333; font-weight: 700; text-align: right; }
-    .row-value { font-weight: 800; text-align: left; }
+    .row-label { color: #000; font-weight: 700; text-align: right; }
+    .row-value { color: #000; font-weight: 800; text-align: left; }
 
     .amount-highlight-box {
-      border: 1.5px solid #000;
+      border: 2px solid #000;
       border-radius: 6px;
       padding: 6px;
       margin: 6px 0;
       text-align: center;
-      background: #F8FAFC;
+      background: #FFF;
     }
-    .amount-highlight-label { font-size: ${baseFontSizePx - 1}px; font-weight: 700; color: #444; }
-    .amount-highlight-val { font-size: ${titleFontSizePx + 2}px; font-weight: 900; }
+    .amount-highlight-label { font-size: ${baseFontSizePx - 1}px; font-weight: 800; color: #000; }
+    .amount-highlight-val { font-size: ${titleFontSizePx + 2}px; font-weight: 900; color: #000; }
 
     .footer {
       text-align: center;
       font-size: ${baseFontSizePx - 2}px;
-      color: #555;
+      color: #000;
       margin-top: 8px;
+      font-weight: 600;
     }
   </style>
 </head>
@@ -483,7 +485,7 @@ export function buildDebtPaymentThermalHTML(
   <div class="amount-highlight-box">
     <div class="amount-highlight-label">${isCustomerPayment ? 'بڕی وەرگیراو لە کڕیار' : 'بڕی دراو بە دابینکەر'}</div>
     <div class="amount-highlight-val font-mono">+ ${fmtIQD(receipt.amount)} IQD</div>
-    <div style="font-size:${baseFontSizePx - 2}px; font-weight:700; color:#555;">($${fmtUSD(receipt.amount / exchangeRate)} USD)</div>
+    <div style="font-size:${baseFontSizePx - 2}px; font-weight:700; color:#000;">($${fmtUSD(receipt.amount / exchangeRate)} USD)</div>
   </div>
 
   <div class="row">

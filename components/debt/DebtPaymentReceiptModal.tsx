@@ -315,7 +315,7 @@ export function DebtPaymentReceiptModal({
                   <Text style={[styles.receiptInfoLabel, { fontWeight: '700' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }, { textAlign: isRTL ? 'right' : 'left' }]}>
                     {isKu ? 'قەرزی ماوە:' : 'Remaining Debt:'}
                   </Text>
-                  <Text style={[styles.receiptInfoValBold, { color: isSettled ? '#059669' : '#B45309', textAlign: isRTL ? 'left' : 'right' }]}>
+                  <Text style={[styles.receiptInfoValBold, { color: '#000000', textAlign: isRTL ? 'left' : 'right' }]}>
                     {fmtIQD(receipt.remainingAfter)} IQD
                   </Text>
                 </View>
@@ -333,8 +333,8 @@ export function DebtPaymentReceiptModal({
                   <Text style={[styles.receiptInfoLabel, isKu && { fontFamily: SETTINGS_KURDISH_FONT }, { textAlign: isRTL ? 'right' : 'left' }]}>
                     {isKu ? 'دۆخی قەرز:' : 'Debt Status:'}
                   </Text>
-                  <View style={[styles.statusPill, { backgroundColor: isSettled ? '#ECFDF5' : '#FEF3C7' }]}>
-                    <Text style={[{ color: isSettled ? '#059669' : '#B45309', fontSize: 11, fontWeight: '800' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  <View style={[styles.statusPill, { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#000000' }]}>
+                    <Text style={[{ color: '#000000', fontSize: 11, fontWeight: '800' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                       {statusLabel}
                     </Text>
                   </View>
@@ -505,38 +505,38 @@ const styles = StyleSheet.create({
   receiptLogoBox: {
     width: 44,
     height: 44,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderWidth: 1.5,
+    borderColor: '#000000',
   },
   receiptLogoLetter: {
     fontSize: 20,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontWeight: '900',
+    color: '#000000',
   },
   receiptBizName: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontWeight: '900',
+    color: '#000000',
   },
   receiptBizMeta: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#000000',
     marginTop: 1,
   },
   receiptDividerDashed: {
     borderStyle: 'dashed',
     borderBottomWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: '#000000',
     marginVertical: 12,
   },
   receiptDividerSolid: {
-    borderBottomWidth: 1,
-    borderColor: '#E2E8F0',
+    borderBottomWidth: 1.5,
+    borderColor: '#000000',
     marginVertical: 10,
   },
   receiptTitleBox: {
@@ -545,27 +545,27 @@ const styles = StyleSheet.create({
   },
   receiptDocTitle: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#B45309',
+    fontWeight: '900',
+    color: '#000000',
   },
   receiptNumber: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#000000',
     fontFamily: 'monospace',
     marginTop: 2,
   },
   receiptDateTime: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#000000',
     marginTop: 2,
   },
   partyBox: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     padding: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderWidth: 1.5,
+    borderColor: '#000000',
     gap: 4,
   },
   receiptInfoRow: {
@@ -575,26 +575,26 @@ const styles = StyleSheet.create({
   },
   receiptInfoLabel: {
     fontSize: 12,
-    color: '#475569',
+    color: '#000000',
     fontWeight: '700',
   },
   receiptInfoVal: {
     fontSize: 12,
-    color: '#0F172A',
+    color: '#000000',
     fontWeight: '600',
   },
   receiptInfoValBold: {
     fontSize: 12.5,
-    color: '#0F172A',
+    color: '#000000',
     fontWeight: '800',
   },
   financialSection: {
     gap: 6,
   },
   highlightPaidBox: {
-    backgroundColor: '#FEF9C3',
-    borderColor: '#FDE047',
-    borderWidth: 1,
+    backgroundColor: '#F4F4F5',
+    borderColor: '#000000',
+    borderWidth: 1.5,
     borderRadius: 8,
     padding: 8,
     alignItems: 'center',
@@ -602,19 +602,19 @@ const styles = StyleSheet.create({
   },
   highlightPaidLabel: {
     fontSize: 11.5,
-    color: '#854D0E',
-    fontWeight: '700',
+    color: '#000000',
+    fontWeight: '800',
   },
   highlightPaidAmount: {
     fontSize: 16,
     fontWeight: '900',
-    color: '#854D0E',
+    color: '#000000',
     marginTop: 2,
   },
   highlightPaidUsd: {
     fontSize: 10.5,
-    color: '#713F12',
-    fontWeight: '600',
+    color: '#000000',
+    fontWeight: '700',
     marginTop: 1,
   },
   statusPill: {
@@ -634,14 +634,14 @@ const styles = StyleSheet.create({
   },
   signatureLine: {
     width: '100%',
-    borderBottomWidth: 1,
-    borderBottomColor: '#CBD5E1',
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#000000',
     marginBottom: 4,
   },
   signatureText: {
     fontSize: 10.5,
-    color: '#64748B',
-    fontWeight: '600',
+    color: '#000000',
+    fontWeight: '700',
   },
   receiptFooter: {
     alignItems: 'center',
@@ -649,12 +649,12 @@ const styles = StyleSheet.create({
   },
   receiptFooterText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontWeight: '800',
+    color: '#000000',
   },
   receiptFooterSub: {
     fontSize: 9.5,
-    color: '#94A3B8',
+    color: '#000000',
     marginTop: 2,
   },
   bottomActionBar: {
