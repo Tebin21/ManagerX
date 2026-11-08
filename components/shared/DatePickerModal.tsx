@@ -63,6 +63,21 @@ const KURDISH_MONTHS = [
   'کانوونی یەکەم',
 ];
 
+const ARABIC_MONTHS = [
+  'كانون الثاني / يناير',
+  'شباط / فبراير',
+  'آذار / مارس',
+  'نيسان / أبريل',
+  'أيار / مايو',
+  'حزيران / يونيو',
+  'تموز / يوليو',
+  'آب / أغسطس',
+  'أيلول / سبتمبر',
+  'تشرين الأول / أكتوبر',
+  'تشرين الثاني / نوفمبر',
+  'كانون الأول / ديسمبر',
+];
+
 const ENGLISH_MONTHS = [
   'January',
   'February',
@@ -79,6 +94,7 @@ const ENGLISH_MONTHS = [
 ];
 
 const KURDISH_WEEKDAYS = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ه'];
+const ARABIC_WEEKDAYS = ['س', 'ح', 'ن', 'ث', 'ر', 'خ', 'ج'];
 const ENGLISH_WEEKDAYS = ['Sa', 'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr'];
 
 export function DatePickerModal({
@@ -94,6 +110,7 @@ export function DatePickerModal({
   const { colors, isDark } = useAppTheme();
   const { t } = useTranslation();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const isArabic = useLanguageStore((s) => s.language === 'ar');
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { isTablet } = useResponsive();
 
@@ -119,8 +136,8 @@ export function DatePickerModal({
     }
   }, [visible, currentDate]);
 
-  const monthName = isKurdish ? KURDISH_MONTHS[viewMonth] : ENGLISH_MONTHS[viewMonth];
-  const weekdays = isKurdish ? KURDISH_WEEKDAYS : ENGLISH_WEEKDAYS;
+  const monthName = isArabic ? ARABIC_MONTHS[viewMonth] : isKurdish ? KURDISH_MONTHS[viewMonth] : ENGLISH_MONTHS[viewMonth];
+  const weekdays = isArabic ? ARABIC_WEEKDAYS : isKurdish ? KURDISH_WEEKDAYS : ENGLISH_WEEKDAYS;
 
   // Month navigation
   const prevMonth = () => {
@@ -249,31 +266,31 @@ export function DatePickerModal({
   const quickShortcuts = useMemo(() => {
     if (mode === 'expiry') {
       return [
-        { label: isKurdish ? 'ئەمڕۆ' : 'Today', fn: jumpToToday },
-        { label: isKurdish ? '+١ مانگ' : '+1M', fn: () => applyOffset(1) },
-        { label: isKurdish ? '+٣ مانگ' : '+3M', fn: () => applyOffset(3) },
-        { label: isKurdish ? '+٦ مانگ' : '+6M', fn: () => applyOffset(6) },
-        { label: isKurdish ? '+١ ساڵ' : '+1Y', fn: () => applyOffset(0, 1) },
-        { label: isKurdish ? '+٢ ساڵ' : '+2Y', fn: () => applyOffset(0, 2) },
+        { label: isArabic ? 'اليوم' : isKurdish ? 'ئەمڕۆ' : 'Today', fn: jumpToToday },
+        { label: isArabic ? '+١ شهر' : isKurdish ? '+١ مانگ' : '+1M', fn: () => applyOffset(1) },
+        { label: isArabic ? '+٣ أشهر' : isKurdish ? '+٣ مانگ' : '+3M', fn: () => applyOffset(3) },
+        { label: isArabic ? '+٦ أشهر' : isKurdish ? '+٦ مانگ' : '+6M', fn: () => applyOffset(6) },
+        { label: isArabic ? '+١ سنة' : isKurdish ? '+١ ساڵ' : '+1Y', fn: () => applyOffset(0, 1) },
+        { label: isArabic ? '+٢ سنة' : isKurdish ? '+٢ ساڵ' : '+2Y', fn: () => applyOffset(0, 2) },
       ];
     }
     return [
-      { label: isKurdish ? 'ئەمڕۆ' : 'Today', fn: jumpToToday },
-      { label: isKurdish ? 'دوێنێ' : 'Yesterday', fn: () => {
+      { label: isArabic ? 'اليوم' : isKurdish ? 'ئەمڕۆ' : 'Today', fn: jumpToToday },
+      { label: isArabic ? 'أمس' : isKurdish ? 'دوێنێ' : 'Yesterday', fn: () => {
         const d = new Date();
         d.setDate(d.getDate() - 1);
         handleSelectDay(toYMD(d));
       }},
-      { label: isKurdish ? '-١ هەفتە' : '-1W', fn: () => {
+      { label: isArabic ? '-١ أسبوع' : isKurdish ? '-١ هەفتە' : '-1W', fn: () => {
         const d = new Date();
         d.setDate(d.getDate() - 7);
         handleSelectDay(toYMD(d));
       }},
-      { label: isKurdish ? '-١ مانگ' : '-1M', fn: () => applyOffset(-1) },
-      { label: isKurdish ? '-٦ مانگ' : '-6M', fn: () => applyOffset(-6) },
-      { label: isKurdish ? '-١ ساڵ' : '-1Y', fn: () => applyOffset(0, -1) },
+      { label: isArabic ? '-١ شهر' : isKurdish ? '-١ مانگ' : '-1M', fn: () => applyOffset(-1) },
+      { label: isArabic ? '-٦ أشهر' : isKurdish ? '-٦ مانگ' : '-6M', fn: () => applyOffset(-6) },
+      { label: isArabic ? '-١ سنة' : isKurdish ? '-١ ساڵ' : '-1Y', fn: () => applyOffset(0, -1) },
     ];
-  }, [mode, isKurdish, selectedYMD]);
+  }, [mode, isKurdish, isArabic, selectedYMD]);
 
   // Year quick list for fast year selection
   const yearOptions = useMemo(() => {
@@ -288,8 +305,8 @@ export function DatePickerModal({
   }, [today]);
 
   const defaultTitle = mode === 'expiry'
-    ? (isKurdish ? 'دیاریکردنی بەرواری بەسەرچوون' : 'Select Expiry Date')
-    : (isKurdish ? 'دیاریکردنی بەرواری دەرچوون' : 'Select Production Date');
+    ? (isArabic ? 'تحديد تاريخ انتهاء الصلاحية' : isKurdish ? 'دیاریکردنی بەرواری بەسەرچوون' : 'Select Expiry Date')
+    : (isArabic ? 'تحديد تاريخ الإنتاج' : isKurdish ? 'دیاریکردنی بەرواری دەرچوون' : 'Select Production Date');
 
   return (
     <Modal
@@ -438,7 +455,7 @@ export function DatePickerModal({
                       style={[styles.todayBadge, { backgroundColor: colors.primary + '18' }]}
                     >
                       <Text style={[styles.todayBadgeText, { color: colors.primary }]}>
-                        {isKurdish ? 'ئەمڕۆ' : 'Today'}
+                        {isArabic ? 'اليوم' : isKurdish ? 'ئەمڕۆ' : 'Today'}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -457,7 +474,7 @@ export function DatePickerModal({
               {showYearPicker ? (
                 <View style={styles.yearGridWrap}>
                   <Text style={[styles.yearGridHeader, { color: colors.gray400, textAlign }]}>
-                    {isKurdish ? 'ساڵ هەڵبژێرە:' : 'Select Year:'}
+                    {isArabic ? 'اختر السنة:' : isKurdish ? 'ساڵ هەڵبژێرە:' : 'Select Year:'}
                   </Text>
                   <View style={[styles.yearGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                     {yearOptions.map((y) => {
@@ -587,10 +604,10 @@ export function DatePickerModal({
                   style={[
                     styles.clearActionText,
                     { color: '#EF4444' },
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                    (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
                 >
-                  {isKurdish ? 'سڕینەوە' : 'Clear'}
+                  {isArabic ? 'مسح' : isKurdish ? 'سڕینەوە' : 'Clear'}
                 </Text>
               </TouchableOpacity>
             )}
@@ -607,7 +624,7 @@ export function DatePickerModal({
                 style={[
                   styles.cancelActionText,
                   { color: colors.gray600 },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
               >
                 {t('common.cancel', 'پاشگەزبوونەوە')}
@@ -623,10 +640,10 @@ export function DatePickerModal({
               <Text
                 style={[
                   styles.confirmActionText,
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
-                {isKurdish ? 'پەسەندکردن' : 'Confirm'}
+                {isArabic ? 'تأكيد' : isKurdish ? 'پەسەندکردن' : 'Confirm'}
               </Text>
             </TouchableOpacity>
           </View>

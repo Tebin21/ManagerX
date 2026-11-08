@@ -24,6 +24,7 @@ export function UsageLimitModal() {
   const { flexDirection } = useRTL();
   const language = useLanguageStore((s) => s.language);
   const isKu = language === 'ku';
+  const isAr = language === 'ar';
 
   if (!visible) return null;
 
@@ -35,21 +36,21 @@ export function UsageLimitModal() {
         await Linking.openURL(url);
       } else {
         Alert.alert(
-          isKu ? 'پەیوەندی بە سەپۆرتەوە' : 'Support Contact',
-          `${isKu ? 'ژمارەی مۆبایل: ' : 'Phone: '}${SUPPORT_PHONE}`
+          isAr ? 'الاتصال بالدعم الفني' : isKu ? 'پەیوەندی بە سەپۆرتەوە' : 'Support Contact',
+          `${isAr ? 'رقم الهاتف: ' : isKu ? 'ژمارەی مۆبایل: ' : 'Phone: '}${SUPPORT_PHONE}`
         );
       }
     } catch {
       Alert.alert(
-        isKu ? 'پەیوەندی بە سەپۆرتەوە' : 'Support Contact',
-        `${isKu ? 'ژمارەی مۆبایل: ' : 'Phone: '}${SUPPORT_PHONE}`
+        isAr ? 'الاتصال بالدعم الفني' : isKu ? 'پەیوەندی بە سەپۆرتەوە' : 'Support Contact',
+        `${isAr ? 'رقم الهاتف: ' : isKu ? 'ژمارەی مۆبایل: ' : 'Phone: '}${SUPPORT_PHONE}`
       );
     }
   };
 
-  const titleText = isKu ? 'سنووری بەکارهێنان تەواو بووە' : 'Usage Limit Reached';
-  const buttonText = isKu ? 'تکایە پەیوەندی بە سەپۆرتەوە بکە' : 'Please contact support';
-  const closeText = isKu ? 'داخستن' : 'Close';
+  const titleText = isAr ? 'تم استنفاد حد الاستخدام' : isKu ? 'سنووری بەکارهێنان تەواو بووە' : 'Usage Limit Reached';
+  const buttonText = isAr ? 'يرجى التواصل مع الدعم الفني' : isKu ? 'تکایە پەیوەندی بە سەپۆرتەوە بکە' : 'Please contact support';
+  const closeText = isAr ? 'إغلاق' : isKu ? 'داخستن' : 'Close';
 
   return (
     <Modal

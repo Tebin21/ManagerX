@@ -58,6 +58,7 @@ export default function EditProductScreen() {
   const insets = useSafeAreaInsets();
   const scrollIntoView = useKeyboardAwareFocus();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isAr = useLanguageStore((s) => s.language === 'ar');
 
   const [product, setProduct] = useState<InventoryProduct | null>(null);
   const [loading, setLoading] = useState(true);
@@ -213,14 +214,14 @@ export default function EditProductScreen() {
 
       Alert.alert(
         t('common.done'),
-        isKuLanguage ? 'گۆڕانکارییەکان بەسەرکەوتوویی پاشەکەوت کران' : t('inventory.saveChanges'),
+        isAr ? 'تم حفظ التغييرات بنجاح' : isKuLanguage ? 'گۆڕانکارییەکان بەسەرکەوتوویی پاشەکەوت کران' : t('inventory.saveChanges'),
         [
           {
-            text: isKuLanguage ? 'گەڕانەوە' : t('common.back', 'Back'),
+            text: isAr ? 'رجوع' : isKuLanguage ? 'گەڕانەوە' : t('common.back', 'Back'),
             onPress: () => router.back(),
           },
           {
-            text: isKuLanguage ? 'مانەوە لەم پەڕەیە' : t('common.done', 'Done'),
+            text: isAr ? 'البقاء في هذه الصفحة' : isKuLanguage ? 'مانەوە لەم پەڕەیە' : t('common.done', 'Done'),
             style: 'cancel',
           },
         ]
@@ -472,7 +473,7 @@ export default function EditProductScreen() {
             <View style={[styles.sectionHeaderRow, { flexDirection, marginBottom: 8, gap: 8 }]}>
               <Ionicons name="time-outline" size={17} color="#F59E0B" />
               <Text style={[styles.cardTitle, { color: colors.black, textAlign, marginBottom: 0, fontSize: 13 }]}>
-                {isKuLanguage ? 'بەرواری بەسەرچوون و دەرچوون' : 'Production & Expiry Dates'}
+                {isAr ? 'تواريخ الإنتاج والانتهاء' : isKuLanguage ? 'بەرواری بەسەرچوون و دەرچوون' : 'Production & Expiry Dates'}
               </Text>
             </View>
 
@@ -485,7 +486,7 @@ export default function EditProductScreen() {
                   {/* Production Date */}
                   <View style={[styles.fieldWrap, { marginTop: 6, marginBottom: 8 }]}>
                     <Text style={[styles.label, { fontSize: 12, color: colors.gray500, textAlign, marginBottom: 4 }]}>
-                      {isKuLanguage ? 'بەرواری دەرچوون / دروستکردن' : 'Production Date'}
+                      {isAr ? 'تاريخ الإنتاج' : isKuLanguage ? 'بەرواری دەرچوون / دروستکردن' : 'Production Date'}
                     </Text>
                     <View style={[styles.dateActionRow, { flexDirection, gap: 6 }]}>
                       <TouchableOpacity
@@ -505,7 +506,7 @@ export default function EditProductScreen() {
                       >
                         <Ionicons name="construct-outline" size={16} color={colors.primary} />
                         <Text style={[styles.dateBtnText, { fontSize: 13, color: productionDate ? colors.black : colors.gray400, flex: 1, textAlign: isRTL ? 'right' : 'left' }]}>
-                          {productionDate ? toDateOnly(productionDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
+                          {productionDate ? toDateOnly(productionDate) : (isAr ? 'غير محدد' : isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
                         </Text>
                         <Ionicons name="calendar-outline" size={14} color={colors.gray400} />
                       </TouchableOpacity>
@@ -523,8 +524,8 @@ export default function EditProductScreen() {
                         ]}
                         activeOpacity={0.7}
                       >
-                        <Text style={[styles.quickBtnText, { fontSize: 12, color: colors.black }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                          {isKuLanguage ? 'ئەمڕۆ' : 'Today'}
+                        <Text style={[styles.quickBtnText, { fontSize: 12, color: colors.black }, (isKuLanguage || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                          {isAr ? 'اليوم' : isKuLanguage ? 'ئەمڕۆ' : 'Today'}
                         </Text>
                       </TouchableOpacity>
 
@@ -561,7 +562,7 @@ export default function EditProductScreen() {
                   {/* Expiry Date */}
                   <View style={[styles.fieldWrap, { marginTop: 4, marginBottom: 4 }]}>
                     <Text style={[styles.label, { fontSize: 12, color: colors.gray500, textAlign, marginBottom: 4 }]}>
-                      {isKuLanguage ? 'بەرواری بەسەرچوون' : 'Expiry Date'}
+                      {isAr ? 'تاريخ انتهاء الصلاحية' : isKuLanguage ? 'بەرواری بەسەرچوون' : 'Expiry Date'}
                     </Text>
                     <View style={[styles.dateActionRow, { flexDirection, gap: 6 }]}>
                       <TouchableOpacity
@@ -611,7 +612,7 @@ export default function EditProductScreen() {
                             },
                           ]}
                         >
-                          {expiryDate ? toDateOnly(expiryDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
+                          {expiryDate ? toDateOnly(expiryDate) : (isAr ? 'غير محدد' : isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
                         </Text>
 
                         {/* Inline Badge right next to the date */}
@@ -745,11 +746,11 @@ export default function EditProductScreen() {
               {/* Quick shortcut chips */}
               <View style={[styles.quickExpiryRow, { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'nowrap', gap: 5, marginTop: 6 }]}>
                 {[
-                  { label: isKuLanguage ? '+١ مانگ' : '+1M', m: 1 },
-                  { label: isKuLanguage ? '+٣ مانگ' : '+3M', m: 3 },
-                  { label: isKuLanguage ? '+٦ مانگ' : '+6M', m: 6 },
-                  { label: isKuLanguage ? '+١ ساڵ' : '+1Y', m: 12 },
-                  { label: isKuLanguage ? '+٢ ساڵ' : '+2Y', m: 24 },
+                  { label: isAr ? '+١ شهر' : isKuLanguage ? '+١ مانگ' : '+1M', m: 1 },
+                  { label: isAr ? '+٣ أشهر' : isKuLanguage ? '+٣ مانگ' : '+3M', m: 3 },
+                  { label: isAr ? '+٦ أشهر' : isKuLanguage ? '+٦ مانگ' : '+6M', m: 6 },
+                  { label: isAr ? '+١ سنة' : isKuLanguage ? '+١ ساڵ' : '+1Y', m: 12 },
+                  { label: isAr ? '+٢ سنة' : isKuLanguage ? '+٢ ساڵ' : '+2Y', m: 24 },
                 ].map((c) => (
                   <TouchableOpacity
                     key={c.m}
@@ -776,7 +777,7 @@ export default function EditProductScreen() {
                       style={[
                         styles.expiryChipText,
                         { fontSize: 11, color: isDark ? '#FBBF24' : '#B45309', textAlign: 'center' },
-                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        (isKuLanguage || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                       numberOfLines={1}
                       adjustsFontSizeToFit
@@ -795,7 +796,7 @@ export default function EditProductScreen() {
               onSelect={(d) => setProductionDate(d)}
               onClear={() => setProductionDate(null)}
               mode="production"
-              title={isKuLanguage ? 'دیاریکردنی بەرواری دەرچوون' : 'Select Production Date'}
+              title={isAr ? 'تحديد تاريخ الإنتاج' : isKuLanguage ? 'دیاریکردنی بەرواری دەرچوون' : 'Select Production Date'}
             />
 
             {/* Expiry Date Modal */}
@@ -806,7 +807,7 @@ export default function EditProductScreen() {
               onSelect={(d) => setExpiryDate(d)}
               onClear={() => setExpiryDate(null)}
               mode="expiry"
-              title={isKuLanguage ? 'دیاریکردنی بەرواری بەسەرچوون' : 'Select Expiry Date'}
+              title={isAr ? 'تحديد تاريخ انتهاء الصلاحية' : isKuLanguage ? 'دیاریکردنی بەرواری بەسەرچوون' : 'Select Expiry Date'}
             />
           </View>
         )}
@@ -931,8 +932,8 @@ export default function EditProductScreen() {
           ) : (
             <>
               <Ionicons name="checkmark" size={20} color="#fff" />
-              <Text style={[styles.saveBtnText, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                {isKuLanguage ? 'پاشەکەوتکردنی گۆڕانکارییەکان' : 'Save Changes'}
+              <Text style={[styles.saveBtnText, (isKuLanguage || isAr) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                {isAr ? 'حفظ التغييرات' : isKuLanguage ? 'پاشەکەوتکردنی گۆڕانکارییەکان' : 'Save Changes'}
               </Text>
             </>
           )}

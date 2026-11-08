@@ -171,6 +171,7 @@ export default function PurchaseDebtDetailScreen() {
   const scrollIntoView = useKeyboardAwareFocus();
   const { isRTL, textAlign, flexDirection, valueAlign } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isArLanguage = useLanguageStore((s) => s.language === 'ar');
   const business = useBusinessStore();
 
   const [debt, setDebt]         = useState<PurchaseDebt | null>(null);
@@ -381,7 +382,7 @@ export default function PurchaseDebtDetailScreen() {
               {debt.batchNumber ? (
                 <View style={[styles.batchNumPill, { backgroundColor: colors.primary }]}>
                   <Text style={[styles.batchNumPillText, { color: colors.white }]}>
-                    {isKuLanguage ? `وەجبەی ${debt.batchNumber}` : `Batch #${debt.batchNumber}`}
+                    {isArLanguage ? `وجبة ${debt.batchNumber}` : isKuLanguage ? `وەجبەی ${debt.batchNumber}` : `Batch #${debt.batchNumber}`}
                   </Text>
                 </View>
               ) : null}
@@ -397,9 +398,9 @@ export default function PurchaseDebtDetailScreen() {
             </View>
             {debt.totalBatches && debt.totalBatches > 1 ? (
               <View style={[styles.infoRow, { flexDirection }]}>
-                <Text style={[styles.infoLabel, { textAlign }]}>{isKuLanguage ? 'کۆی وەجبەکانی بەرهەم' : 'Total Batches'}</Text>
+                <Text style={[styles.infoLabel, { textAlign }]}>{isArLanguage ? 'إجمالي وجبات المنتج' : isKuLanguage ? 'کۆی وەجبەکانی بەرهەم' : 'Total Batches'}</Text>
                 <Text style={[styles.infoValue, { textAlign: valueAlign, color: colors.primary, fontWeight: '700' }]}>
-                  {debt.totalBatches} {isKuLanguage ? 'وەجبە' : 'batches'}
+                  {debt.totalBatches} {isArLanguage ? 'وجبات' : isKuLanguage ? 'وەجبە' : 'batches'}
                 </Text>
               </View>
             ) : null}
@@ -418,8 +419,8 @@ export default function PurchaseDebtDetailScreen() {
                   <View style={[styles.itemBatchBadge, { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF9C3', borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : '#FDE047' }]}>
                     <Ionicons name="layers" size={11} color={colors.primary} />
                     <Text style={[styles.itemBatchBadgeText, { color: isDark ? '#FDE047' : '#854D0E' }]}>
-                      {isKuLanguage ? `وەجبەی ${debt.batchNumber || 1}` : `Batch #${debt.batchNumber || 1}`}
-                      {debt.totalBatches && debt.totalBatches > 1 ? ` (${isKuLanguage ? `لە کۆی ${debt.totalBatches}` : `of ${debt.totalBatches}`})` : ''}
+                      {isArLanguage ? `وجبة ${debt.batchNumber || 1}` : isKuLanguage ? `وەجبەی ${debt.batchNumber || 1}` : `Batch #${debt.batchNumber || 1}`}
+                      {debt.totalBatches && debt.totalBatches > 1 ? ` (${isArLanguage ? `من إجمالي ${debt.totalBatches}` : isKuLanguage ? `لە کۆی ${debt.totalBatches}` : `of ${debt.totalBatches}`})` : ''}
                     </Text>
                   </View>
                   {purchase.itemIds.length > 0 ? (
@@ -429,7 +430,7 @@ export default function PurchaseDebtDetailScreen() {
 
                 {purchase.expiryDate ? (
                   <View style={[styles.infoRow, { flexDirection, marginTop: 6, marginBottom: 0 }]}>
-                    <Text style={[styles.infoLabel, { textAlign }]}>{isKuLanguage ? 'بەرواری بەسەرچوون' : 'Expiry Date'}</Text>
+                    <Text style={[styles.infoLabel, { textAlign }]}>{isArLanguage ? 'تاريخ انتهاء الصلاحية' : isKuLanguage ? 'بەرواری بەسەرچوون' : 'Expiry Date'}</Text>
                     <DateText value={purchase.expiryDate} style={[styles.infoValue, { textAlign: 'right', color: colors.warning }]} />
                   </View>
                 ) : null}
@@ -454,7 +455,9 @@ export default function PurchaseDebtDetailScreen() {
             <View style={[styles.batchDebtNoticeBanner, { flexDirection, backgroundColor: isDark ? 'rgba(239, 68, 68, 0.08)' : '#FEF2F2', borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FECACA' }]}>
               <Ionicons name="information-circle-outline" size={16} color={colors.error} />
               <Text style={[styles.batchDebtNoticeText, { color: isDark ? '#FCA5A5' : '#991B1B', textAlign: isRTL ? 'right' : 'left' }]}>
-                {isKuLanguage
+                {isArLanguage
+                  ? `هذا الدين (${fmtIQD(debt.remainingAmount)} دينار) خاص بالوجبة رقم ${debt.batchNumber || 1} لهذا المنتج من المورد`
+                  : isKuLanguage
                   ? `ئەم قەرزە (${fmtIQD(debt.remainingAmount)} دینار) تایبەتە بە وەجبەی ${debt.batchNumber || 1}ی ئەم بەرهەمە لە دابینکەر`
                   : `This debt (${fmtIQD(debt.remainingAmount)} IQD) belongs to Batch #${debt.batchNumber || 1} purchased from this supplier`}
               </Text>
@@ -478,7 +481,7 @@ export default function PurchaseDebtDetailScreen() {
                 >
                   <Ionicons name="layers" size={14} color={colors.primary} />
                   <Text style={[styles.viewInventoryBtnText, { color: isDark ? '#FDE047' : '#854D0E' }]}>
-                    {isKuLanguage ? 'وەجبەکانی کۆگا' : 'Inventory Batches'}
+                    {isArLanguage ? 'وجبات المخزن' : isKuLanguage ? 'وەجبەکانی کۆگا' : 'Inventory Batches'}
                   </Text>
                 </TouchableOpacity>
               ) : null}

@@ -25,6 +25,7 @@ export function FinancialTimelineItem({ event, isLast }: FinancialTimelineItemPr
   const paidTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const { flexDirection, textAlign } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isArLanguage = useLanguageStore((s) => s.language === 'ar');
 
   const dotColor =
     event.type === 'debt_created' ? colors.primary
@@ -87,7 +88,7 @@ export function FinancialTimelineItem({ event, isLast }: FinancialTimelineItemPr
                         : (isDark ? '#6EE7B7' : '#047857'),
                     }}
                   >
-                    {event.paymentMethod.toLowerCase() === 'fib' ? 'FIB' : (isKuLanguage ? 'کاش' : 'Cash')}
+                    {event.paymentMethod.toLowerCase() === 'fib' ? 'FIB' : (isArLanguage ? 'نقداً' : isKuLanguage ? 'کاش' : 'Cash')}
                   </Text>
                 </View>
               ) : null}

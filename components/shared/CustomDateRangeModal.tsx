@@ -72,6 +72,21 @@ const KURDISH_MONTHS = [
   'کانوونی یەکەم',
 ];
 
+const ARABIC_MONTHS = [
+  'كانون الثاني / يناير',
+  'شباط / فبراير',
+  'آذار / مارس',
+  'نيسان / أبريل',
+  'أيار / مايو',
+  'حزيران / يونيو',
+  'تموز / يوليو',
+  'آب / أغسطس',
+  'أيلول / سبتمبر',
+  'تشرين الأول / أكتوبر',
+  'تشرين الثاني / نوفمبر',
+  'کانون الأول / ديسمبر',
+];
+
 const ENGLISH_MONTHS = [
   'January',
   'February',
@@ -104,6 +119,16 @@ const KURDISH_WEEKDAYS: WeekdayHeaderItem[] = [
   { id: 'fri', label: 'هەینی' },
 ];
 
+const ARABIC_WEEKDAYS: WeekdayHeaderItem[] = [
+  { id: 'sat', label: 'السبت' },
+  { id: 'sun', label: 'الأحد' },
+  { id: 'mon', label: 'الإثنين' },
+  { id: 'tue', label: 'الثلاثاء' },
+  { id: 'wed', label: 'الأربعاء' },
+  { id: 'thu', label: 'الخميس' },
+  { id: 'fri', label: 'الجمعة' },
+];
+
 const ENGLISH_WEEKDAYS: WeekdayHeaderItem[] = [
   { id: 'sat', label: 'Sat' },
   { id: 'sun', label: 'Sun' },
@@ -126,6 +151,7 @@ export function CustomDateRangeModal({
   const { colors, isDark } = useAppTheme();
   const { t } = useTranslation();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const isArabic = useLanguageStore((s) => s.language === 'ar');
   const { isRTL, textAlign } = useRTL();
   const { isTablet, isTabletLandscape } = useResponsive();
 
@@ -203,16 +229,16 @@ export function CustomDateRangeModal({
     const endY = new Date(now.getFullYear(), 11, 31);
 
     return [
-      { key: 'today', label: isKurdish ? 'ئەمڕۆ' : 'Today', from: todayYMD, to: todayYMD },
-      { key: 'yesterday', label: isKurdish ? 'دوێنێ' : 'Yesterday', from: yestYMD, to: yestYMD },
-      { key: 'last7', label: isKurdish ? '٧ ڕۆژ' : 'Last 7 Days', from: l7YMD, to: todayYMD },
-      { key: 'thisWeek', label: isKurdish ? 'ئەم هەفتەیە' : 'This Week', from: toYMD(sat), to: toYMD(fri) },
-      { key: 'last30', label: isKurdish ? '٣٠ ڕۆژ' : 'Last 30 Days', from: l30YMD, to: todayYMD },
-      { key: 'thisMonth', label: isKurdish ? 'ئەم مانگە' : 'This Month', from: toYMD(startM), to: toYMD(endM) },
-      { key: 'lastMonth', label: isKurdish ? 'مانگی پێشوو' : 'Last Month', from: toYMD(startLM), to: toYMD(endLM) },
-      { key: 'thisYear', label: isKurdish ? 'ئەمساڵ' : 'This Year', from: toYMD(startY), to: toYMD(endY) },
+      { key: 'today', label: isArabic ? 'اليوم' : isKurdish ? 'ئەمڕۆ' : 'Today', from: todayYMD, to: todayYMD },
+      { key: 'yesterday', label: isArabic ? 'أمس' : isKurdish ? 'دوێنێ' : 'Yesterday', from: yestYMD, to: yestYMD },
+      { key: 'last7', label: isArabic ? '٧ أيام' : isKurdish ? '٧ ڕۆژ' : 'Last 7 Days', from: l7YMD, to: todayYMD },
+      { key: 'thisWeek', label: isArabic ? 'هذا الأسبوع' : isKurdish ? 'ئەم هەفتەیە' : 'This Week', from: toYMD(sat), to: toYMD(fri) },
+      { key: 'last30', label: isArabic ? '٣٠ يوماً' : isKurdish ? '٣٠ ڕۆژ' : 'Last 30 Days', from: l30YMD, to: todayYMD },
+      { key: 'thisMonth', label: isArabic ? 'هذا الشهر' : isKurdish ? 'ئەم مانگە' : 'This Month', from: toYMD(startM), to: toYMD(endM) },
+      { key: 'lastMonth', label: isArabic ? 'الشهر الماضي' : isKurdish ? 'مانگی پێشوو' : 'Last Month', from: toYMD(startLM), to: toYMD(endLM) },
+      { key: 'thisYear', label: isArabic ? 'هذا العام' : isKurdish ? 'ئەمساڵ' : 'This Year', from: toYMD(startY), to: toYMD(endY) },
     ];
-  }, [todayDate, isKurdish]);
+  }, [todayDate, isKurdish, isArabic]);
 
   const checkPresetMatch = useCallback(
     (from: string, to: string) => {
@@ -353,8 +379,8 @@ export function CustomDateRangeModal({
   };
 
   const selectedDaysCount = diffInDays(fromVal, toVal);
-  const monthName = isKurdish ? KURDISH_MONTHS[viewMonth] : ENGLISH_MONTHS[viewMonth];
-  const weekdays = isKurdish ? KURDISH_WEEKDAYS : ENGLISH_WEEKDAYS;
+  const monthName = isArabic ? ARABIC_MONTHS[viewMonth] : isKurdish ? KURDISH_MONTHS[viewMonth] : ENGLISH_MONTHS[viewMonth];
+  const weekdays = isArabic ? ARABIC_WEEKDAYS : isKurdish ? KURDISH_WEEKDAYS : ENGLISH_WEEKDAYS;
 
   // Responsive modal dimensions
   const modalBoxWidth = isTabletLandscape ? 560 : isTablet ? 500 : '92%';
@@ -506,7 +532,7 @@ export function CustomDateRangeModal({
                 {selectedDaysCount > 0 && (
                   <View style={[styles.daysBadge, { backgroundColor: colors.primary + '20' }]}>
                     <Text style={[styles.daysBadgeText, { color: colors.primary }]}>
-                      {selectedDaysCount} {isKurdish ? 'ڕۆژ' : 'd'}
+                      {selectedDaysCount} {isArabic ? 'يوم' : isKurdish ? 'ڕۆژ' : 'd'}
                     </Text>
                   </View>
                 )}
@@ -819,8 +845,8 @@ export function CustomDateRangeModal({
                 </Text>
                 {selectedDaysCount > 0 && (
                   <View style={styles.applyBtnBadge}>
-                    <Text style={[styles.applyBtnBadgeText, isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                      {selectedDaysCount} {isKurdish ? 'ڕۆژ' : 'd'}
+                    <Text style={[styles.applyBtnBadgeText, (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                      {selectedDaysCount} {isArabic ? 'يوم' : isKurdish ? 'ڕۆژ' : 'd'}
                     </Text>
                   </View>
                 )}

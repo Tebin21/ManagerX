@@ -1384,7 +1384,7 @@ export default function InstallmentsScreen() {
                 >
                   <Ionicons name="calendar-outline" size={16} color="#6366F1" />
                   <Text style={[styles.breakdownBoxTitle, { color: colors.gray600 }]}>
-                    ≤ ٦ مانگ
+                    {isArLanguage ? '≤ ٦ أشهر' : isKuLanguage ? '≤ ٦ مانگ' : '≤ 6 mo'}
                   </Text>
                   <Text style={[styles.breakdownBoxCount, { color: colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                     {periodSummary.shortTermCount}
@@ -1403,7 +1403,7 @@ export default function InstallmentsScreen() {
                 >
                   <Ionicons name="calendar-number-outline" size={16} color="#8B5CF6" />
                   <Text style={[styles.breakdownBoxTitle, { color: colors.gray600 }]}>
-                    {'> ٦ مانگ'}
+                    {isArLanguage ? '> ٦ أشهر' : isKuLanguage ? '> ٦ مانگ' : '> 6 mo'}
                   </Text>
                   <Text style={[styles.breakdownBoxCount, { color: colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                     {periodSummary.longTermCount}

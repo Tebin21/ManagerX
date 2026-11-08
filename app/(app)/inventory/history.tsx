@@ -40,6 +40,7 @@ export default function InventoryHistoryScreen() {
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { isTablet, isTabletLandscape } = useResponsive();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const isAr = useLanguageStore((s) => s.language === 'ar');
 
   const {
     inventoryHistory,
@@ -134,22 +135,22 @@ export default function InventoryHistoryScreen() {
 
   const filterKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
   const filterLabels: Record<PeriodKey, string> = {
-    today:  isKurdish ? 'ئەمڕۆ' : t('common.today', 'Today'),
-    week:   isKurdish ? 'ئەم هەفتەیە' : t('common.thisWeek', 'This Week'),
-    month:  isKurdish ? 'ئەم مانگە' : t('common.thisMonth', 'This Month'),
-    year:   isKurdish ? 'ئەمساڵ' : t('reports.year', 'This Year'),
-    all:    isKurdish ? 'هەمووی' : 'All',
-    custom: isKurdish ? 'دیاریکراو' : t('reports.custom', 'Custom'),
+    today:  isAr ? 'اليوم' : isKurdish ? 'ئەمڕۆ' : t('common.today', 'Today'),
+    week:   isAr ? 'هذا الأسبوع' : isKurdish ? 'ئەم هەفتەیە' : t('common.thisWeek', 'This Week'),
+    month:  isAr ? 'هذا الشهر' : isKurdish ? 'ئەم مانگە' : t('common.thisMonth', 'This Month'),
+    year:   isAr ? 'هذا العام' : isKurdish ? 'ئەمساڵ' : t('reports.year', 'This Year'),
+    all:    isAr ? 'الكل' : isKurdish ? 'هەمووی' : 'All',
+    custom: isAr ? 'مخصص' : isKurdish ? 'دیاریکراو' : t('reports.custom', 'Custom'),
   };
 
   const periodDisplayLabel = useMemo(() => {
-    if (period === 'today') return isKurdish ? 'ئەمڕۆ' : t('common.today', 'Today');
-    if (period === 'week') return isKurdish ? 'ئەم هەفتەیە' : t('common.thisWeek', 'This Week');
-    if (period === 'month') return isKurdish ? 'ئەم مانگە' : t('common.thisMonth', 'This Month');
-    if (period === 'year') return isKurdish ? 'ئەمساڵ' : t('reports.year', 'This Year');
-    if (period === 'all') return isKurdish ? 'هەمووی' : 'All';
+    if (period === 'today') return isAr ? 'اليوم' : isKurdish ? 'ئەمڕۆ' : t('common.today', 'Today');
+    if (period === 'week') return isAr ? 'هذا الأسبوع' : isKurdish ? 'ئەم هەفتەیە' : t('common.thisWeek', 'This Week');
+    if (period === 'month') return isAr ? 'هذا الشهر' : isKurdish ? 'ئەم مانگە' : t('common.thisMonth', 'This Month');
+    if (period === 'year') return isAr ? 'هذا العام' : isKurdish ? 'ئەمساڵ' : t('reports.year', 'This Year');
+    if (period === 'all') return isAr ? 'الكل' : isKurdish ? 'هەمووی' : 'All';
     return `${formatDateShort(bounds.from)} → ${formatDateShort(bounds.to)}`;
-  }, [period, bounds, isKurdish, t]);
+  }, [period, bounds, isKurdish, isAr, t]);
 
   const handlePeriodTabPress = (key: PeriodKey) => {
     if (key === 'custom') {

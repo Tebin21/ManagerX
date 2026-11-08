@@ -170,6 +170,7 @@ export default function SalesDebtDetailScreen() {
   const scrollIntoView = useKeyboardAwareFocus();
   const { isRTL, textAlign, flexDirection, valueAlign } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isArLanguage = useLanguageStore((s) => s.language === 'ar');
   const business = useBusinessStore();
 
   const [debt, setDebt] = useState<SalesDebtDetail | null>(null);
@@ -414,7 +415,7 @@ export default function SalesDebtDetailScreen() {
               >
                 <Ionicons name="receipt-outline" size={15} color={colors.primary} />
                 <Text style={[styles.viewSaleBtnText, { color: isDark ? '#FDE047' : '#854D0E' }]}>
-                  {isKuLanguage ? 'بینینی پسوولەی فرۆشتن' : 'View Sale Invoice'}
+                  {isArLanguage ? 'عرض فاتورة البيع' : isKuLanguage ? 'بینینی پسوولەی فرۆشتن' : 'View Sale Invoice'}
                 </Text>
                 <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={15} color={colors.primary} />
               </TouchableOpacity>
@@ -431,7 +432,7 @@ export default function SalesDebtDetailScreen() {
                 <View style={[styles.itemBatchCountPill, { backgroundColor: colors.primary + '18' }]}>
                   <Ionicons name="layers" size={11} color={colors.primary} />
                   <Text style={[styles.itemBatchCountPillText, { color: colors.primary }]}>
-                    {sale.items.length} {isKuLanguage ? 'بەرهەم' : 'Items'}
+                    {sale.items.length} {isArLanguage ? 'منتجات' : isKuLanguage ? 'بەرهەم' : 'Items'}
                   </Text>
                 </View>
               </View>
@@ -458,7 +459,7 @@ export default function SalesDebtDetailScreen() {
                     <View style={[styles.itemBatchBadge, { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF9C3', borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : '#FDE047' }]}>
                       <Ionicons name="layers" size={11} color={colors.primary} />
                       <Text style={[styles.itemBatchBadgeText, { color: isDark ? '#FDE047' : '#854D0E' }]}>
-                        {isKuLanguage ? `وەجبەی ${item.batchNumber || 1}` : `Batch #${item.batchNumber || 1}`}
+                        {isArLanguage ? `وجبة ${item.batchNumber || 1}` : isKuLanguage ? `وەجبەی ${item.batchNumber || 1}` : `Batch #${item.batchNumber || 1}`}
                       </Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -468,7 +469,7 @@ export default function SalesDebtDetailScreen() {
                       {item.productId ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                           <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
-                            {isKuLanguage ? 'کۆگا' : 'Stock'}
+                            {isArLanguage ? 'المخزن' : isKuLanguage ? 'کۆگا' : 'Stock'}
                           </Text>
                           <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={12} color={colors.primary} />
                         </View>
@@ -645,7 +646,7 @@ export default function SalesDebtDetailScreen() {
             >
               <Ionicons name="print-outline" size={18} color="#FFFFFF" />
               <Text style={[styles.addPayBtnText, { color: '#FFFFFF' }]}>
-                {isKuLanguage ? 'پرینتکردنی وەسڵی قەرز و گەڕانەوە بۆ فرۆشتن' : 'Print Debt Receipt & Return to Sales'}
+                {isArLanguage ? 'طباعة إيصال الدين والرجوع إلى المبيعات' : isKuLanguage ? 'پرینتکردنی وەسڵی قەرز و گەڕانەوە بۆ فرۆشتن' : 'Print Debt Receipt & Return to Sales'}
               </Text>
             </TouchableOpacity>
           </View>
