@@ -501,6 +501,12 @@
   "installmentList": {
     "title": "قیستەکان",
     "subtitle": "کڕیاران، مانگانە و بەڕێوەبردنی قیست",
+    "reportTab": "ڕاپۆرت",
+    "customersTab": "کەسەکان",
+    "statusOverview": "پوختەی دۆخی قیستەکان",
+    "durationDistribution": "دابەشبوونی ماوەکان",
+    "collectionRate": "ڕێژەی کۆکردنەوە",
+    "customRange": "دیاریکراو",
     "searchPlaceholder": "گەڕان بەپێی ناوی کڕیار، مۆبایل، ژمارەی پسوولە...",
     "totalInstallments": "کۆی قیستەکان",
     "totalRemaining": "کۆی ماوە",

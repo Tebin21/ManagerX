@@ -461,6 +461,12 @@
   "installmentList": {
     "title": "Installments",
     "subtitle": "Customer installment sales & payment management",
+    "reportTab": "Report",
+    "customersTab": "Customers",
+    "statusOverview": "Installments Status Overview",
+    "durationDistribution": "Duration Distribution",
+    "collectionRate": "Collection Rate",
+    "customRange": "Custom",
     "searchPlaceholder": "Search customer name, phone, invoice #...",
     "totalInstallments": "Total Installments",
     "totalRemaining": "Total Remaining",

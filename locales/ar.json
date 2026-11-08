@@ -568,6 +568,12 @@
   "installmentList": {
     "title": "الأقساط",
     "subtitle": "أقساط الزبائن والتحصيل الشهري",
+    "reportTab": "تقرير",
+    "customersTab": "الزبائن",
+    "statusOverview": "نظرة عامة على حالة الأقساط",
+    "durationDistribution": "توزيع مدة الأقساط",
+    "collectionRate": "نسبة التحصيل",
+    "customRange": "مخصص",
     "searchPlaceholder": "البحث باسم الزبون، الهاتف، رقم الوصل...",
     "totalInstallments": "إجمالي الأقساط",
     "totalRemaining": "إجمالي المتبقي",

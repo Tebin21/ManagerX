@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -25,6 +25,7 @@ import * as Haptics from 'expo-haptics';
 import { AppHeader } from '@/components/common/AppHeader';
 import { InvoiceView } from '@/components/sales/InvoiceView';
 import { DebtPaymentReceiptModal } from '@/components/debt/DebtPaymentReceiptModal';
+import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { useLanguageStore } from '@/store/languageStore';
@@ -34,6 +35,7 @@ import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { fmtIQD, fmtUSD, toEnglishDigits, formatDate } from '@/utils/formatters';
+import { getPeriodBounds, isDateWithinRange, type PeriodKey } from '@/utils/dateRanges';
 import {
   getAllInstallmentSales,
   recordInstallmentPayment,
@@ -44,20 +46,23 @@ import { directPrintInvoice } from '@/lib/generateInvoice';
 import type { DebtPaymentReceiptData } from '@/types/debt';
 import type { Sale } from '@/types/sales';
 
-type FilterType = 'all' | 'active' | 'settled' | 'shortTerm' | 'longTerm';
+type MainTab = 'report' | 'customers';
+type StatusFilterType = 'all' | 'active' | 'settled' | 'shortTerm' | 'longTerm';
 
 export default function InstallmentsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
-  const { isTablet, contentContainerStyle } = useResponsive();
-  const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
+  const { width: windowWidth } = useWindowDimensions();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const exchangeRate = useSettingsStore((s) => s.exchangeRate || 1310);
   const baseCurrency = useSettingsStore((s) => s.baseCurrency || 'USD');
   const isUSD = baseCurrency === 'USD';
 
+  // Formatters
   const formatPrimary = useCallback((valIQD: number) => {
     if (isUSD) {
       return `$${fmtUSD(valIQD / exchangeRate)}`;
@@ -72,13 +77,27 @@ export default function InstallmentsScreen() {
     return `≈ $${fmtUSD(valIQD / exchangeRate)}`;
   }, [isUSD, exchangeRate]);
 
+  // Main Tab State: 'report' or 'customers'
+  const [tab, setTab] = useState<MainTab>('report');
+
+  // Raw data from SQLite
   const [installments, setInstallments] = useState<InstallmentSaleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Search & Filter
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  // Period Filter State (History-style)
+  const [periodKey, setPeriodKey] = useState<PeriodKey>('all');
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
+  const [customDateModalVisible, setCustomDateModalVisible] = useState(false);
+
+  // Search Bar State (History-style expandable search button)
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [query, setQuery] = useState('');
+  const searchInputRef = useRef<TextInput>(null);
+  const filterScrollRef = useRef<ScrollView>(null);
+
+  // Sub-filter category for the Customers tab
+  const [statusFilter, setStatusFilter] = useState<StatusFilterType>('all');
 
   // Payment Modal State
   const [payModalVisible, setPayModalVisible] = useState(false);
@@ -99,9 +118,8 @@ export default function InstallmentsScreen() {
   // Sale Invoice View Modal State
   const [invoiceModalVisible, setInvoiceModalVisible] = useState(false);
   const [viewingSale, setViewingSale] = useState<Sale | null>(null);
-  const [loadingSaleInvoice, setLoadingSaleInvoice] = useState(false);
 
-  // Load installments
+  // Load installments from SQLite
   const loadData = useCallback(async () => {
     try {
       const rows = await getAllInstallmentSales();
@@ -123,11 +141,27 @@ export default function InstallmentsScreen() {
     loadData();
   }, [loadData]);
 
-  // Filtered List
-  const filteredInstallments = useMemo(() => {
-    return installments.filter((item) => {
-      // 1. Text Search
-      const q = searchQuery.toLowerCase().trim();
+  // Compute Date Bounds
+  const bounds = useMemo(() => {
+    if (periodKey === 'custom' && customRange) {
+      return getPeriodBounds('custom', customRange.from, customRange.to);
+    }
+    return getPeriodBounds(periodKey);
+  }, [periodKey, customRange]);
+
+  // 1. Filter by Date Period
+  const periodFilteredInstallments = useMemo(() => {
+    if (periodKey === 'all') return installments;
+    return installments.filter((item) =>
+      isDateWithinRange(item.saleDate, bounds.from, bounds.to)
+    );
+  }, [installments, periodKey, bounds]);
+
+  // 2. Filter by Search Query & Sub-filter Status (for Customers Tab)
+  const visibleInstallments = useMemo(() => {
+    return periodFilteredInstallments.filter((item) => {
+      // Search text match
+      const q = query.toLowerCase().trim();
       if (q) {
         const matchName = item.customerName?.toLowerCase().includes(q);
         const matchPhone = item.customerPhone?.toLowerCase().includes(q);
@@ -138,41 +172,53 @@ export default function InstallmentsScreen() {
         }
       }
 
-      // 2. Filter Category
-      if (activeFilter === 'active') {
+      // Status Filter
+      if (statusFilter === 'active') {
         return item.remainingDebt > 0 && item.debtStatus !== 'settled';
       }
-      if (activeFilter === 'settled') {
+      if (statusFilter === 'settled') {
         return item.remainingDebt <= 0 || item.debtStatus === 'settled';
       }
-      if (activeFilter === 'shortTerm') {
+      if (statusFilter === 'shortTerm') {
         return item.installmentMonths <= 6;
       }
-      if (activeFilter === 'longTerm') {
+      if (statusFilter === 'longTerm') {
         return item.installmentMonths > 6;
       }
 
       return true;
     });
-  }, [installments, searchQuery, activeFilter]);
+  }, [periodFilteredInstallments, query, statusFilter]);
 
-  // Summary Metrics
-  const summary = useMemo(() => {
+  // Summary Metrics (Computed from current period)
+  const periodSummary = useMemo(() => {
     let totalGrand = 0;
     let totalRemaining = 0;
     let totalCollected = 0;
     let monthlyExpected = 0;
     let activeAccounts = 0;
+    let settledAccounts = 0;
+    let shortTermCount = 0;
+    let longTermCount = 0;
 
-    installments.forEach((item) => {
+    periodFilteredInstallments.forEach((item) => {
       totalGrand += item.grandTotal;
       totalRemaining += item.remainingDebt;
       totalCollected += item.paidAmount;
-      if (item.remainingDebt > 0) {
+      if (item.remainingDebt > 0 && item.debtStatus !== 'settled') {
         activeAccounts += 1;
         monthlyExpected += item.installmentMonthlyAmount;
+      } else {
+        settledAccounts += 1;
+      }
+      if (item.installmentMonths <= 6) {
+        shortTermCount += 1;
+      } else {
+        longTermCount += 1;
       }
     });
+
+    const collectionRate = totalGrand > 0 ? Math.round((totalCollected / totalGrand) * 100) : 100;
 
     return {
       totalGrand,
@@ -180,9 +226,48 @@ export default function InstallmentsScreen() {
       totalCollected,
       monthlyExpected,
       activeAccounts,
-      totalCount: installments.length,
+      settledAccounts,
+      shortTermCount,
+      longTermCount,
+      collectionRate,
+      totalCount: periodFilteredInstallments.length,
     };
-  }, [installments]);
+  }, [periodFilteredInstallments]);
+
+  // Period Filter keys and labels (History-style)
+  const periodKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
+  const periodLabels: Record<PeriodKey, string> = {
+    today: 'ئەمڕۆ',
+    week: 'ئەم هەفتەیە',
+    month: 'ئەم مانگە',
+    year: 'ئەمساڵ',
+    all: 'هەمووی',
+    custom: customRange ? `${customRange.from} → ${customRange.to}` : t('installmentList.customRange', 'دیاریکراو'),
+  };
+
+  const handlePeriodSelect = (key: PeriodKey) => {
+    Haptics.selectionAsync();
+    if (key === 'custom') {
+      setCustomDateModalVisible(true);
+    } else {
+      setPeriodKey(key);
+      setCustomRange(null);
+    }
+  };
+
+  // Search Expand / Collapse
+  const handleExpandSearch = () => {
+    Haptics.selectionAsync();
+    setIsSearchExpanded(true);
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 150);
+  };
+
+  const handleCollapseSearch = () => {
+    setIsSearchExpanded(false);
+    setQuery('');
+  };
 
   // Open Payment Modal
   const openPayModal = (item: InstallmentSaleRow, presetAmount?: number) => {
@@ -253,7 +338,6 @@ export default function InstallmentsScreen() {
 
   // Open Sale Invoice
   const handleViewInvoice = async (saleId: number) => {
-    setLoadingSaleInvoice(true);
     try {
       const sale = await getSaleById(saleId);
       if (sale) {
@@ -264,8 +348,6 @@ export default function InstallmentsScreen() {
       }
     } catch (err) {
       console.error('Failed to load sale invoice:', err);
-    } finally {
-      setLoadingSaleInvoice(false);
     }
   };
 
@@ -284,13 +366,17 @@ export default function InstallmentsScreen() {
     Linking.openURL(`https://wa.me/${cleanPhone}`).catch(() => {});
   };
 
-  // Render Installment Card
-  const renderItem = ({ item }: { item: InstallmentSaleRow }) => {
+  // Dynamic search input box width
+  const dynamicSearchWidth = Math.min(windowWidth - 32, isTablet ? 360 : 260);
+
+  // Render Customer Installment Card
+  const renderCustomerCard = (item: InstallmentSaleRow) => {
     const isSettled = item.remainingDebt <= 0 || item.debtStatus === 'settled';
     const percentPaid = item.grandTotal > 0 ? Math.min(100, Math.round((item.paidAmount / item.grandTotal) * 100)) : 100;
 
     return (
       <View
+        key={`card-${item.saleId}`}
         style={[
           styles.card,
           {
@@ -506,7 +592,7 @@ export default function InstallmentsScreen() {
           </View>
         )}
 
-        {/* Action Buttons */}
+        {/* Action Buttons: Pay Monthly, Custom, Full, Schedule, Invoice */}
         <View style={[styles.actionsRow, { flexDirection }]}>
           {!isSettled && (
             <>
@@ -580,23 +666,12 @@ export default function InstallmentsScreen() {
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.white }]}>
+    <View style={[styles.screen, { backgroundColor: isDark ? colors.white : colors.gray50 }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      {/* Header */}
+      {/* ── App Header ── */}
       <AppHeader
-        title={
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: '#FFFFFF', fontSize: 17, fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
-              {t('installmentList.title')}
-            </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11 }}>
-              {summary.activeAccounts > 0
-                ? `${summary.activeAccounts} ${t('installmentList.activeCount')}`
-                : t('installmentList.subtitle')}
-            </Text>
-          </View>
-        }
+        title={t('installmentList.title')}
         showBack={true}
         onBack={() => router.back()}
         rightAction={
@@ -606,324 +681,676 @@ export default function InstallmentsScreen() {
         }
       />
 
-      {/* Main Content */}
+      {/* ── 2-Tab Segmented Control (ڕاپۆرت | کەسەکان) ── */}
+      <View style={[styles.segmentWrapper, { backgroundColor: colors.white, borderBottomColor: colors.gray200 }]}>
+        <View style={[styles.segmentTrack, { backgroundColor: colors.gray100, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {/* Tab 1: ڕاپۆرت (Report) */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              Haptics.selectionAsync();
+              setTab('report');
+            }}
+            style={[
+              styles.segmentBtn,
+              tab === 'report' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+            ]}
+          >
+            <Ionicons
+              name="stats-chart-outline"
+              size={isTablet ? 18 : 16}
+              color={tab === 'report' ? '#FFFFFF' : colors.gray500}
+            />
+            <Text
+              style={[
+                styles.segmentBtnText,
+                { color: tab === 'report' ? '#FFFFFF' : colors.gray600 },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+              numberOfLines={1}
+            >
+              {t('installmentList.reportTab')}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Tab 2: کەسەکان (People / Customers) */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              Haptics.selectionAsync();
+              setTab('customers');
+            }}
+            style={[
+              styles.segmentBtn,
+              tab === 'customers' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+            ]}
+          >
+            <Ionicons
+              name="people-outline"
+              size={isTablet ? 18 : 16}
+              color={tab === 'customers' ? '#FFFFFF' : colors.gray500}
+            />
+            <Text
+              style={[
+                styles.segmentBtnText,
+                { color: tab === 'customers' ? '#FFFFFF' : colors.gray600 },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+              numberOfLines={1}
+            >
+              {t('installmentList.customersTab')}
+            </Text>
+            {periodFilteredInstallments.length > 0 && (
+              <View
+                style={[
+                  styles.tabBadge,
+                  tab === 'customers'
+                    ? { backgroundColor: 'rgba(255,255,255,0.3)' }
+                    : { backgroundColor: colors.gray200 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabBadgeText,
+                    { color: tab === 'customers' ? '#FFFFFF' : colors.gray700 },
+                  ]}
+                >
+                  {periodFilteredInstallments.length}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ── Period Filter Horizontal Bar with Expandable Search (Identical to History & Debts) ── */}
+      <View
+        style={[
+          styles.filterWrapper,
+          {
+            backgroundColor: colors.white,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.gray200,
+          },
+        ]}
+      >
+        <ScrollView
+          ref={filterScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={[
+            styles.periodScrollView,
+            isRTL ? { transform: [{ scaleX: -1 }] } : undefined,
+          ]}
+          contentContainerStyle={[
+            styles.filterRow,
+            {
+              paddingHorizontal: isTabletLandscape ? 24 : 16,
+              gap: isTablet ? 10 : 8,
+            },
+          ]}
+        >
+          {/* Search Button / Expandable Search Bar on Right of Row in RTL */}
+          {isSearchExpanded ? (
+            <Pressable
+              onPress={(e) => e.stopPropagation?.()}
+              style={[
+                styles.expandedSearchBox,
+                isRTL && { transform: [{ scaleX: -1 }] },
+                {
+                  width: dynamicSearchWidth,
+                  height: isTablet ? 42 : 38,
+                  borderRadius: isTablet ? 21 : 19,
+                  backgroundColor: isDark ? colors.gray100 : colors.white,
+                  borderColor: colors.primary,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <Ionicons name="search" size={16} color={colors.primary} />
+              <TextInput
+                ref={searchInputRef}
+                style={[
+                  styles.expandedSearchInput,
+                  {
+                    color: colors.black,
+                    textAlign: isRTL ? 'right' : 'left',
+                    fontFamily: SETTINGS_KURDISH_FONT,
+                    fontSize: isTablet ? 14 : 13,
+                  },
+                ]}
+                placeholder={t('installmentList.searchPlaceholder')}
+                placeholderTextColor={colors.gray400}
+                value={query}
+                onChangeText={setQuery}
+                returnKeyType="search"
+              />
+              {query.length > 0 && (
+                <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={17} color={colors.gray400} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={handleCollapseSearch}
+                style={[
+                  styles.closeSearchBtn,
+                  {
+                    backgroundColor: isDark ? colors.gray200 : colors.gray100,
+                  },
+                ]}
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={14} color={colors.gray500} />
+              </TouchableOpacity>
+            </Pressable>
+          ) : (
+            <TouchableOpacity
+              onPress={handleExpandSearch}
+              style={[
+                styles.searchIconBtn,
+                isRTL && { transform: [{ scaleX: -1 }] },
+                {
+                  width: isTablet ? 42 : 38,
+                  height: isTablet ? 42 : 38,
+                  borderRadius: isTablet ? 21 : 19,
+                  backgroundColor: query ? colors.primary : (isDark ? colors.gray100 : colors.white),
+                  borderColor: query ? colors.primary : colors.gray200,
+                },
+              ]}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name="search"
+                size={16}
+                color={query ? '#FFFFFF' : (isDark ? colors.gray400 : '#0F172A')}
+              />
+              {query.length > 0 && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 7,
+                    height: 7,
+                    borderRadius: 3.5,
+                    backgroundColor: '#10B981',
+                  }}
+                />
+              )}
+            </TouchableOpacity>
+          )}
+
+          {/* Period Pills: ئەمڕۆ, ئەم هەفتەیە, ئەم مانگە, ئەمساڵ, هەمووی, دیاریکراو */}
+          {periodKeys.map((key) => {
+            const active = periodKey === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[
+                  styles.periodPill,
+                  isRTL && { transform: [{ scaleX: -1 }] },
+                  {
+                    height: isTablet ? 42 : 38,
+                    borderRadius: isTablet ? 21 : 19,
+                    backgroundColor: active
+                      ? (isDark ? colors.primary : '#1E293B')
+                      : (isDark ? colors.gray100 : colors.white),
+                    borderColor: active ? (isDark ? colors.primary : '#1E293B') : colors.gray200,
+                  },
+                ]}
+                onPress={() => handlePeriodSelect(key)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.periodPillText,
+                    {
+                      color: active ? '#FFFFFF' : colors.gray600,
+                      fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {periodLabels[key]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* ── Main Scroll View ── */}
       <ScrollView
         style={styles.container}
         contentContainerStyle={[styles.contentContainer, isTablet && contentContainerStyle]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* KPI Cards Grid */}
-        <View style={styles.kpiGrid}>
-          {/* 1. Total Installments */}
-          <View
-            style={[
-              styles.kpiCard,
-              {
-                backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-                borderColor: isDark ? colors.gray200 : '#E2E8F0',
-              },
-            ]}
-          >
-            <View style={[styles.kpiIconCircle, { backgroundColor: '#EEF2FF' }]}>
-              <Ionicons name="wallet-outline" size={18} color="#6366F1" />
-            </View>
-            <Text style={[styles.kpiLabel, { color: colors.gray500, textAlign }]}>
-              {t('installmentList.totalInstallments')}
-            </Text>
-            <Text style={[styles.kpiValue, { color: colors.black, textAlign }]}>
-              {formatPrimary(summary.totalGrand)}
-            </Text>
-            <Text style={[styles.kpiSubValue, { color: colors.gray400, textAlign }]}>
-              {formatSecondary(summary.totalGrand)}
-            </Text>
-          </View>
-
-          {/* 2. Total Remaining */}
-          <View
-            style={[
-              styles.kpiCard,
-              {
-                backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-                borderColor: isDark ? colors.gray200 : '#E2E8F0',
-              },
-            ]}
-          >
-            <View style={[styles.kpiIconCircle, { backgroundColor: '#FEF2F2' }]}>
-              <Ionicons name="time-outline" size={18} color="#EF4444" />
-            </View>
-            <Text style={[styles.kpiLabel, { color: colors.gray500, textAlign }]}>
-              {t('installmentList.totalRemaining')}
-            </Text>
-            <Text style={[styles.kpiValue, { color: '#EF4444', textAlign, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-              {formatPrimary(summary.totalRemaining)}
-            </Text>
-            <Text style={[styles.kpiSubValue, { color: colors.gray400, textAlign }]}>
-              {formatSecondary(summary.totalRemaining)}
-            </Text>
-          </View>
-
-          {/* 3. Total Collected */}
-          <View
-            style={[
-              styles.kpiCard,
-              {
-                backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-                borderColor: isDark ? colors.gray200 : '#E2E8F0',
-              },
-            ]}
-          >
-            <View style={[styles.kpiIconCircle, { backgroundColor: '#ECFDF5' }]}>
-              <Ionicons name="checkmark-done-outline" size={18} color="#10B981" />
-            </View>
-            <Text style={[styles.kpiLabel, { color: colors.gray500, textAlign }]}>
-              {t('installmentList.totalCollected')}
-            </Text>
-            <Text style={[styles.kpiValue, { color: '#10B981', textAlign }]}>
-              {formatPrimary(summary.totalCollected)}
-            </Text>
-            <Text style={[styles.kpiSubValue, { color: colors.gray400, textAlign }]}>
-              {formatSecondary(summary.totalCollected)}
-            </Text>
-          </View>
-
-          {/* 4. Expected Monthly */}
-          <View
-            style={[
-              styles.kpiCard,
-              {
-                backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-                borderColor: isDark ? colors.gray200 : '#E2E8F0',
-              },
-            ]}
-          >
-            <View style={[styles.kpiIconCircle, { backgroundColor: '#F5F3FF' }]}>
-              <Ionicons name="calendar-number-outline" size={18} color="#8B5CF6" />
-            </View>
-            <Text style={[styles.kpiLabel, { color: colors.gray500, textAlign }]}>
-              {t('installmentList.monthlyExpected')}
-            </Text>
-            <Text style={[styles.kpiValue, { color: '#8B5CF6', textAlign, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-              {formatPrimary(summary.monthlyExpected)}
-            </Text>
-            <Text style={[styles.kpiSubValue, { color: colors.gray400, textAlign }]}>
-              {formatSecondary(summary.monthlyExpected)}
-            </Text>
-          </View>
-        </View>
-
-        {/* Search Bar */}
-        <View
-          style={[
-            styles.searchContainer,
-            {
-              backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-              borderColor: isDark ? colors.gray200 : '#E2E8F0',
-              flexDirection,
-            },
-          ]}
-        >
-          <Ionicons name="search" size={18} color={colors.gray400} />
-          <TextInput
-            style={[
-              styles.searchInput,
-              {
-                color: colors.black,
-                textAlign,
-                fontFamily: SETTINGS_KURDISH_FONT,
-              },
-            ]}
-            placeholder={t('installmentList.searchPlaceholder')}
-            placeholderTextColor={colors.gray400}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="search"
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color={colors.gray400} />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Filter Category Tabs */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[styles.filtersScroll, { flexDirection }]}
-        >
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              activeFilter === 'all'
-                ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                : {
+        {/* ═══════════════════════════════════════════════════════
+            TAB 1: ڕاپۆرت (Report View)
+           ═══════════════════════════════════════════════════════ */}
+        {tab === 'report' && (
+          <View>
+            {/* KPI 4-Card Grid */}
+            <View style={styles.kpiGrid}>
+              {/* 1. Total Installments Volume */}
+              <View
+                style={[
+                  styles.kpiCard,
+                  {
                     backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
                     borderColor: isDark ? colors.gray200 : '#E2E8F0',
                   },
-            ]}
-            onPress={() => {
-              Haptics.selectionAsync();
-              setActiveFilter('all');
-            }}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                {
-                  color: activeFilter === 'all' ? '#FFFFFF' : colors.black,
-                  fontFamily: activeFilter === 'all' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
-                },
-              ]}
-            >
-              {t('installmentList.all')} ({installments.length})
-            </Text>
-          </TouchableOpacity>
+                ]}
+              >
+                <View style={[styles.kpiIconCircle, { backgroundColor: '#EEF2FF' }]}>
+                  <Ionicons name="wallet-outline" size={18} color="#6366F1" />
+                </View>
+                <Text style={[styles.kpiLabel, { color: colors.gray500, textAlign }]}>
+                  {t('installmentList.totalInstallments')}
+                </Text>
+                <Text style={[styles.kpiValue, { color: colors.black, textAlign }]}>
+                  {formatPrimary(periodSummary.totalGrand)}
+                </Text>
+                <Text style={[styles.kpiSubValue, { color: colors.gray400, textAlign }]}>
+                  {formatSecondary(periodSummary.totalGrand)}
+                </Text>
+              </View>
 
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              activeFilter === 'active'
-                ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                : {
+              {/* 2. Total Remaining Debt */}
+              <View
+                style={[
+                  styles.kpiCard,
+                  {
                     backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
                     borderColor: isDark ? colors.gray200 : '#E2E8F0',
                   },
-            ]}
-            onPress={() => {
-              Haptics.selectionAsync();
-              setActiveFilter('active');
-            }}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                {
-                  color: activeFilter === 'active' ? '#FFFFFF' : colors.black,
-                  fontFamily: activeFilter === 'active' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
-                },
-              ]}
-            >
-              {t('installmentList.active')} ({summary.activeAccounts})
-            </Text>
-          </TouchableOpacity>
+                ]}
+              >
+                <View style={[styles.kpiIconCircle, { backgroundColor: '#FEF2F2' }]}>
+                  <Ionicons name="time-outline" size={18} color="#EF4444" />
+                </View>
+                <Text style={[styles.kpiLabel, { color: colors.gray500, textAlign }]}>
+                  {t('installmentList.totalRemaining')}
+                </Text>
+                <Text style={[styles.kpiValue, { color: '#EF4444', textAlign, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  {formatPrimary(periodSummary.totalRemaining)}
+                </Text>
+                <Text style={[styles.kpiSubValue, { color: colors.gray400, textAlign }]}>
+                  {formatSecondary(periodSummary.totalRemaining)}
+                </Text>
+              </View>
 
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              activeFilter === 'settled'
-                ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                : {
+              {/* 3. Total Collected so far */}
+              <View
+                style={[
+                  styles.kpiCard,
+                  {
                     backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
                     borderColor: isDark ? colors.gray200 : '#E2E8F0',
                   },
-            ]}
-            onPress={() => {
-              Haptics.selectionAsync();
-              setActiveFilter('settled');
-            }}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                {
-                  color: activeFilter === 'settled' ? '#FFFFFF' : colors.black,
-                  fontFamily: activeFilter === 'settled' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
-                },
-              ]}
-            >
-              {t('installmentList.settled')} ({installments.length - summary.activeAccounts})
-            </Text>
-          </TouchableOpacity>
+                ]}
+              >
+                <View style={[styles.kpiIconCircle, { backgroundColor: '#ECFDF5' }]}>
+                  <Ionicons name="checkmark-done-outline" size={18} color="#10B981" />
+                </View>
+                <Text style={[styles.kpiLabel, { color: colors.gray500, textAlign }]}>
+                  {t('installmentList.totalCollected')}
+                </Text>
+                <Text style={[styles.kpiValue, { color: '#10B981', textAlign }]}>
+                  {formatPrimary(periodSummary.totalCollected)}
+                </Text>
+                <Text style={[styles.kpiSubValue, { color: colors.gray400, textAlign }]}>
+                  {formatSecondary(periodSummary.totalCollected)}
+                </Text>
+              </View>
 
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              activeFilter === 'shortTerm'
-                ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                : {
+              {/* 4. Expected Monthly Collections */}
+              <View
+                style={[
+                  styles.kpiCard,
+                  {
                     backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
                     borderColor: isDark ? colors.gray200 : '#E2E8F0',
                   },
-            ]}
-            onPress={() => {
-              Haptics.selectionAsync();
-              setActiveFilter('shortTerm');
-            }}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                {
-                  color: activeFilter === 'shortTerm' ? '#FFFFFF' : colors.black,
-                  fontFamily: activeFilter === 'shortTerm' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
-                },
-              ]}
-            >
-              {t('installmentList.shortTerm')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              activeFilter === 'longTerm'
-                ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                : {
-                    backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-                    borderColor: isDark ? colors.gray200 : '#E2E8F0',
-                  },
-            ]}
-            onPress={() => {
-              Haptics.selectionAsync();
-              setActiveFilter('longTerm');
-            }}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                {
-                  color: activeFilter === 'longTerm' ? '#FFFFFF' : colors.black,
-                  fontFamily: activeFilter === 'longTerm' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
-                },
-              ]}
-            >
-              {t('installmentList.longTerm')}
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-
-        {/* List of Installment Cards */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        ) : filteredInstallments.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? colors.gray200 : '#F1F5F9' }]}>
-              <Ionicons name="calendar-outline" size={36} color={colors.gray400} />
+                ]}
+              >
+                <View style={[styles.kpiIconCircle, { backgroundColor: '#F5F3FF' }]}>
+                  <Ionicons name="calendar-number-outline" size={18} color="#8B5CF6" />
+                </View>
+                <Text style={[styles.kpiLabel, { color: colors.gray500, textAlign }]}>
+                  {t('installmentList.monthlyExpected')}
+                </Text>
+                <Text style={[styles.kpiValue, { color: '#8B5CF6', textAlign, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  {formatPrimary(periodSummary.monthlyExpected)}
+                </Text>
+                <Text style={[styles.kpiSubValue, { color: colors.gray400, textAlign }]}>
+                  {formatSecondary(periodSummary.monthlyExpected)}
+                </Text>
+              </View>
             </View>
-            <Text style={[styles.emptyTitle, { color: colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-              {t('installmentList.noInstallmentsFound')}
-            </Text>
-            <Text style={[styles.emptyDesc, { color: colors.gray500, textAlign: 'center' }]}>
-              {t('installmentList.noInstallmentsDesc')}
-            </Text>
+
+            {/* Detailed Analytics & Breakdown Card */}
+            <View
+              style={[
+                styles.reportAnalyticsCard,
+                {
+                  backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                  borderColor: isDark ? colors.gray200 : '#E2E8F0',
+                },
+              ]}
+            >
+              <View style={[styles.analyticsHeader, { flexDirection }]}>
+                <Ionicons name="pie-chart-outline" size={18} color={colors.primary} />
+                <Text style={[styles.analyticsTitle, { color: colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  {t('installmentList.statusOverview')}
+                </Text>
+              </View>
+
+              {/* Progress Collection Rate Bar */}
+              <View style={{ marginTop: 8 }}>
+                <View style={[styles.rateHeaderRow, { flexDirection }]}>
+                  <Text style={[styles.rateLabel, { color: colors.gray500 }]}>
+                    {t('installmentList.collectionRate')}
+                  </Text>
+                  <Text style={[styles.rateValue, { color: colors.primary, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {periodSummary.collectionRate}%
+                  </Text>
+                </View>
+                <View style={[styles.progressBarBg, { backgroundColor: isDark ? colors.gray200 : '#E2E8F0', marginTop: 6 }]}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: `${periodSummary.collectionRate}%`,
+                        backgroundColor: colors.primary,
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+
+              {/* Status Breakdown Row */}
+              <View style={[styles.breakdownRow, { flexDirection, marginTop: 14 }]}>
+                {/* Active Accounts */}
+                <View
+                  style={[
+                    styles.breakdownBox,
+                    {
+                      backgroundColor: isDark ? '#78350F22' : '#FEF3C7',
+                      borderColor: isDark ? '#78350F55' : '#FDE68A',
+                    },
+                  ]}
+                >
+                  <Ionicons name="time-outline" size={16} color="#D97706" />
+                  <Text style={[styles.breakdownBoxTitle, { color: '#B45309' }]}>
+                    {t('installmentList.active')}
+                  </Text>
+                  <Text style={[styles.breakdownBoxCount, { color: '#B45309', fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {periodSummary.activeAccounts}
+                  </Text>
+                </View>
+
+                {/* Settled Accounts */}
+                <View
+                  style={[
+                    styles.breakdownBox,
+                    {
+                      backgroundColor: isDark ? '#064E3B22' : '#ECFDF5',
+                      borderColor: isDark ? '#064E3B55' : '#A7F3D0',
+                    },
+                  ]}
+                >
+                  <Ionicons name="checkmark-done-circle-outline" size={16} color="#059669" />
+                  <Text style={[styles.breakdownBoxTitle, { color: '#047857' }]}>
+                    {t('installmentList.settled')}
+                  </Text>
+                  <Text style={[styles.breakdownBoxCount, { color: '#047857', fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {periodSummary.settledAccounts}
+                  </Text>
+                </View>
+
+                {/* Short-term (≤ 6 mo) */}
+                <View
+                  style={[
+                    styles.breakdownBox,
+                    {
+                      backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                      borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                    },
+                  ]}
+                >
+                  <Ionicons name="calendar-outline" size={16} color="#6366F1" />
+                  <Text style={[styles.breakdownBoxTitle, { color: colors.gray600 }]}>
+                    ≤ ٦ مانگ
+                  </Text>
+                  <Text style={[styles.breakdownBoxCount, { color: colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {periodSummary.shortTermCount}
+                  </Text>
+                </View>
+
+                {/* Long-term (> 6 mo) */}
+                <View
+                  style={[
+                    styles.breakdownBox,
+                    {
+                      backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                      borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                    },
+                  ]}
+                >
+                  <Ionicons name="calendar-number-outline" size={16} color="#8B5CF6" />
+                  <Text style={[styles.breakdownBoxTitle, { color: colors.gray600 }]}>
+                    {'> ٦ مانگ'}
+                  </Text>
+                  <Text style={[styles.breakdownBoxCount, { color: colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {periodSummary.longTermCount}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Button to jump to customers view */}
+              <TouchableOpacity
+                style={[styles.jumpToCustomersBtn, { backgroundColor: colors.primary, marginTop: 16 }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setTab('customers');
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="people" size={18} color="#FFFFFF" />
+                <Text style={[styles.jumpToCustomersText, { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  {t('installmentList.customersTab')} ({periodFilteredInstallments.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        ) : (
-          <View style={{ gap: 12 }}>
-            {filteredInstallments.map((item) => (
-              <React.Fragment key={`inst-${item.saleId}`}>
-                {renderItem({ item })}
-              </React.Fragment>
-            ))}
+        )}
+
+        {/* ═══════════════════════════════════════════════════════
+            TAB 2: کەسەکان (Customers & Payments View)
+           ═══════════════════════════════════════════════════════ */}
+        {tab === 'customers' && (
+          <View>
+            {/* Sub-filter Category Chips: هەمووی, چالاک, تەواوبوو, کورتخایەن, درێژخایەن */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[styles.filtersScroll, { flexDirection }]}
+            >
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  statusFilter === 'all'
+                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                    : {
+                        backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                        borderColor: isDark ? colors.gray200 : '#E2E8F0',
+                      },
+                ]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setStatusFilter('all');
+                }}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    {
+                      color: statusFilter === 'all' ? '#FFFFFF' : colors.black,
+                      fontFamily: statusFilter === 'all' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                    },
+                  ]}
+                >
+                  {t('installmentList.all')} ({periodFilteredInstallments.length})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  statusFilter === 'active'
+                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                    : {
+                        backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                        borderColor: isDark ? colors.gray200 : '#E2E8F0',
+                      },
+                ]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setStatusFilter('active');
+                }}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    {
+                      color: statusFilter === 'active' ? '#FFFFFF' : colors.black,
+                      fontFamily: statusFilter === 'active' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                    },
+                  ]}
+                >
+                  {t('installmentList.active')} ({periodSummary.activeAccounts})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  statusFilter === 'settled'
+                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                    : {
+                        backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                        borderColor: isDark ? colors.gray200 : '#E2E8F0',
+                      },
+                ]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setStatusFilter('settled');
+                }}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    {
+                      color: statusFilter === 'settled' ? '#FFFFFF' : colors.black,
+                      fontFamily: statusFilter === 'settled' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                    },
+                  ]}
+                >
+                  {t('installmentList.settled')} ({periodSummary.settledAccounts})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  statusFilter === 'shortTerm'
+                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                    : {
+                        backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                        borderColor: isDark ? colors.gray200 : '#E2E8F0',
+                      },
+                ]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setStatusFilter('shortTerm');
+                }}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    {
+                      color: statusFilter === 'shortTerm' ? '#FFFFFF' : colors.black,
+                      fontFamily: statusFilter === 'shortTerm' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                    },
+                  ]}
+                >
+                  {t('installmentList.shortTerm')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  statusFilter === 'longTerm'
+                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                    : {
+                        backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                        borderColor: isDark ? colors.gray200 : '#E2E8F0',
+                      },
+                ]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setStatusFilter('longTerm');
+                }}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    {
+                      color: statusFilter === 'longTerm' ? '#FFFFFF' : colors.black,
+                      fontFamily: statusFilter === 'longTerm' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                    },
+                  ]}
+                >
+                  {t('installmentList.longTerm')}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            {/* List of Customer Installment Cards */}
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+              </View>
+            ) : visibleInstallments.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? colors.gray200 : '#F1F5F9' }]}>
+                  <Ionicons name="people-outline" size={36} color={colors.gray400} />
+                </View>
+                <Text style={[styles.emptyTitle, { color: colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  {t('installmentList.noInstallmentsFound')}
+                </Text>
+                <Text style={[styles.emptyDesc, { color: colors.gray500, textAlign: 'center' }]}>
+                  {t('installmentList.noInstallmentsDesc')}
+                </Text>
+              </View>
+            ) : (
+              <View style={{ gap: 12 }}>
+                {visibleInstallments.map((item) => renderCustomerCard(item))}
+              </View>
+            )}
           </View>
         )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Payment Modal */}
+      {/* ── Payment Modal ── */}
       <Modal
         visible={payModalVisible}
         transparent
@@ -1197,7 +1624,7 @@ export default function InstallmentsScreen() {
         </Pressable>
       </Modal>
 
-      {/* Month-by-Month Schedule Modal */}
+      {/* ── Month-by-Month Schedule Modal ── */}
       <Modal
         visible={scheduleModalVisible}
         transparent
@@ -1243,13 +1670,10 @@ export default function InstallmentsScreen() {
               {selectedSaleForSchedule &&
                 Array.from({ length: selectedSaleForSchedule.installmentMonths }).map((_, idx) => {
                   const monthNum = idx + 1;
-                  // Estimate due date: saleDate + idx months
                   const baseDate = new Date(selectedSaleForSchedule.saleDate || Date.now());
                   const dueDate = new Date(baseDate);
                   dueDate.setMonth(dueDate.getMonth() + monthNum);
 
-                  // Calculate whether this month is already paid
-                  // Total paid minus down payment covers monthly installments
                   const paidForMonths = Math.max(0, selectedSaleForSchedule.paidAmount - selectedSaleForSchedule.installmentDownPayment);
                   const monthTarget = monthNum * selectedSaleForSchedule.installmentMonthlyAmount;
                   const isPaid = paidForMonths >= (monthTarget - 0.05);
@@ -1328,14 +1752,14 @@ export default function InstallmentsScreen() {
         </Pressable>
       </Modal>
 
-      {/* Payment Receipt Modal */}
+      {/* ── Payment Receipt Modal ── */}
       <DebtPaymentReceiptModal
         visible={receiptModalVisible}
         receipt={lastPaymentReceipt}
         onClose={() => setReceiptModalVisible(false)}
       />
 
-      {/* Sale Invoice Preview Modal */}
+      {/* ── Sale Invoice Preview Modal ── */}
       <Modal
         visible={invoiceModalVisible}
         animationType="slide"
@@ -1416,6 +1840,19 @@ export default function InstallmentsScreen() {
           )}
         </View>
       </Modal>
+
+      {/* ── Custom Date Range Modal ── */}
+      <CustomDateRangeModal
+        visible={customDateModalVisible}
+        onClose={() => setCustomDateModalVisible(false)}
+        initialFrom={customRange?.from}
+        initialTo={customRange?.to}
+        onApply={(from, to) => {
+          setPeriodKey('custom');
+          setCustomRange({ from, to });
+          setCustomDateModalVisible(false);
+        }}
+      />
     </View>
   );
 }
@@ -1431,7 +1868,89 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
-  // KPI Grid
+  // ── Segmented Control Switcher ──
+  segmentWrapper: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  segmentTrack: {
+    borderRadius: 12,
+    padding: 3,
+    gap: 4,
+  },
+  segmentBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 6,
+    borderRadius: 9,
+    gap: 6,
+  },
+  segmentBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  segmentBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  tabBadge: {
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+  },
+  tabBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  // ── Period Filter & Search Bar (History-style) ──
+  filterWrapper: {
+    paddingVertical: 6,
+  },
+  periodScrollView: {
+    flexGrow: 0,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  periodPill: {
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  periodPillText: {
+    fontSize: 13,
+  },
+  searchIconBtn: {
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  expandedSearchBox: {
+    borderWidth: 1.5,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    gap: 6,
+  },
+  expandedSearchInput: {
+    flex: 1,
+    padding: 0,
+  },
+  closeSearchBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // ── KPI Grid ──
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1465,22 +1984,68 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
   },
-  // Search
-  searchContainer: {
+  // ── Analytics Card in Report View ──
+  reportAnalyticsCard: {
+    borderRadius: 18,
     borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000000',
+    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  analyticsHeader: {
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  searchInput: {
+  analyticsTitle: {
+    fontSize: 15,
+  },
+  rateHeaderRow: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  rateLabel: {
+    fontSize: 13,
+  },
+  rateValue: {
+    fontSize: 16,
+  },
+  breakdownRow: {
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  breakdownBox: {
     flex: 1,
-    fontSize: 14,
-    padding: 0,
+    minWidth: '47%',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 4,
   },
-  // Filters
+  breakdownBoxTitle: {
+    fontSize: 12,
+  },
+  breakdownBoxCount: {
+    fontSize: 16,
+  },
+  jumpToCustomersBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  jumpToCustomersText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+  },
+  // ── Filters in Customers Tab ──
   filtersScroll: {
     gap: 8,
     paddingBottom: 14,
@@ -1494,7 +2059,7 @@ const styles = StyleSheet.create({
   filterChipText: {
     fontSize: 13,
   },
-  // Loading & Empty
+  // ── Loading & Empty ──
   loadingContainer: {
     paddingVertical: 60,
     alignItems: 'center',
@@ -1522,7 +2087,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
   },
-  // Card
+  // ── Card ──
   card: {
     borderRadius: 18,
     borderWidth: 1,
@@ -1573,7 +2138,6 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     fontSize: 11,
   },
-  // Financial Row
   financialRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1599,7 +2163,6 @@ const styles = StyleSheet.create({
     width: 1,
     height: 24,
   },
-  // Plan Banner
   planBanner: {
     padding: 12,
     borderRadius: 14,
@@ -1646,7 +2209,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     flex: 1,
   },
-  // Actions
   actionsRow: {
     alignItems: 'center',
     gap: 8,
@@ -1684,7 +2246,7 @@ const styles = StyleSheet.create({
   actionBtnText: {
     fontSize: 12,
   },
-  // Modals
+  // ── Modals ──
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1800,7 +2362,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
   },
-  // Schedule Rows
   scheduleRow: {
     justifyContent: 'space-between',
     alignItems: 'center',
