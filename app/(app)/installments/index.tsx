@@ -40,10 +40,12 @@ import {
   getAllInstallmentSales,
   recordInstallmentPayment,
   getSaleById,
+  getDebtPayments,
   type InstallmentSaleRow,
 } from '@/lib/sqlite';
 import { directPrintInvoice } from '@/lib/generateInvoice';
 import type { DebtPaymentReceiptData } from '@/types/debt';
+import type { DebtReceiptPaperSize } from '@/lib/debtPaymentReceiptTemplate';
 import type { Sale } from '@/types/sales';
 
 type MainTab = 'report' | 'customers';
@@ -115,10 +117,12 @@ export default function InstallmentsScreen() {
   // Receipt Modal State
   const [receiptModalVisible, setReceiptModalVisible] = useState(false);
   const [lastPaymentReceipt, setLastPaymentReceipt] = useState<DebtPaymentReceiptData | null>(null);
+  const [payReceiptPaperSize, setPayReceiptPaperSize] = useState<DebtReceiptPaperSize>('80mm');
 
-  // Sale Invoice View Modal State
+  // Sale Invoice View Modal State (with 4 paper sizes)
   const [invoiceModalVisible, setInvoiceModalVisible] = useState(false);
   const [viewingSale, setViewingSale] = useState<Sale | null>(null);
+  const [invoicePaperSize, setInvoicePaperSize] = useState<'A4' | '80mm' | '58mm' | '110mm'>('A4');
 
   // Load installments from SQLite
   const loadData = useCallback(async () => {
@@ -350,10 +354,12 @@ export default function InstallmentsScreen() {
       // Reload list
       await loadData();
 
-      // Show receipt modal
+      // Show receipt modal with 4 paper sizes safely after iOS modal dismissal
       if (receipt) {
         setLastPaymentReceipt(receipt);
-        setReceiptModalVisible(true);
+        setTimeout(() => {
+          setReceiptModalVisible(true);
+        }, Platform.OS === 'ios' ? 450 : 150);
       }
     } catch (err: any) {
       console.error('Failed to record installment payment:', err);
@@ -382,6 +388,69 @@ export default function InstallmentsScreen() {
       }
     } catch (err) {
       console.error('Failed to load sale invoice:', err);
+    }
+  };
+
+  // Open Latest Debt Payment Receipt (4 Paper Sizes)
+  const openLatestReceipt = async (item: InstallmentSaleRow) => {
+    if (!item.debtId) {
+      handleViewInvoice(item.saleId);
+      return;
+    }
+    try {
+      const payments = await getDebtPayments(item.debtId, 'sales');
+      if (payments.length === 0) {
+        handleViewInvoice(item.saleId);
+        return;
+      }
+      const p = payments[0];
+      const receiptData: DebtPaymentReceiptData = {
+        id: p.id,
+        paymentNumber: `DP-${String(p.id).padStart(5, '0')}`,
+        debtId: p.debtId,
+        debtType: 'sales',
+        partyName: item.customerName,
+        partyPhone: item.customerPhone,
+        referenceNumber: item.invoiceNumber,
+        amount: p.amount,
+        previousBalance: p.remainingAfter + p.amount,
+        remainingAfter: p.remainingAfter,
+        paymentMethod: p.paymentMethod || 'cash',
+        note: p.note,
+        createdAt: p.createdAt,
+      };
+      setLastPaymentReceipt(receiptData);
+      setReceiptModalVisible(true);
+    } catch (e) {
+      console.error('Failed to load latest payment receipt:', e);
+      handleViewInvoice(item.saleId);
+    }
+  };
+
+  // Prompt user for which receipt to print (Invoice vs Payment Receipt, both with 4 sizes)
+  const handleReceiptButtonPress = (item: InstallmentSaleRow) => {
+    Haptics.selectionAsync();
+    if (item.paymentsCount > 0 && item.debtId) {
+      Alert.alert(
+        'چاپکردنی وەسڵ و پسوولە (٤ قەبارە)',
+        'دەتوانیت پسوولەی فرۆشتن یان وەسڵی پارەدانی قیست بە هەر ٤ قەبارەکە (A4, 80mm, 58mm, 110mm) چاپ بکەیت:',
+        [
+          {
+            text: 'وەسڵی دوایین پارەدان (٤ قەبارە)',
+            onPress: () => openLatestReceipt(item),
+          },
+          {
+            text: 'پسوولەی فرۆشتن (٤ قەبارە)',
+            onPress: () => handleViewInvoice(item.saleId),
+          },
+          {
+            text: t('common.cancel'),
+            style: 'cancel',
+          },
+        ]
+      );
+    } else {
+      handleViewInvoice(item.saleId);
     }
   };
 
@@ -626,18 +695,28 @@ export default function InstallmentsScreen() {
           </View>
         )}
 
-        {/* Action Buttons: Pay Monthly, Custom, Full, Schedule, Invoice */}
-        <View style={[styles.actionsRow, { flexDirection }]}>
+        {/* Action Buttons: 2 Responsive Rows */}
+        <View style={styles.cardActionsContainer}>
           {!isSettled && (
-            <>
+            <View style={[styles.actionsRow, { flexDirection }]}>
               {/* Pay 1 Month Quick */}
               <TouchableOpacity
-                style={[styles.primaryActionBtn, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.actionBtnBlock,
+                  { backgroundColor: isDark ? colors.primary : '#1E293B' },
+                ]}
                 onPress={() => openPayModal(item, item.installmentMonthlyAmount)}
                 activeOpacity={0.8}
               >
-                <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />
-                <Text style={[styles.actionBtnText, { color: '#FFFFFF', fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
+                <Text
+                  style={[
+                    styles.actionBtnText,
+                    { color: '#FFFFFF' },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                  numberOfLines={1}
+                >
                   {t('installmentList.payMonthly')}
                 </Text>
               </TouchableOpacity>
@@ -645,55 +724,85 @@ export default function InstallmentsScreen() {
               {/* Pay Custom Amount */}
               <TouchableOpacity
                 style={[
-                  styles.secondaryActionBtn,
+                  styles.actionBtnBlock,
                   {
-                    backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                    backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
                     borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                    borderWidth: 1,
                   },
                 ]}
                 onPress={() => openPayModal(item, 0)}
                 activeOpacity={0.8}
               >
-                <Ionicons name="cash-outline" size={15} color={colors.black} />
-                <Text style={[styles.actionBtnText, { color: colors.black }]}>
+                <Ionicons name="cash-outline" size={16} color={colors.black} />
+                <Text
+                  style={[
+                    styles.actionBtnText,
+                    { color: colors.black },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                  numberOfLines={1}
+                >
                   {t('installmentList.payCustom')}
                 </Text>
               </TouchableOpacity>
-            </>
+            </View>
           )}
 
-          {/* Schedule Breakdown */}
-          <TouchableOpacity
-            style={[
-              styles.secondaryActionBtn,
-              {
-                backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
-                borderColor: isDark ? colors.gray300 : '#CBD5E1',
-              },
-            ]}
-            onPress={() => openScheduleModal(item)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="calendar-outline" size={15} color={colors.black} />
-            <Text style={[styles.actionBtnText, { color: colors.black }]}>
-              {t('installmentList.viewSchedule')}
-            </Text>
-          </TouchableOpacity>
+          {/* Row 2: Schedule & Receipt / Invoices (with 4 paper sizes) */}
+          <View style={[styles.actionsRow, { flexDirection, marginTop: !isSettled ? 8 : 0 }]}>
+            {/* Schedule Breakdown */}
+            <TouchableOpacity
+              style={[
+                styles.actionBtnBlock,
+                {
+                  backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                  borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                  borderWidth: 1,
+                },
+              ]}
+              onPress={() => openScheduleModal(item)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="calendar-outline" size={15} color={colors.black} />
+              <Text
+                style={[
+                  styles.actionBtnText,
+                  { color: colors.black },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                ]}
+                numberOfLines={1}
+              >
+                {t('installmentList.viewSchedule')}
+              </Text>
+            </TouchableOpacity>
 
-          {/* View Invoice */}
-          <TouchableOpacity
-            style={[
-              styles.iconOnlyBtn,
-              {
-                backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
-                borderColor: isDark ? colors.gray300 : '#CBD5E1',
-              },
-            ]}
-            onPress={() => handleViewInvoice(item.saleId)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="receipt-outline" size={16} color={colors.black} />
-          </TouchableOpacity>
+            {/* View / Print Invoice & Receipts (with 4 paper sizes) */}
+            <TouchableOpacity
+              style={[
+                styles.actionBtnBlock,
+                {
+                  backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                  borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                  borderWidth: 1,
+                },
+              ]}
+              onPress={() => handleReceiptButtonPress(item)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="receipt-outline" size={15} color={colors.primary} />
+              <Text
+                style={[
+                  styles.actionBtnText,
+                  { color: colors.black },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+                numberOfLines={1}
+              >
+                {t('installmentList.viewInvoice', 'پسوولە / چاپکردن')}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -1556,6 +1665,45 @@ export default function InstallmentsScreen() {
               />
             </View>
 
+            {/* Paper Size for Payment Receipt (4 Formats) */}
+            <View style={{ marginTop: 14 }}>
+              <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
+                جۆری وەسڵی چاپکردن (٤ قەبارە):
+              </Text>
+              <View style={[styles.methodRow, { flexDirection, gap: 6 }]}>
+                {(['80mm', '58mm', '110mm', 'A4'] as DebtReceiptPaperSize[]).map((size) => {
+                  const isSelected = payReceiptPaperSize === size;
+                  return (
+                    <TouchableOpacity
+                      key={size}
+                      style={[
+                        styles.methodBtn,
+                        isSelected
+                          ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                          : {
+                              backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                              borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                            },
+                      ]}
+                      onPress={() => setPayReceiptPaperSize(size)}
+                    >
+                      <Text
+                        style={[
+                          styles.methodBtnText,
+                          {
+                            color: isSelected ? '#FFFFFF' : colors.black,
+                            fontFamily: isSelected ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                          },
+                        ]}
+                      >
+                        {size === 'A4' ? 'A4' : size}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
             {/* Confirm Payment Action Button */}
             <TouchableOpacity
               style={[
@@ -1573,9 +1721,9 @@ export default function InstallmentsScreen() {
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <>
-                  <Ionicons name="checkmark-done" size={18} color="#FFFFFF" />
+                  <Ionicons name="print" size={18} color="#FFFFFF" />
                   <Text style={[styles.confirmPayBtnText, { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {t('installmentList.confirmPayment')}
+                    تەواوکردن و چاپکردنی وەسڵ ({payReceiptPaperSize})
                   </Text>
                 </>
               )}
@@ -1712,14 +1860,15 @@ export default function InstallmentsScreen() {
         </Pressable>
       </Modal>
 
-      {/* ── Payment Receipt Modal ── */}
+      {/* ── Payment Receipt Modal (with 4 paper sizes) ── */}
       <DebtPaymentReceiptModal
         visible={receiptModalVisible}
         receipt={lastPaymentReceipt}
+        initialPaperSize={payReceiptPaperSize}
         onClose={() => setReceiptModalVisible(false)}
       />
 
-      {/* ── Sale Invoice Preview Modal ── */}
+      {/* ── Sale Invoice Preview Modal (with 4 paper sizes) ── */}
       <Modal
         visible={invoiceModalVisible}
         animationType="slide"
@@ -1730,66 +1879,107 @@ export default function InstallmentsScreen() {
           <View
             style={{
               paddingTop: Platform.OS === 'ios' ? 48 : 16,
-              paddingBottom: 12,
+              paddingBottom: 10,
               paddingHorizontal: 16,
               backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
               borderBottomWidth: 1,
               borderBottomColor: isDark ? colors.gray200 : '#E2E8F0',
-              flexDirection,
-              justifyContent: 'space-between',
-              alignItems: 'center',
             }}
           >
-            <TouchableOpacity
-              onPress={() => setInvoiceModalVisible(false)}
+            <View
               style={{
                 flexDirection,
+                justifyContent: 'space-between',
                 alignItems: 'center',
-                gap: 6,
-                paddingVertical: 6,
-                paddingHorizontal: 10,
-                borderRadius: 8,
-                backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                marginBottom: 10,
               }}
             >
-              <Ionicons name="arrow-back" size={18} color={colors.black} />
-              <Text style={{ color: colors.black, fontSize: 13, fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
-                {t('common.close')}
-              </Text>
-            </TouchableOpacity>
-
-            {viewingSale && (
               <TouchableOpacity
-                onPress={() => {
-                  const biz = useBusinessStore.getState();
-                  directPrintInvoice(
-                    viewingSale,
-                    {
-                      name: biz.name,
-                      phone: biz.phone,
-                      address: biz.address,
-                      logoUri: biz.logoUri,
-                    },
-                    'both',
-                    'A4'
-                  );
-                }}
+                onPress={() => setInvoiceModalVisible(false)}
                 style={{
                   flexDirection,
                   alignItems: 'center',
                   gap: 6,
                   paddingVertical: 6,
-                  paddingHorizontal: 12,
+                  paddingHorizontal: 10,
                   borderRadius: 8,
-                  backgroundColor: colors.primary,
+                  backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
                 }}
               >
-                <Ionicons name="print" size={18} color="#FFFFFF" />
-                <Text style={{ color: '#FFFFFF', fontSize: 13, fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
-                  {t('common.print')}
+                <Ionicons name="arrow-back" size={18} color={colors.black} />
+                <Text style={{ color: colors.black, fontSize: 13, fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
+                  {t('common.close')}
                 </Text>
               </TouchableOpacity>
-            )}
+
+              {viewingSale && (
+                <TouchableOpacity
+                  onPress={() => {
+                    const biz = useBusinessStore.getState();
+                    directPrintInvoice(
+                      viewingSale,
+                      {
+                        name: biz.name,
+                        phone: biz.phone,
+                        address: biz.address,
+                        logoUri: biz.logoUri,
+                      },
+                      'both',
+                      invoicePaperSize
+                    );
+                  }}
+                  style={{
+                    flexDirection,
+                    alignItems: 'center',
+                    gap: 6,
+                    paddingVertical: 7,
+                    paddingHorizontal: 14,
+                    borderRadius: 8,
+                    backgroundColor: colors.primary,
+                  }}
+                >
+                  <Ionicons name="print" size={18} color="#FFFFFF" />
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
+                    چاپکردن ({invoicePaperSize})
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* 4 Paper Sizes Selector Bar: A4, 80mm, 58mm, 110mm */}
+            <View style={{ flexDirection, gap: 6, alignItems: 'center' }}>
+              {(['A4', '80mm', '58mm', '110mm'] as const).map((size) => {
+                const active = invoicePaperSize === size;
+                return (
+                  <TouchableOpacity
+                    key={size}
+                    onPress={() => setInvoicePaperSize(size)}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: active
+                        ? (isDark ? colors.primary : '#1E293B')
+                        : (isDark ? colors.gray200 : '#F1F5F9'),
+                      borderWidth: 1,
+                      borderColor: active ? (isDark ? colors.primary : '#1E293B') : colors.gray300,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: active ? '#FFFFFF' : colors.gray700,
+                        fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                      }}
+                    >
+                      {size}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
           {viewingSale && (
@@ -2169,42 +2359,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     flex: 1,
   },
-  actionsRow: {
-    alignItems: 'center',
-    gap: 8,
+  cardActionsContainer: {
     marginTop: 12,
   },
-  primaryActionBtn: {
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionBtnBlock: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    height: 40,
+    paddingHorizontal: 8,
     borderRadius: 10,
-  },
-  secondaryActionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  iconOnlyBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
   },
   actionBtnText: {
-    fontSize: 12,
+    fontSize: 12.5,
   },
   // ── Modals ──
   modalOverlay: {
