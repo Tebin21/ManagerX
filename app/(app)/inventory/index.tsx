@@ -1519,15 +1519,20 @@ export default function InventoryScreen() {
                   {/* Managed categories list */}
                   <ScrollView
                     style={styles.catList}
+                    contentContainerStyle={styles.catListContent}
                     showsVerticalScrollIndicator={true}
                     keyboardShouldPersistTaps="handled"
+                    bounces={false}
                   >
                     {managedCategories.map((cat) => (
                       <View
                         key={cat.name}
                         style={[
                           styles.catListItem,
-                          { borderBottomColor: isDark ? colors.gray200 : colors.gray100, flexDirection },
+                          {
+                            borderBottomColor: isDark ? colors.gray200 : colors.gray100,
+                            flexDirection,
+                          },
                         ]}
                       >
                         {editingCategory === cat.name ? (
@@ -1909,7 +1914,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1.2,
     padding: 22,
-    maxHeight: '80%',
+    maxHeight: 560,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,
@@ -1948,7 +1953,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   catList: {
-    maxHeight: 320,
+    maxHeight: 380,
+    flexGrow: 0,
+  },
+  catListContent: {
+    flexGrow: 0,
   },
   catListItem: {
     justifyContent: 'space-between',
