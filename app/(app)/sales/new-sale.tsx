@@ -62,10 +62,11 @@ import { useResponsive } from '@/hooks/useResponsive';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 import { DIRECT_CUSTOMER_NAME, isDirectCustomerName, getProductBatches } from '@/lib/sqlite';
 import type { Product } from '@/types/sales';
+import { CustomInstallmentModal } from '@/components/sales/CustomInstallmentModal';
 
 type Step = 1 | 2 | 3;
 
-const INSTALLMENT_MONTH_PRESETS = [1, 2, 3, 6, 9, 12, 24];
+const INSTALLMENT_MONTH_PRESETS = [3, 6, 12];
 
 export default function NewSaleScreen() {
   const router = useRouter();
@@ -109,6 +110,8 @@ export default function NewSaleScreen() {
   const setSaleCheckoutModePref = useSettingsStore((s) => s.setSaleCheckoutModePreference);
   const checkoutMode: CheckoutMode = saleCheckoutModePref || 'normal';
   const setCheckoutMode = setSaleCheckoutModePref;
+  const [customInstallmentModalOpen, setCustomInstallmentModalOpen] = useState(false);
+  const [targetMonthlyInput, setTargetMonthlyInput] = useState('');
 
   // Derived
   const visibleProducts = inventory.searchProducts(query, selectedCategory);
@@ -1376,13 +1379,27 @@ export default function NewSaleScreen() {
   );
 
   const isDirectCustomer = isDirectCustomerName(cart.customerInput.name);
-  const isCustomDuration = !INSTALLMENT_MONTH_PRESETS.includes(cart.installmentMonths) || cart.customInstallmentMonths !== '';
 
   const renderInstallmentSection = () => {
     if (cart.paymentMethod !== 'installment') return null;
 
     const remainingBal = cart.remainingDebt();
     const durationMonths = Math.max(1, cart.installmentMonths || 1);
+    const remainingInCurrency = isUSD
+      ? (exchangeRate ? remainingBal / exchangeRate : 0)
+      : remainingBal;
+
+    const targetMonthlyNum = parseFloat(toEnglishDigits(targetMonthlyInput).replace(/,/g, '')) || 0;
+    const isTargetActive = targetMonthlyNum > 0 && Math.ceil(remainingInCurrency / targetMonthlyNum) === durationMonths;
+    const baseMonthlyAmount = isTargetActive
+      ? targetMonthlyNum
+      : (durationMonths > 0 ? (remainingInCurrency / durationMonths) : 0);
+
+    const lastInstallmentAmount = isTargetActive
+      ? Math.max(0, remainingInCurrency - baseMonthlyAmount * (durationMonths - 1))
+      : baseMonthlyAmount;
+    const hasDifferentLastInstallment = isTargetActive && durationMonths > 1 && Math.abs(lastInstallmentAmount - baseMonthlyAmount) >= 0.01;
+
     const monthlyAmtIQD = Math.round(remainingBal / durationMonths);
     const monthlyAmtUSD = exchangeRate ? Math.round((monthlyAmtIQD / exchangeRate) * 100) / 100 : 0;
 
@@ -1417,6 +1434,7 @@ export default function NewSaleScreen() {
           <AppTextInput
             label=""
             placeholder={isUSD ? '0.00 (سەر بەستانە)' : '0 (سەر بەستانە)'}
+            kurdishPlaceholderFont={true}
             value={cart.paidAmount}
             onChangeText={(text) => cart.setPaidAmount(sanitizeNumericInput(toEnglishDigits(text), 'decimal-pad'))}
             onEndEditing={() => {
@@ -1427,6 +1445,7 @@ export default function NewSaleScreen() {
             }}
             keyboardType="decimal-pad"
             forceLatin
+            style={[isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}
             error={isPaidExceeded ? t('sales.downPaymentMustBeLess') : undefined}
           />
           <Text style={[{ fontSize: 12, color: colors.gray400, marginTop: 4, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
@@ -1503,15 +1522,15 @@ export default function NewSaleScreen() {
           )}
         </View>
 
-        {/* 2. Duration (Months) presets + custom */}
+        {/* 2. Duration (Months) presets: exactly 3 presets + 1 custom modal button */}
         <View style={styles.installmentFieldGroup}>
           <Text style={[{ fontSize: 13, color: colors.gray500, marginBottom: 8, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
             {t('sales.installmentMonths', 'ماوەی قیست (بە مانگ)')}
           </Text>
 
-          <View style={[styles.durationPresetsGrid, { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }]}>
+          <View style={[styles.durationPresetsGrid, { flexDirection: 'row', gap: 6 }]}>
             {INSTALLMENT_MONTH_PRESETS.map((m) => {
-              const isSelected = cart.installmentMonths === m && cart.customInstallmentMonths === '';
+              const isSelected = cart.installmentMonths === m;
               return (
                 <TouchableOpacity
                   key={m}
@@ -1520,10 +1539,14 @@ export default function NewSaleScreen() {
                     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); } catch {}
                     cart.setInstallmentMonths(m);
                     cart.setCustomInstallmentMonths('');
+                    const remCur = isUSD ? (exchangeRate ? cart.remainingDebt() / exchangeRate : 0) : cart.remainingDebt();
+                    const calcMonthly = m > 0 ? (remCur / m) : 0;
+                    setTargetMonthlyInput(isUSD ? calcMonthly.toFixed(2) : String(Math.round(calcMonthly)));
                   }}
                   style={[
                     styles.durationChip,
                     {
+                      flex: 1,
                       borderColor: isSelected ? colors.primary : colors.gray200,
                       backgroundColor: isSelected
                         ? (isDark ? 'rgba(212, 175, 55, 0.2)' : 'rgba(212, 175, 55, 0.12)')
@@ -1546,68 +1569,85 @@ export default function NewSaleScreen() {
               );
             })}
 
-            {/* Custom preset chip */}
+            {/* Custom preset button (opens centered modal like Image 2) */}
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => {
                 try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); } catch {}
-                if (cart.customInstallmentMonths === '') {
-                  cart.setCustomInstallmentMonths(String(cart.installmentMonths));
-                }
+                setCustomInstallmentModalOpen(true);
               }}
               style={[
                 styles.durationChip,
                 {
-                  borderColor: isCustomDuration ? colors.primary : colors.gray200,
-                  backgroundColor: isCustomDuration
+                  flex: 1.25,
+                  borderColor: !INSTALLMENT_MONTH_PRESETS.includes(cart.installmentMonths) ? colors.primary : colors.gray200,
+                  backgroundColor: !INSTALLMENT_MONTH_PRESETS.includes(cart.installmentMonths)
                     ? (isDark ? 'rgba(212, 175, 55, 0.2)' : 'rgba(212, 175, 55, 0.12)')
                     : (isDark ? colors.gray100 : colors.gray50),
                 },
               ]}
             >
               <Ionicons
-                name="options-outline"
+                name="calendar-outline"
                 size={14}
-                color={isCustomDuration ? colors.primary : colors.gray500}
+                color={!INSTALLMENT_MONTH_PRESETS.includes(cart.installmentMonths) ? colors.primary : colors.gray500}
                 style={{ marginEnd: 4 }}
               />
               <Text
                 style={[
                   styles.durationChipText,
                   {
-                    color: isCustomDuration ? colors.primary : colors.gray500,
+                    color: !INSTALLMENT_MONTH_PRESETS.includes(cart.installmentMonths) ? colors.primary : colors.gray500,
                     fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
                   },
                 ]}
               >
-                {t('sales.customDuration', 'دیاریکراو (کەستەم)')}
+                {!INSTALLMENT_MONTH_PRESETS.includes(cart.installmentMonths)
+                  ? `${cart.installmentMonths} ${isKuLanguage ? 'مانگ' : 'mo'}`
+                  : (isKuLanguage ? 'کەستەم' : 'Custom')}
               </Text>
             </TouchableOpacity>
           </View>
-
-          {/* Custom Month Input if selected */}
-          {isCustomDuration && (
-            <View style={{ marginTop: 10 }}>
-              <AppTextInput
-                label={t('sales.enterMonths', 'ژمارەی مانگەکان بنووسە')}
-                placeholder="1 - 60"
-                value={cart.customInstallmentMonths}
-                onChangeText={(val) => {
-                  const cleaned = sanitizeNumericInput(toEnglishDigits(val), 'number-pad').replace(/[^0-9]/g, '');
-                  cart.setCustomInstallmentMonths(cleaned);
-                  const parsed = parseInt(cleaned, 10);
-                  if (!isNaN(parsed) && parsed > 0) {
-                    cart.setInstallmentMonths(parsed);
-                  }
-                }}
-                keyboardType="number-pad"
-                forceLatin
-              />
-            </View>
-          )}
         </View>
 
-        {/* 3. Live Installment Summary Card */}
+        {/* 3. Desired Monthly Payment Input (Two-way calculation / flexible monthly installment) */}
+        <View style={styles.installmentFieldGroup}>
+          <View style={[{ flexDirection, justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }]}>
+            <Text style={[{ fontSize: 13, color: colors.gray500, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+              {t('sales.monthlyInstallmentTarget', 'بڕی مانگانەی پێویست (دڵخواز)')}
+            </Text>
+            <Text style={[{ fontSize: 11, color: colors.gray400 }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+              {isUSD ? 'USD' : 'IQD'}
+            </Text>
+          </View>
+
+          <AppTextInput
+            label=""
+            placeholder={isUSD ? '$30.00 (نموونە: ٣٠ دۆلار)' : '50,000 (نموونە: ٥٠ هەزار)'}
+            kurdishPlaceholderFont={true}
+            value={targetMonthlyInput}
+            onChangeText={(val) => {
+              const cleaned = sanitizeNumericInput(toEnglishDigits(val), 'decimal-pad');
+              setTargetMonthlyInput(cleaned);
+              const parsed = parseFloat(toEnglishDigits(cleaned).replace(/,/g, '')) || 0;
+              if (parsed > 0) {
+                const remCur = isUSD ? (exchangeRate ? cart.remainingDebt() / exchangeRate : 0) : cart.remainingDebt();
+                const needed = Math.ceil(remCur / parsed);
+                if (needed >= 1 && needed <= 120) {
+                  cart.setInstallmentMonths(needed);
+                }
+              }
+            }}
+            keyboardType="decimal-pad"
+            forceLatin
+            style={[isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}
+          />
+          <Text style={[{ fontSize: 11, color: colors.gray400, marginTop: 2, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+            {t('sales.monthlyInstallmentDesc', 'دەتوانیت بڕی مانگانە بنووسیت تا سیستەم خۆی ژمارەی مانگەکان یەکسان بکات')}
+          </Text>
+        </View>
+
+        {/* 4. Live Installment Summary Card */}
         <View
           style={[
             styles.installmentSummaryCard,
@@ -1657,23 +1697,25 @@ export default function NewSaleScreen() {
 
             <View style={[styles.installmentDivider, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
 
-            {/* Monthly Installment Highlight */}
+            {/* Monthly Installment Highlight with Uneven Last Month details */}
             <View style={[{ flexDirection, justifyContent: 'space-between', alignItems: 'center', paddingTop: 4 }]}>
-              <View>
+              <View style={{ flex: 1, marginEnd: 8 }}>
                 <Text style={[{ fontSize: 13, color: isDark ? '#F8FAFC' : '#1E293B', textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                   {t('sales.monthlyInstallment', 'قیستی مانگانە')}:
                 </Text>
                 <Text style={[{ fontSize: 11, color: colors.gray400, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                  ({durationMonths} {isKuLanguage ? 'قیستی یەکسان' : 'equal payments'})
+                  {hasDifferentLastInstallment
+                    ? `(${durationMonths - 1} ${isKuLanguage ? 'مانگ بە' : 'mo @'} ${isUSD ? '$' + fmtUSD(baseMonthlyAmount) : fmtIQD(baseMonthlyAmount)} + ${isKuLanguage ? 'کۆتایی' : 'last'} ${isUSD ? '$' + fmtUSD(lastInstallmentAmount) : fmtIQD(lastInstallmentAmount)})`
+                    : `(${durationMonths} ${isKuLanguage ? 'قیستی یەکسان' : 'equal payments'})`}
                 </Text>
               </View>
               <View style={{ alignItems: alignEnd }}>
                 <Text style={[styles.monthlyInstallmentValue, { color: '#D4AF37' }]}>
-                  {isUSD ? `$${fmtUSD(monthlyAmtUSD)}` : fmtIQD(monthlyAmtIQD)}
+                  {isUSD ? `$${fmtUSD(baseMonthlyAmount)}` : fmtIQD(baseMonthlyAmount)}
                 </Text>
                 {isUSD && (
                   <Text style={{ fontSize: 11, color: colors.gray400 }}>
-                    ≈ {fmtIQD(monthlyAmtIQD)}
+                    ≈ {fmtIQD(Math.round(baseMonthlyAmount * (exchangeRate || 1310)))}
                   </Text>
                 )}
               </View>
@@ -2071,6 +2113,23 @@ export default function NewSaleScreen() {
           onFinishMulti={handleFinishScanner}
         />
       )}
+
+      <CustomInstallmentModal
+        visible={customInstallmentModalOpen}
+        onClose={() => setCustomInstallmentModalOpen(false)}
+        initialMonths={cart.installmentMonths}
+        startDate={saleDate}
+        remainingBalance={cart.remainingDebt()}
+        isUSD={isUSD}
+        exchangeRate={exchangeRate}
+        onApply={(months) => {
+          cart.setInstallmentMonths(months);
+          cart.setCustomInstallmentMonths('');
+          const remCur = isUSD ? (exchangeRate ? cart.remainingDebt() / exchangeRate : 0) : cart.remainingDebt();
+          const calcMonthly = months > 0 ? (remCur / months) : 0;
+          setTargetMonthlyInput(isUSD ? calcMonthly.toFixed(2) : String(Math.round(calcMonthly)));
+        }}
+      />
     </View>
   );
 }
