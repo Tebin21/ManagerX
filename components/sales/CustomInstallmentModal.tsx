@@ -105,8 +105,31 @@ const ENGLISH_MONTHS = [
   'December',
 ];
 
-const KURDISH_WEEKDAYS = ['شەمە', '١شەمە', '٢شەمە', '٣شەمە', '٤شەمە', '٥شەمە', 'هەینی'];
-const ENGLISH_WEEKDAYS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+interface WeekdayHeaderItem {
+  id: string;
+  num?: string;
+  label: string;
+}
+
+const KURDISH_WEEKDAYS: WeekdayHeaderItem[] = [
+  { id: 'sat', label: 'شەمە' },
+  { id: 'sun', num: '١', label: 'شەمە' },
+  { id: 'mon', num: '٢', label: 'شەمە' },
+  { id: 'tue', num: '٣', label: 'شەمە' },
+  { id: 'wed', num: '٤', label: 'شەمە' },
+  { id: 'thu', num: '٥', label: 'شەمە' },
+  { id: 'fri', label: 'هەینی' },
+];
+
+const ENGLISH_WEEKDAYS: WeekdayHeaderItem[] = [
+  { id: 'sat', label: 'Sat' },
+  { id: 'sun', label: 'Sun' },
+  { id: 'mon', label: 'Mon' },
+  { id: 'tue', label: 'Tue' },
+  { id: 'wed', label: 'Wed' },
+  { id: 'thu', label: 'Thu' },
+  { id: 'fri', label: 'Fri' },
+];
 
 const QUICK_MONTH_PRESETS = [1, 2, 3, 6, 9, 12, 18, 24, 36];
 
@@ -549,18 +572,34 @@ export function CustomInstallmentModal({
 
             {/* 6. Calendar Weekdays Header */}
             <View style={[styles.weekdaysRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              {weekdays.map((w, idx) => (
-                <View key={idx} style={styles.weekdayCell}>
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      styles.weekdayText,
-                      { color: colors.gray400 },
-                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {w}
-                  </Text>
+              {weekdays.map((item, idx) => (
+                <View key={item.id || idx} style={styles.weekdayCell}>
+                  <View style={styles.weekdayInnerRow}>
+                    <Text
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
+                      style={[
+                        styles.weekdayText,
+                        { color: colors.gray400 },
+                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                    {item.num ? (
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.weekdayNumText,
+                          { color: colors.gray400 },
+                          isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {item.num}
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
               ))}
             </View>
@@ -863,10 +902,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 2,
   },
+  weekdayInnerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 1.5,
+  },
   weekdayText: {
     fontSize: 10.5,
     fontWeight: '700',
     textAlign: 'center',
+    includeFontPadding: false,
+  },
+  weekdayNumText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    textAlign: 'center',
+    includeFontPadding: false,
   },
   daysGrid: {
     flexWrap: 'wrap',
