@@ -823,7 +823,7 @@ function BusinessHeaderImpl() {
             )}
 
             <View style={styles.brandRow}>
-              <HeaderTypewriterText isKurdish={isKurdish} />
+              <HeaderTypewriterText isKurdish={isKurdish} isArabic={isArabic} />
             </View>
 
             {/* Pagination Dots (Only when there is no video and multiple images) */}
@@ -1335,7 +1335,9 @@ function getStyles(isTablet: boolean, isTabletLandscape: boolean = false, scale:
     },
     brandRow: {
       marginTop: isTablet ? 20 : 16,
-      alignItems: 'flex-end',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '100%',
     },
     dotsRow: {
       position: 'absolute',

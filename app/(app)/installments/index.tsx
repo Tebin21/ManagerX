@@ -361,7 +361,9 @@ export default function InstallmentsScreen() {
       : (isUSD ? Math.round(cleanAmount * exchangeRate) : cleanAmount);
 
     const defaultNote = payMode === 'custom'
-      ? (isFullPayment ? 'سافکردنی تەواوی قەرز' : 'دانەوەی بڕی تر')
+      ? (isFullPayment
+          ? (isArLanguage ? 'تسوية كامل الدين' : isKuLanguage ? 'سافکردنی تەواوی قەرز' : 'Full debt settlement')
+          : (isArLanguage ? 'دفع مبلغ آخر' : isKuLanguage ? 'دانەوەی بڕی تر' : 'Other amount payment'))
       : undefined;
     const finalNote = payNote.trim() || defaultNote;
 
@@ -417,7 +419,10 @@ export default function InstallmentsScreen() {
         setViewingSale(sale);
         setInvoiceModalVisible(true);
       } else {
-        Alert.alert(t('common.error'), 'پسوولە نەدۆزرایەوە');
+        Alert.alert(
+          t('common.error'),
+          isArLanguage ? 'لم يتم العثور على الفاتورة' : isKuLanguage ? 'پسوولە نەدۆزرایەوە' : 'Invoice not found'
+        );
       }
     } catch (err) {
       console.error('Failed to load sale invoice:', err);
@@ -465,15 +470,19 @@ export default function InstallmentsScreen() {
     Haptics.selectionAsync();
     if (item.paymentsCount > 0 && item.debtId) {
       Alert.alert(
-        'چاپکردنی وەسڵ و پسوولە (٤ قەبارە)',
-        'دەتوانیت پسوولەی فرۆشتن یان وەسڵی پارەدانی قیست بە هەر ٤ قەبارەکە (A4, 80mm, 58mm, 110mm) چاپ بکەیت:',
+        isArLanguage ? 'طباعة الوصل والفاتورة (٤ أحجام)' : isKuLanguage ? 'چاپکردنی وەسڵ و پسوولە (٤ قەبارە)' : 'Print Receipt & Invoice (4 sizes)',
+        isArLanguage
+          ? 'يمكنك طباعة فاتورة البيع أو إيصال تسديد القسط بجميع الأحجام الأربعة (A4, 80mm, 58mm, 110mm):'
+          : isKuLanguage
+          ? 'دەتوانیت پسوولەی فرۆشتن یان وەسڵی پارەدانی قیست بە هەر ٤ قەبارەکە (A4, 80mm, 58mm, 110mm) چاپ بکەیت:'
+          : 'You can print sales invoice or installment payment receipt in all 4 sizes (A4, 80mm, 58mm, 110mm):',
         [
           {
-            text: 'وەسڵی دوایین پارەدان (٤ قەبارە)',
+            text: isArLanguage ? 'إيصال آخر دفعة (٤ أحجام)' : isKuLanguage ? 'وەسڵی دوایین پارەدان (٤ قەبارە)' : 'Latest Payment Receipt (4 sizes)',
             onPress: () => openLatestReceipt(item),
           },
           {
-            text: 'پسوولەی فرۆشتن (٤ قەبارە)',
+            text: isArLanguage ? 'فاتورة البيع (٤ أحجام)' : isKuLanguage ? 'پسوولەی فرۆشتن (٤ قەبارە)' : 'Sales Invoice (4 sizes)',
             onPress: () => handleViewInvoice(item.saleId),
           },
           {
@@ -1576,12 +1585,16 @@ export default function InstallmentsScreen() {
                             ? selectedSaleForPay.remainingDebt / exchangeRate
                             : selectedSaleForPay.remainingDebt;
                           setPayAmountInput(isUSD ? inCurr.toFixed(2) : String(Math.round(inCurr)));
-                          if (!payNote) setPayNote('سافکردنی تەواوی قەرز');
+                          if (!payNote) setPayNote(isArLanguage ? 'تسوية كامل الدين' : isKuLanguage ? 'سافکردنی تەواوی قەرز' : 'Full debt settlement');
                         }}
                       >
                         <Ionicons name="flash-outline" size={15} color="#EF4444" style={{ marginHorizontal: 4 }} />
                         <Text style={[styles.quickPillText, { color: '#DC2626', fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                          هەمووی ساف بکە ({formatPrimary(selectedSaleForPay.remainingDebt)})
+                          {isArLanguage
+                            ? `تسوية كامل المبلغ (${formatPrimary(selectedSaleForPay.remainingDebt)})`
+                            : isKuLanguage
+                            ? `هەمووی ساف بکە (${formatPrimary(selectedSaleForPay.remainingDebt)})`
+                            : `Settle all (${formatPrimary(selectedSaleForPay.remainingDebt)})`}
                         </Text>
                       </TouchableOpacity>
 
@@ -1602,7 +1615,7 @@ export default function InstallmentsScreen() {
                           }}
                         >
                           <Text style={[styles.quickPillText, { color: colors.gray600 }]}>
-                            سڕینەوە
+                            {isArLanguage ? 'مسح' : isKuLanguage ? 'سڕینەوە' : 'Clear'}
                           </Text>
                         </TouchableOpacity>
                       )}
@@ -1795,7 +1808,7 @@ export default function InstallmentsScreen() {
                 {/* Paper Size for Payment Receipt (4 Formats) */}
                 <View style={{ marginTop: 10 }}>
                   <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
-                    جۆری وەسڵی چاپکردن (٤ قەبارە):
+                    {isArLanguage ? 'نوع إيصال الطباعة (٤ أحجام):' : isKuLanguage ? 'جۆری وەسڵی چاپکردن (٤ قەبارە):' : 'Receipt Print Size (4 sizes):'}
                   </Text>
                   <View style={[styles.methodRow, { flexDirection, gap: 6 }]}>
                     {(['80mm', '58mm', '110mm', 'A4'] as DebtReceiptPaperSize[]).map((size) => {
@@ -1858,7 +1871,7 @@ export default function InstallmentsScreen() {
                       ]}
                       numberOfLines={1}
                     >
-                      تەواوکردنی ئاسایی
+                      {isArLanguage ? 'إكمال عادي' : isKuLanguage ? 'تەواوکردنی ئاسایی' : 'Normal Complete'}
                     </Text>
                   </TouchableOpacity>
 
@@ -1890,7 +1903,7 @@ export default function InstallmentsScreen() {
                           ]}
                           numberOfLines={1}
                         >
-                          تەواوکردن و چاپ ({payReceiptPaperSize})
+                          {isArLanguage ? `إكمال وطباعة (${payReceiptPaperSize})` : isKuLanguage ? `تەواوکردن و چاپ (${payReceiptPaperSize})` : `Complete & Print (${payReceiptPaperSize})`}
                         </Text>
                       </>
                     )}
@@ -2113,7 +2126,7 @@ export default function InstallmentsScreen() {
                 >
                   <Ionicons name="print" size={18} color="#FFFFFF" />
                   <Text style={{ color: '#FFFFFF', fontSize: 13, fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
-                    چاپکردن ({invoicePaperSize})
+                    {isArLanguage ? `طباعة (${invoicePaperSize})` : isKuLanguage ? `چاپکردن (${invoicePaperSize})` : `Print (${invoicePaperSize})`}
                   </Text>
                 </TouchableOpacity>
               )}

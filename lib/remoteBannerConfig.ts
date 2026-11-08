@@ -16,6 +16,7 @@ export interface RemoteBannerConfig {
 
   // Animated Typewriter Phrases
   kurdishPhrases?: string[];
+  arabicPhrases?: string[];
   englishPhrases?: string[];
   typingSpeed?: number;
   deletingSpeed?: number;

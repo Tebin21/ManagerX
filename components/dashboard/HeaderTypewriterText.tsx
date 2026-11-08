@@ -7,6 +7,7 @@ import { useRemoteBannerConfig } from '@/lib/remoteBannerConfig';
 
 interface Props {
   isKurdish: boolean;
+  isArabic?: boolean;
   style?: object;
 }
 
@@ -14,6 +15,12 @@ const KURDISH_PHRASES = [
   'فرۆشیار',
   'لەگەڵ فرۆشیار فرۆشتنەکانت ئاسانتر بکە',
   'فرۆشیار پێشکەش بە تۆیە',
+];
+
+const ARABIC_PHRASES = [
+  'فروشیار',
+  'اجعل مبيعاتك أسهل مع فروشیار',
+  'فروشیار في خدمتكم دائماً',
 ];
 
 const ENGLISH_PHRASES = [
@@ -27,11 +34,16 @@ const DELETING_SPEED = 35; // ms per char
 const HOLD_DURATION = 5000; // 5 seconds hold as requested by user
 const PAUSE_BEFORE_NEXT = 500; // ms pause after erasing
 
-function HeaderTypewriterTextImpl({ isKurdish, style }: Props) {
+function HeaderTypewriterTextImpl({ isKurdish, isArabic, style }: Props) {
   const { isTablet } = useResponsive();
   const { config } = useRemoteBannerConfig();
 
   const phrases = useMemo(() => {
+    if (isArabic) {
+      return config?.arabicPhrases && config.arabicPhrases.length > 0
+        ? config.arabicPhrases
+        : ARABIC_PHRASES;
+    }
     if (isKurdish) {
       return config?.kurdishPhrases && config.kurdishPhrases.length > 0
         ? config.kurdishPhrases
@@ -40,7 +52,7 @@ function HeaderTypewriterTextImpl({ isKurdish, style }: Props) {
     return config?.englishPhrases && config.englishPhrases.length > 0
       ? config.englishPhrases
       : ENGLISH_PHRASES;
-  }, [isKurdish, config?.kurdishPhrases, config?.englishPhrases]);
+  }, [isArabic, isKurdish, config?.arabicPhrases, config?.kurdishPhrases, config?.englishPhrases]);
 
   const activeTypingSpeed = config?.typingSpeed || TYPING_SPEED;
   const activeDeletingSpeed = config?.deletingSpeed || DELETING_SPEED;
@@ -112,7 +124,7 @@ function HeaderTypewriterTextImpl({ isKurdish, style }: Props) {
     setDisplayText('');
     setIsDeleting(false);
     setPhraseIndex(0);
-  }, [isKurdish, phrases]);
+  }, [isKurdish, isArabic, phrases]);
 
   return (
     <View style={[styles.container, style]}>
@@ -120,7 +132,7 @@ function HeaderTypewriterTextImpl({ isKurdish, style }: Props) {
         style={[
           styles.text,
           { fontSize: isTablet ? 13.5 : 11.5 },
-          isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+          (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
         ]}
         numberOfLines={1}
       >
@@ -137,12 +149,14 @@ const styles = StyleSheet.create({
   container: {
     minHeight: 22,
     justifyContent: 'center',
-    alignItems: 'flex-end',
+    alignItems: 'center',
+    width: '100%',
   },
   text: {
     color: 'rgba(255, 255, 255, 0.88)',
     fontWeight: '700',
     letterSpacing: 0.3,
+    textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.35)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
