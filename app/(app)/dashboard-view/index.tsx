@@ -69,6 +69,7 @@ export default function DashboardViewScreen() {
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { isTablet, isTabletLandscape } = useResponsive();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const isAr = useLanguageStore((s) => s.language === 'ar');
 
   const isEmployee = useManagementStore((s) => s.isEmployee);
   const currentPermissions = useManagementStore((s) => s.currentPermissions);
@@ -138,21 +139,21 @@ export default function DashboardViewScreen() {
   const periodLabel = useMemo(() => {
     switch (period) {
       case 'today':
-        return isKurdish ? 'ئەمڕۆ' : 'Today';
+        return isAr ? 'اليوم' : isKurdish ? 'ئەمڕۆ' : 'Today';
       case 'week':
-        return isKurdish ? 'ئەم هەفتەیە' : 'This Week';
+        return isAr ? 'هذا الأسبوع' : isKurdish ? 'ئەم هەفتەیە' : 'This Week';
       case 'month':
-        return isKurdish ? 'ئەم مانگە' : 'This Month';
+        return isAr ? 'هذا الشهر' : isKurdish ? 'ئەم مانگە' : 'This Month';
       case 'year':
-        return isKurdish ? 'ئەمساڵ' : 'This Year';
+        return isAr ? 'هذا العام' : isKurdish ? 'ئەمساڵ' : 'This Year';
       case 'all':
-        return isKurdish ? 'هەموو کات' : 'All Time';
+        return isAr ? 'كل الأوقات' : isKurdish ? 'هەموو کات' : 'All Time';
       case 'custom':
         return `${formatDateShort(bounds.from)} - ${formatDateShort(bounds.to)}`;
       default:
-        return isKurdish ? 'ئەمڕۆ' : 'Today';
+        return isAr ? 'اليوم' : isKurdish ? 'ئەمڕۆ' : 'Today';
     }
-  }, [period, bounds, isKurdish]);
+  }, [period, bounds, isKurdish, isAr]);
 
   // Export complete Dashboard report as PDF
   const handleExportPdf = useCallback(async () => {
@@ -173,11 +174,11 @@ export default function DashboardViewScreen() {
       );
     } catch (err) {
       console.error('[DashboardViewScreen] Export PDF failed:', err);
-      Alert.alert(isKurdish ? 'هەڵە' : 'Error', String(err));
+      Alert.alert(isAr ? 'خطأ' : isKurdish ? 'هەڵە' : 'Error', String(err));
     } finally {
       setIsExporting(false);
     }
-  }, [stats, activities, periodLabel, isKurdish]);
+  }, [stats, activities, periodLabel, isKurdish, isAr]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -216,7 +217,7 @@ export default function DashboardViewScreen() {
         includeAll
         onExportPdf={handleExportPdf}
         isExportingPdf={isExporting}
-        exportPdfLabel={isKurdish ? 'دەرکردنی ڕاپۆرتی داشبۆرد بە PDF' : 'Export Dashboard Report (PDF)'}
+        exportPdfLabel={isAr ? 'تصدير تقرير لوحة التحكم (PDF)' : isKurdish ? 'دەرکردنی ڕاپۆرتی داشبۆرد بە PDF' : 'Export Dashboard Report (PDF)'}
       />
 
       <ScrollView
@@ -266,7 +267,7 @@ export default function DashboardViewScreen() {
                 isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
-              {isKurdish ? 'ئامار و زانیارییەکان' : 'Analytics & Overview'}
+              {isAr ? 'الإحصائيات ونظرة عامة' : isKurdish ? 'ئامار و زانیارییەکان' : 'Analytics & Overview'}
             </Text>
           </View>
 
@@ -326,7 +327,7 @@ export default function DashboardViewScreen() {
                   { color: colors.gray400, fontSize: isTablet ? 12.5 : 11 },
                 ]}
               >
-                {isKurdish ? 'تەنها بینین' : 'View Only'}
+                {isAr ? 'عرض فقط' : isKurdish ? 'تەنها بینین' : 'View Only'}
               </Text>
             </View>
           </View>
@@ -344,7 +345,7 @@ export default function DashboardViewScreen() {
                 isCurrency
                 icon="wallet"
                 color="#10B981"
-                subtitle={isKurdish ? 'داهات' : 'Revenue'}
+                subtitle={isAr ? 'الإيرادات' : isKurdish ? 'داهات' : 'Revenue'}
                 delay={30}
                 isLocked={lockRevenue}
               />
@@ -358,7 +359,7 @@ export default function DashboardViewScreen() {
                 isCurrency
                 icon="bag-handle"
                 color="#8B5CF6"
-                subtitle={isKurdish ? 'کڕینەکان' : 'Purchases'}
+                subtitle={isAr ? 'المشتريات' : isKurdish ? 'کڕینەکان' : 'Purchases'}
                 delay={60}
                 isLocked={lockPurchases}
               />
@@ -367,12 +368,12 @@ export default function DashboardViewScreen() {
             {/* 3. Total Expenses / کۆی مەسروفات و خەرجییەکان */}
             {showExpenses && (
               <DashboardMetricSquare
-                title={isKurdish ? 'کۆی مەسروفات' : 'Total Expenses'}
+                title={isAr ? 'إجمالي المصروفات' : isKurdish ? 'کۆی مەسروفات' : 'Total Expenses'}
                 value={safeStats.totalExpenses}
                 isCurrency
                 icon="cash-outline"
                 color="#E11D48"
-                subtitle={isKurdish ? 'مەسروفات' : 'Expenses'}
+                subtitle={isAr ? 'المصروفات' : isKurdish ? 'مەسروفات' : 'Expenses'}
                 delay={80}
                 isLocked={lockExpenses}
               />
@@ -388,9 +389,13 @@ export default function DashboardViewScreen() {
                 color={safeStats.expectedProfit >= 0 ? '#059669' : colors.error}
                 subtitle={
                   safeStats.expectedProfit >= 0
-                    ? isKurdish
+                    ? isAr
+                      ? 'أرباح'
+                      : isKurdish
                       ? 'قازانج'
                       : 'Profit'
+                    : isAr
+                    ? 'خسارة'
                     : isKurdish
                     ? 'زەرەر'
                     : 'Loss'
@@ -408,7 +413,7 @@ export default function DashboardViewScreen() {
                 isCurrency
                 icon="receipt"
                 color="#06B6D4"
-                subtitle={isKurdish ? 'فرۆشراو' : 'Sales'}
+                subtitle={isAr ? 'المبيعات' : isKurdish ? 'فرۆشراو' : 'Sales'}
                 delay={120}
                 isLocked={lockSales}
               />
@@ -421,7 +426,7 @@ export default function DashboardViewScreen() {
                 value={safeStats.totalInvoices}
                 icon="document-text"
                 color="#6366F1"
-                subtitle={isKurdish ? 'پسوولە' : 'Invoices'}
+                subtitle={isAr ? 'الفواتير' : isKurdish ? 'پسوولە' : 'Invoices'}
                 delay={150}
                 isLocked={lockSales}
               />
@@ -434,7 +439,7 @@ export default function DashboardViewScreen() {
                 value={safeStats.totalCustomers}
                 icon="people"
                 color="#F59E0B"
-                subtitle={isKurdish ? 'کڕیار' : 'Customers'}
+                subtitle={isAr ? 'الزبائن' : isKurdish ? 'کڕیار' : 'Customers'}
                 delay={180}
                 isLocked={lockStockAlerts}
               />
@@ -447,7 +452,7 @@ export default function DashboardViewScreen() {
                 value={safeStats.totalSuppliers}
                 icon="business"
                 color="#14B8A6"
-                subtitle={isKurdish ? 'دابینکەر' : 'Suppliers'}
+                subtitle={isAr ? 'الموردين' : isKurdish ? 'دابینکەر' : 'Suppliers'}
                 delay={210}
                 isLocked={lockStockAlerts}
               />
@@ -460,7 +465,7 @@ export default function DashboardViewScreen() {
                 value={safeStats.totalItems}
                 icon="cube"
                 color="#EC4899"
-                subtitle={isKurdish ? 'کاڵا' : 'Items'}
+                subtitle={isAr ? 'المنتجات' : isKurdish ? 'کاڵا' : 'Items'}
                 delay={240}
                 isLocked={lockStockAlerts}
               />
@@ -476,9 +481,13 @@ export default function DashboardViewScreen() {
                 isAlert={safeStats.lowStockCount > 0}
                 subtitle={
                   safeStats.lowStockCount > 0
-                    ? isKurdish
+                    ? isAr
+                      ? 'تنبيه'
+                      : isKurdish
                       ? 'ئاگاداری'
                       : 'Low'
+                    : isAr
+                    ? 'جيد'
                     : isKurdish
                     ? 'باشە'
                     : 'OK'
@@ -495,7 +504,7 @@ export default function DashboardViewScreen() {
                 value={safeStats.totalBatchesCount}
                 icon="layers"
                 color="#6366F1"
-                subtitle={isKurdish ? 'وەجبە' : 'Batches'}
+                subtitle={isAr ? 'الوجبات' : isKurdish ? 'وەجبە' : 'Batches'}
                 delay={290}
                 isLocked={lockStockAlerts}
               />
@@ -510,9 +519,13 @@ export default function DashboardViewScreen() {
                 color="#10B981"
                 subtitle={
                   safeStats.expiringBatchesCount > 0
-                    ? isKurdish
+                    ? isAr
+                      ? `${safeStats.expiringBatchesCount} قريبة الانتهاء`
+                      : isKurdish
                       ? `${safeStats.expiringBatchesCount} نزیک بەسەرچوون`
                       : `${safeStats.expiringBatchesCount} Expiring`
+                    : isAr
+                    ? 'في المخزن'
                     : isKurdish
                     ? 'لە کۆگادا'
                     : 'In Stock'
@@ -530,7 +543,7 @@ export default function DashboardViewScreen() {
                 value={safeStats.depletedBatchesCount}
                 icon="checkmark-done-circle"
                 color="#64748B"
-                subtitle={isKurdish ? 'فرۆشراو' : 'Sold Out'}
+                subtitle={isAr ? 'نفدت' : isKurdish ? 'فرۆشراو' : 'Sold Out'}
                 delay={330}
                 isLocked={lockStockAlerts}
               />
@@ -543,7 +556,7 @@ export default function DashboardViewScreen() {
                 value={safeStats.multiBatchProductsCount}
                 icon="duplicate"
                 color="#F59E0B"
-                subtitle={isKurdish ? 'فرە-وەجبە' : 'Multi-Batch'}
+                subtitle={isAr ? 'متعدد الوجبات' : isKurdish ? 'فرە-وەجبە' : 'Multi-Batch'}
                 delay={350}
                 isLocked={lockStockAlerts}
               />
@@ -557,7 +570,7 @@ export default function DashboardViewScreen() {
                 isCurrency
                 icon="arrow-down-circle"
                 color="#EA580C"
-                subtitle={isKurdish ? 'لای کڕیار' : 'Receivables'}
+                subtitle={isAr ? 'ديون عند الزبائن' : isKurdish ? 'لای کڕیار' : 'Receivables'}
                 delay={370}
                 isLocked={lockDebts}
               />
@@ -571,7 +584,7 @@ export default function DashboardViewScreen() {
                 isCurrency
                 icon="arrow-up-circle"
                 color="#DC2626"
-                subtitle={isKurdish ? 'قەرزی سەرشان' : 'Payables'}
+                subtitle={isAr ? 'ديون للموردين' : isKurdish ? 'قەرزی سەرشان' : 'Payables'}
                 delay={390}
                 isLocked={lockDebts}
               />
@@ -580,12 +593,12 @@ export default function DashboardViewScreen() {
             {/* 17. Total Installment Sales / کۆی فرۆشتنی بەقیست */}
             {showSales && (
               <DashboardMetricSquare
-                title={isKurdish ? 'کۆی فرۆشتنی قیست' : 'Installment Sales'}
+                title={isAr ? 'إجمالي مبيعات الأقساط' : isKurdish ? 'کۆی فرۆشتنی قیست' : 'Installment Sales'}
                 value={safeStats.totalInstallmentSales}
                 isCurrency
                 icon="calendar-number"
                 color="#6366F1"
-                subtitle={isKurdish ? 'فرۆشتنی قیست' : 'Installments'}
+                subtitle={isAr ? 'مبيعات الأقساط' : isKurdish ? 'فرۆشتنی قیست' : 'Installments'}
                 delay={400}
               />
             )}
@@ -593,12 +606,12 @@ export default function DashboardViewScreen() {
             {/* 18. Installment Collected / قیستی وەرگیراو */}
             {showSales && (
               <DashboardMetricSquare
-                title={isKurdish ? 'قیستی وەرگیراو' : 'Collected Installments'}
+                title={isAr ? 'الأقساط المستلمة' : isKurdish ? 'قیستی وەرگیراو' : 'Collected Installments'}
                 value={safeStats.totalInstallmentCollected}
                 isCurrency
                 icon="checkmark-circle"
                 color="#10B981"
-                subtitle={isKurdish ? 'پێشەکی + دراو' : 'Collected'}
+                subtitle={isAr ? 'مقدمة + مدفوع' : isKurdish ? 'پێشەکی + دراو' : 'Collected'}
                 delay={410}
               />
             )}
@@ -606,12 +619,12 @@ export default function DashboardViewScreen() {
             {/* 19. Remaining Installment Debt / قەرزی ماوەی قیستەکان */}
             {showDebts && (
               <DashboardMetricSquare
-                title={isKurdish ? 'قەرزی ماوەی قیست' : 'Remaining Installments'}
+                title={isAr ? 'الأقساط المتبقية' : isKurdish ? 'قەرزی ماوەی قیست' : 'Remaining Installments'}
                 value={safeStats.totalInstallmentRemaining}
                 isCurrency
                 icon="hourglass"
                 color="#EA580C"
-                subtitle={isKurdish ? 'قەرزی ماوە' : 'Remaining'}
+                subtitle={isAr ? 'الدين المتبقي' : isKurdish ? 'قەرزی ماوە' : 'Remaining'}
                 delay={420}
               />
             )}
@@ -619,11 +632,11 @@ export default function DashboardViewScreen() {
             {/* 20. Active Installment Accounts / قیستە چالاکەکان */}
             {showDebts && (
               <DashboardMetricSquare
-                title={isKurdish ? 'قیستی چالاک' : 'Active Installments'}
+                title={isAr ? 'الأقساط النشطة' : isKurdish ? 'قیستی چالاک' : 'Active Installments'}
                 value={safeStats.activeInstallmentAccounts}
                 icon="people"
                 color="#EC4899"
-                subtitle={isKurdish ? 'کڕیار' : 'Customers'}
+                subtitle={isAr ? 'الزبائن' : isKurdish ? 'کڕیار' : 'Customers'}
                 delay={430}
               />
             )}
@@ -636,7 +649,7 @@ export default function DashboardViewScreen() {
                 isCurrency
                 icon="pricetag"
                 color="#8B5CF6"
-                subtitle={isKurdish ? 'داشکاندن' : 'Discounts'}
+                subtitle={isAr ? 'الخصومات' : isKurdish ? 'داشکاندن' : 'Discounts'}
                 delay={440}
                 isFullWidth
                 isLocked={lockExpenses}

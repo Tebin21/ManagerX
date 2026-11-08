@@ -40,6 +40,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useQuotationStore } from '@/store/quotationStore';
 import { useBusinessStore } from '@/store/businessStore';
 import { shareQuotationInvoice } from '@/lib/generateInvoice';
+import { isDirectCustomerName } from '@/lib/sqlite';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { Theme, MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import type { CustomerWithStats } from '@/types/customers';
@@ -64,6 +65,7 @@ export default function HistoryScreen() {
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, writingDirection } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isAr = useLanguageStore((s) => s.language === 'ar');
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
 
   const historyGridLayout = useSettingsStore((s) => s.historyGridLayout);
@@ -183,12 +185,12 @@ export default function HistoryScreen() {
 
   const periodKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
   const periodLabels: Record<PeriodKey, string> = {
-    today: isKuLanguage ? 'ئەمڕۆ' : 'Today',
-    week: isKuLanguage ? 'ئەم هەفتەیە' : 'This Week',
-    month: isKuLanguage ? 'ئەم مانگە' : 'This Month',
-    year: isKuLanguage ? 'ئەمساڵ' : 'This Year',
-    all: isKuLanguage ? 'هەمووی' : 'All Time',
-    custom: isKuLanguage ? 'دیاریکراو' : 'Custom',
+    today: isAr ? 'اليوم' : isKuLanguage ? 'ئەمڕۆ' : 'Today',
+    week: isAr ? 'هذا الأسبوع' : isKuLanguage ? 'ئەم هەفتەیە' : 'This Week',
+    month: isAr ? 'هذا الشهر' : isKuLanguage ? 'ئەم مانگە' : 'This Month',
+    year: isAr ? 'هذا العام' : isKuLanguage ? 'ئەمساڵ' : 'This Year',
+    all: isAr ? 'الكل' : isKuLanguage ? 'هەمووی' : 'All Time',
+    custom: isAr ? 'مخصص' : isKuLanguage ? 'دیاریکراو' : 'Custom',
   };
 
   const periodDisplayLabel = useMemo(() => {
@@ -954,7 +956,7 @@ export default function HistoryScreen() {
               isCurrency
               icon="people"
               color="#10B981"
-              subtitle={isKuLanguage ? 'کۆی فرۆشراو بە کڕیاران' : 'Customer Sales'}
+              subtitle={isAr ? 'مبيعات الزبائن' : isKuLanguage ? 'کۆی فرۆشراو بە کڕیاران' : 'Customer Sales'}
               delay={30}
             />
 
@@ -965,7 +967,7 @@ export default function HistoryScreen() {
               isCurrency
               icon="business"
               color={colors.primary}
-              subtitle={isKuLanguage ? 'کۆی کڕدراو لە دابینکەر' : 'Supplier Purchases'}
+              subtitle={isAr ? 'مشتريات الموردين' : isKuLanguage ? 'کۆی کڕدراو لە دابینکەر' : 'Supplier Purchases'}
               delay={60}
             />
 
@@ -975,7 +977,7 @@ export default function HistoryScreen() {
               value={reportCustDebtors}
               icon="alert-circle"
               color={reportCustDebtors > 0 ? colors.error : colors.gray500}
-              subtitle={reportCustDebtors > 0 ? (isKuLanguage ? 'کڕیاری قەرزدار' : 'Active Debtors') : (isKuLanguage ? 'سفر' : 'None')}
+              subtitle={reportCustDebtors > 0 ? (isAr ? 'زبائن مدينون' : isKuLanguage ? 'کڕیاری قەرزدار' : 'Active Debtors') : (isAr ? 'لا يوجد' : isKuLanguage ? 'سفر' : 'None')}
               isAlert={reportCustDebtors > 0}
               delay={90}
             />
@@ -986,7 +988,7 @@ export default function HistoryScreen() {
               value={reportActiveSupplierDebts}
               icon="layers"
               color="#6366F1"
-              subtitle={isKuLanguage ? 'دابینکەری قەرزدار' : 'Supplier Debts'}
+              subtitle={isAr ? 'ديون الموردين' : isKuLanguage ? 'دابینکەری قەرزدار' : 'Supplier Debts'}
               delay={120}
             />
           </View>
@@ -1069,7 +1071,9 @@ export default function HistoryScreen() {
                 >
                   <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
                     <Text style={[styles.previewName, { color: colors.black }]} numberOfLines={1}>
-                      {cust.name}
+                      {isDirectCustomerName(cust.name)
+                        ? (isAr ? 'الزبون المباشر' : isKuLanguage ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer')
+                        : cust.name}
                     </Text>
                     <Text style={[styles.previewSub, { color: colors.gray400 }]}>
                       {cust.phone || '—'} {cust.lastPurchaseDate ? `• ${formatDateShort(cust.lastPurchaseDate)}` : ''}
@@ -1158,11 +1162,11 @@ export default function HistoryScreen() {
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {periodDisplayLabel}{query ? ` (${isKuLanguage ? 'گەڕان' : 'Search'})` : ''}: {visibleCustomers.length} {t('history.customersTab')}
+              {periodDisplayLabel}{query ? ` (${isAr ? 'بحث' : isKuLanguage ? 'گەڕان' : 'Search'})` : ''}: {visibleCustomers.length} {t('history.customersTab')}
             </Text>
             <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'baseline', gap: 4 }}>
               <Text style={[styles.summaryStripText, { color: colors.gray500 }]}>
-                {isKuLanguage ? 'کۆی کڕینیان:' : 'Total Purchases:'}
+                {isAr ? 'إجمالي مشترياتهم:' : isKuLanguage ? 'کۆی کڕینیان:' : 'Total Purchases:'}
               </Text>
               <AmountText
                 value={visibleCustomers.reduce((s, c) => s + (c.totalPurchases || 0), 0)}
@@ -1223,11 +1227,11 @@ export default function HistoryScreen() {
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {periodDisplayLabel}{query ? ` (${isKuLanguage ? 'گەڕان' : 'Search'})` : ''}: {visibleSuppliers.length} {t('history.suppliersTab')}
+              {periodDisplayLabel}{query ? ` (${isAr ? 'بحث' : isKuLanguage ? 'گەڕان' : 'Search'})` : ''}: {visibleSuppliers.length} {t('history.suppliersTab')}
             </Text>
             <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'baseline', gap: 4 }}>
               <Text style={[styles.summaryStripText, { color: colors.gray500 }]}>
-                {isKuLanguage ? 'کۆی خەرجکراو:' : 'Total Spent:'}
+                {isAr ? 'إجمالي المصروف:' : isKuLanguage ? 'کۆی خەرجکراو:' : 'Total Spent:'}
               </Text>
               <AmountText
                 value={visibleSuppliers.reduce((s, sup) => s + (sup.totalSpent || 0), 0)}
@@ -1311,7 +1315,7 @@ export default function HistoryScreen() {
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
-                {periodDisplayLabel}{query ? ` (${isKuLanguage ? 'گەڕان' : 'Search'})` : ''}: {visibleQuotations.length} {t('history.quotationsCount')}
+                {periodDisplayLabel}{query ? ` (${isAr ? 'بحث' : isKuLanguage ? 'گەڕان' : 'Search'})` : ''}: {visibleQuotations.length} {t('history.quotationsCount')}
               </Text>
               <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'baseline', gap: 4 }}>
                 <Text style={[styles.summaryStripText, { color: colors.gray500 }]}>
@@ -1349,7 +1353,7 @@ export default function HistoryScreen() {
               >
                 <Ionicons name="add-circle" size={15} color="#FFFFFF" />
                 <Text style={styles.newQuoteSummaryBtnText}>
-                  {isKuLanguage ? 'عەرزی نوێ' : 'New Quote'}
+                  {isAr ? 'عرض سعر جديد' : isKuLanguage ? 'عەرزی نوێ' : 'New Quote'}
                 </Text>
               </TouchableOpacity>
 
@@ -1374,7 +1378,7 @@ export default function HistoryScreen() {
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKuLanguage ? 'بەشی پسوولەکان' : 'Invoices'}
+                  {isAr ? 'الفواتير' : isKuLanguage ? 'بەشی پسوولەکان' : 'Invoices'}
                 </Text>
               </TouchableOpacity>
             </View>

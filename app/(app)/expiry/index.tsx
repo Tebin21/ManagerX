@@ -25,7 +25,9 @@ export default function ExpiryScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
-  const isKu = useLanguageStore((s) => s.language !== 'en');
+  const lang = useLanguageStore((s) => s.language);
+  const isKu = lang === 'ku';
+  const isAr = lang === 'ar';
   const { isTablet, isTabletLandscape } = useResponsive();
 
   const products = useInventoryStore((s) => s.products);
@@ -54,7 +56,7 @@ export default function ExpiryScreen() {
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <AppHeader
-        title={isKu ? 'بەسەرچوون' : 'Expiry Tracking'}
+        title={isAr ? 'تتبع الصلاحية' : isKu ? 'بەسەرچوون' : 'Expiry Tracking'}
         showBack
         rightAction={
           <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTablet ? 12 : 8, alignItems: 'center' }}>
@@ -137,7 +139,7 @@ export default function ExpiryScreen() {
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {isKu ? 'سیستەمی بەرواری بەسەرچوون ناچالاکە' : 'Expiry Tracking is Disabled'}
+              {isAr ? 'نظام تتبع الصلاحية معطل' : isKu ? 'سیستەمی بەرواری بەسەرچوون ناچالاکە' : 'Expiry Tracking is Disabled'}
             </Text>
 
             <Text
@@ -147,7 +149,9 @@ export default function ExpiryScreen() {
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT },
               ]}
             >
-              {isKu
+              {isAr
+                ? 'لتتبع تواريخ انتهاء المواد وتلقي تنبيهات مبكرة وحماية مخزونك من الخسائر، يرجى تفعيل النظام أولاً.'
+                : isKu
                 ? 'بۆ چاودێریکردنی تەمەنی کاڵاکان، ئاگاداری پێشوەختە و پاراستنی سەرمایەکەت لە زەرەری ماوەبەسەرچوون، تکایە سەرەتا سیستەمەکە چالاک بکە.'
                 : 'Enable shelf-life tracking, early warning countdowns, and stock loss protection to safeguard your perishable inventory.'}
             </Text>
@@ -164,7 +168,7 @@ export default function ExpiryScreen() {
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
-                {isKu ? 'خوێندنەوەی ڕێنمایی و چالاککردن' : 'View Guidelines & Enable'}
+                {isAr ? 'قراءة التعليمات والتفعيل' : isKu ? 'خوێندنەوەی ڕێنمایی و چالاککردن' : 'View Guidelines & Enable'}
               </Text>
             </TouchableOpacity>
           </View>

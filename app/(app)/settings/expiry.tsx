@@ -33,7 +33,9 @@ export default function ExpirySettingsScreen() {
   const { isRTL } = useRTL();
   const textAlign = isRTL ? 'right' : 'left';
   const flexDirection = isRTL ? 'row-reverse' : 'row';
-  const isKu = useLanguageStore((s) => s.language !== 'en');
+  const lang = useLanguageStore((s) => s.language);
+  const isKu = lang === 'ku';
+  const isAr = lang === 'ar';
   const { isTablet, isTabletLandscape } = useResponsive();
 
   const expiryTrackingEnabled = useSettingsStore((s) => s.expiryTrackingEnabled);
@@ -73,8 +75,10 @@ export default function ExpirySettingsScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       } catch {}
       Alert.alert(
-        isKu ? 'ئاگاداری' : 'Notice',
-        isKu
+        isAr ? 'تنبيه' : isKu ? 'ئاگاداری' : 'Notice',
+        isAr
+          ? 'يرجى تأكيد قراءة التعليمات أعلاه لتتمكن من تفعيل النظام.'
+          : isKu
           ? 'تکایە سەرەتا سەحی خوێندنەوەی ڕێنماییەکان لێبدە بۆ ئەوەی بتوانیت سیستەمەکە چالاک بکەیت.'
           : 'Please check the agreement box above to enable this feature.'
       );
@@ -91,7 +95,7 @@ export default function ExpirySettingsScreen() {
     <View style={[styles.container, { backgroundColor: isDark ? colors.black : colors.gray50 }]}>
       <SettingsBackground />
       <AppHeader
-        title={isKu ? 'بەسەرچوون' : 'Expiry Tracking'}
+        title={isAr ? 'تتبع الصلاحية' : isKu ? 'بەسەرچوون' : 'Expiry Tracking'}
         showBack
       />
 
@@ -140,7 +144,7 @@ export default function ExpirySettingsScreen() {
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
-                {isKu ? 'سیستەمی بەرواری بەسەرچوون چییە؟' : 'What is Expiry Tracking?'}
+                {isAr ? 'ما هو نظام تتبع الصلاحية؟' : isKu ? 'سیستەمی بەرواری بەسەرچوون چییە؟' : 'What is Expiry Tracking?'}
               </Text>
               <Text
                 style={[
@@ -150,7 +154,7 @@ export default function ExpirySettingsScreen() {
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
               >
-                {isKu ? 'بۆ چی بەکاردێت و چۆن سوودی لێ دەبینیت؟' : 'Purpose & Key Advantages'}
+                {isAr ? 'ما هي فائدته وكيف تستفيد منه؟' : isKu ? 'بۆ چی بەکاردێت و چۆن سوودی لێ دەبینیت؟' : 'Purpose & Key Advantages'}
               </Text>
             </View>
           </View>
@@ -174,7 +178,9 @@ export default function ExpirySettingsScreen() {
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT },
               ]}
             >
-              {isKu
+              {isAr
+                ? 'هذا النظام مخصص لمراقبة وإدارة تواريخ صلاحية المنتجات (تاريخ الإنتاج والانتهاء)، وهو مهم للمتاجر الغذائية والصيدليات والمواد التجميلية.\n\nمن خلاله يمكنك حماية رأس مالك من خسائر انتهاء الصلاحية والتنبيه المبكر بالمواد القريبة من الانتهاء لبيعها أو إرجاعها للموردين في الوقت المناسب.'
+                : isKu
                 ? 'ئەم سیستەمە تایبەتە بە کۆنتڕۆڵکردن و چاودێریکردنی تەواوی تەمەنی بەرهەمەکان (بەرواری دروستکردن و بەرواری بەسەرچوون). بەتایبەتی بۆ ئەو فرۆشگایانەی کاڵای خۆراکی، دەرمان، کەرەستەی جوانکاری یان ئەو بەرهەمانە دەفرۆشن کە ماوەی بەسەرچوونیان هەیە.\n\nبە یارمەتی ئەم بەشە، سەرمایەکەت لە زەرەری ماوەبەسەرچوون دەپارێزیت و پێشوەختە ئاگاداری ئەو کاڵایانە دەبیت کە کاتیان کەم ماوە تاوەکو بە زوویی بیانفرۆشیت یان بگەڕێنیتەوە بۆ کۆمپانیا و دابینکەرەکان.'
                 : 'This system enables comprehensive tracking of product shelf-life (manufacturing & expiry dates). Designed especially for food, pharmaceutical, cosmetic, and perishable retail businesses to minimize inventory loss and protect customers.'}
             </Text>
@@ -343,7 +349,7 @@ export default function ExpirySettingsScreen() {
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {isKu ? 'ڕێنمایی چۆنیەتی کارکردنی بەشەکان' : 'Feature Workflow & Instructions'}
+              {isAr ? 'دليل وتعليمات عمل النظام' : isKu ? 'ڕێنمایی چۆنیەتی کارکردنی بەشەکان' : 'Feature Workflow & Instructions'}
             </Text>
           </View>
 
@@ -355,7 +361,9 @@ export default function ExpirySettingsScreen() {
               isKu && { fontFamily: SETTINGS_KURDISH_FONT },
             ]}
           >
-            {isKu
+            {isAr
+              ? 'يرجى قراءة هذه النقاط بدقة لمعرفة آلية عمل النظام:'
+              : isKu
               ? 'تکایە ئەم خاڵانە بە وردی بخوێنەوە بۆ ئەوەی بزانیت سیستەمەکە چۆن کار دەکات:'
               : 'Please read the following guidelines carefully to understand the integrated workflow:'}
           </Text>
@@ -551,7 +559,7 @@ export default function ExpirySettingsScreen() {
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {isKu ? 'پەسەندکردن و چالاککردنی سیستەم' : 'Terms Agreement & Activation'}
+              {isAr ? 'الموافقة وتفعيل النظام' : isKu ? 'پەسەندکردن و چالاککردنی سیستەم' : 'Terms Agreement & Activation'}
             </Text>
           </View>
 
@@ -602,7 +610,9 @@ export default function ExpirySettingsScreen() {
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
-                {isKu
+                {isAr
+                  ? 'قرأت وفهمت جميع التعليمات وآلية عمل نظام تتبع الصلاحية'
+                  : isKu
                   ? 'هەموو ڕێنماییەکان و چۆنیەتی کارکردنی سیستەمەکەم خوێندەوە و تێگەیشتم'
                   : 'I have read and agree to all feature guidelines and instructions'}
               </Text>
@@ -615,9 +625,13 @@ export default function ExpirySettingsScreen() {
                 ]}
               >
                 {termsChecked
-                  ? isKu
+                  ? isAr
+                    ? 'تمت الموافقة • يمكنك التفعيل والإلغاء من الأسفل'
+                    : isKu
                     ? 'ڕەزامەندیت داوە • دەتوانیت لە خوارەوە ئۆن و ئۆفی بکەیت'
                     : 'Agreed • You can toggle ON / OFF below'
+                  : isAr
+                  ? 'لتتمكن من التفعيل، يجب تحديد هذا المربع أولاً'
                   : isKu
                   ? 'بۆ ئەوەی بتوانیت ئۆن و ئۆف بکەیت، دەبێ سەرەتا ئەم سەحە لێبدەیت'
                   : 'You must check this box first before you can toggle the switch'}
@@ -631,14 +645,16 @@ export default function ExpirySettingsScreen() {
             onPress={() => {
               if (!termsChecked) {
                 Alert.alert(
-                  isKu ? 'پەسەندکردنی ڕێنماییەکان' : 'Agreement Required',
-                  isKu
+                  isAr ? 'الموافقة على التعليمات مطلوبة' : isKu ? 'پەسەندکردنی ڕێنماییەکان' : 'Agreement Required',
+                  isAr
+                    ? 'لتفعيل هذا القسم يجب الموافقة على التعليمات أولاً. هل ترغب في الموافقة والتفعيل الآن؟'
+                    : isKu
                     ? 'بۆ چالاککردنی ئەم بەشە دەبێ سەرەتا سەحی خوێندنەوەی ڕێنماییەکان لێبدەیت. ئایا دەتەوێت پەسەندی بکەیت و چالاکی بکەیت؟'
                     : 'Please confirm that you have read the guidelines before enabling.',
                   [
-                    { text: isKu ? 'داخستن' : 'Cancel', style: 'cancel' },
+                    { text: isAr ? 'إلغاء' : isKu ? 'داخستن' : 'Cancel', style: 'cancel' },
                     {
-                      text: isKu ? 'بەڵێ، پەسەندم کرد' : 'Agree & Enable',
+                      text: isAr ? 'نعم، موافق' : isKu ? 'بەڵێ، پەسەندم کرد' : 'Agree & Enable',
                       onPress: () => {
                         setTermsChecked(true);
                         setExpiryTermsAccepted(true);
@@ -672,7 +688,7 @@ export default function ExpirySettingsScreen() {
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
-                {isKu ? 'چالاککردنی سیستەمی بەرواری بەسەرچوون' : 'Enable Expiry Tracking'}
+                {isAr ? 'تفعيل نظام تتبع الصلاحية' : isKu ? 'چالاککردنی سیستەمی بەرواری بەسەرچوون' : 'Enable Expiry Tracking'}
               </Text>
               <Text
                 style={[
@@ -690,13 +706,19 @@ export default function ExpirySettingsScreen() {
                 ]}
               >
                 {!termsChecked
-                  ? isKu
+                  ? isAr
+                    ? 'حدد مربع الموافقة أعلاه أولاً لتفعيل هذا الزر'
+                    : isKu
                     ? 'سەرەتا سەحی سەرەوە لێبدە بۆ چالاککردنی ئەم دوگمەیە'
                     : 'Check agreement box above first'
                   : expiryTrackingEnabled
-                  ? isKu
+                  ? isAr
+                    ? 'النظام مفعل (ON) • متاح في المخزن والمشتريات'
+                    : isKu
                     ? 'سیستەمەکە چالاکە (ON) • لە کۆگا و کڕین بەردەستە'
                     : 'Active (ON) • Available in Inventory & Purchases'
+                  : isAr
+                  ? 'النظام معطل (OFF) • مخفي في المخزن والمشتريات'
                   : isKu
                   ? 'سیستەمەکە ناچالاکە (OFF) • لە کۆگا و کڕین شاردراوەتەوە'
                   : 'Disabled (OFF) • Hidden in Inventory & Purchases'}

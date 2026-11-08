@@ -31,6 +31,7 @@ export function EditDefaultNotesModal({ visible, initialNotes, onClose, onSave }
   const { colors, isDark } = useAppTheme();
   const { isRTL } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isAr = useLanguageStore((s) => s.language === 'ar');
   const [text, setText] = useState(initialNotes);
 
   useEffect(() => {
@@ -71,7 +72,7 @@ export function EditDefaultNotesModal({ visible, initialNotes, onClose, onSave }
                 <Ionicons name="settings-outline" size={18} color={colors.primary} />
               </View>
               <Text style={[styles.title, { color: colors.black }]}>
-                {isKuLanguage ? 'ڕێکخستنی مەرج و تێبینی بنەڕەتی' : 'Default Terms & Notes'}
+                {isAr ? 'ضبط الشروط والملاحظات الافتراضية' : isKuLanguage ? 'ڕێکخستنی مەرج و تێبینی بنەڕەتی' : 'Default Terms & Notes'}
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={10} style={styles.closeBtn}>
@@ -82,7 +83,9 @@ export function EditDefaultNotesModal({ visible, initialNotes, onClose, onSave }
           {/* Description */}
           <View style={styles.body}>
             <Text style={[styles.desc, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
-              {isKuLanguage
+              {isAr
+                ? 'سيتم استخدام هذه الشروط والملاحظات تلقائياً كافتراضي دائم لجميع عروض الأسعار الجديدة. يمكنك أيضاً تعديلها بحرية أثناء إنشاء كل عرض سعر.'
+                : isKuLanguage
                 ? 'ئەم مەرج و تێبینییە بە شێوەیەکی هەمیشەیی بۆ هەر عەرزێکی نوێ دادەنرێت. دەتوانیت لە کاتی دروستکردنی هەر عەرزێکیشدا بە ئارەزووی خۆت دەستکاری بکەیت.'
                 : 'These terms and notes will automatically be used as the permanent default for all new quotations.'}
             </Text>
@@ -104,7 +107,7 @@ export function EditDefaultNotesModal({ visible, initialNotes, onClose, onSave }
               numberOfLines={4}
               value={text}
               onChangeText={setText}
-              placeholder={isKuLanguage ? 'تێبینی بنەڕەتی لێرە بنووسە...' : 'Enter default notes...'}
+              placeholder={isAr ? 'اكتب الملاحظات الافتراضية هنا...' : isKuLanguage ? 'تێبینی بنەڕەتی لێرە بنووسە...' : 'Enter default notes...'}
               placeholderTextColor={colors.gray400}
             />
 
@@ -115,7 +118,7 @@ export function EditDefaultNotesModal({ visible, initialNotes, onClose, onSave }
             >
               <Ionicons name="refresh-outline" size={14} color={colors.primary} />
               <Text style={[styles.resetBtnText, { color: colors.primary }]}>
-                {isKuLanguage ? 'گەڕاندنەوە بۆ دەقی بنەڕەتی سیستەم' : 'Reset to System Default'}
+                {isAr ? 'إعادة التعيين إلى افتراضي النظام' : isKuLanguage ? 'گەڕاندنەوە بۆ دەقی بنەڕەتی سیستەم' : 'Reset to System Default'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -127,13 +130,13 @@ export function EditDefaultNotesModal({ visible, initialNotes, onClose, onSave }
               onPress={onClose}
             >
               <Text style={[styles.cancelBtnText, { color: colors.gray600 }]}>
-                {isKuLanguage ? 'پاشگەزبوونەوە' : 'Cancel'}
+                {isAr ? 'إلغاء' : isKuLanguage ? 'پاشگەزبوونەوە' : 'Cancel'}
               </Text>
             </TouchableOpacity>
 
             <View style={{ flex: 1 }}>
               <PrimaryButton
-                label={isKuLanguage ? 'پاشەکەوتکردن' : 'Save Default'}
+                label={isAr ? 'حفظ الافتراضي' : isKuLanguage ? 'پاشەکەوتکردن' : 'Save Default'}
                 onPress={handleSave}
               />
             </View>

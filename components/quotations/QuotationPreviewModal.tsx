@@ -19,6 +19,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { fmtIQD, fmtUSD, formatTime } from '@/utils/formatters';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { isDirectCustomerName } from '@/lib/sqlite';
 import type { Quotation } from '@/types/quotation';
 
 interface QuotationPreviewModalProps {
@@ -42,6 +43,7 @@ export function QuotationPreviewModal({
   const { width, height } = useWindowDimensions();
   const isTablet = width >= 768;
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isAr = useLanguageStore((s) => s.language === 'ar');
   const baseCurrency = useSettingsStore((s) => s.baseCurrency);
   const isSystemUsd = baseCurrency === 'USD';
 
@@ -141,7 +143,7 @@ export function QuotationPreviewModal({
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKuLanguage ? 'وردەکاری وەسڵی عەرز' : 'Quotation Details'}
+                  {isAr ? 'تفاصيل عرض السعر' : isKuLanguage ? 'وردەکاری وەسڵی عەرز' : 'Quotation Details'}
                 </Text>
                 <IdText style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>
                   {quotation.quotationNumber}
@@ -187,7 +189,9 @@ export function QuotationPreviewModal({
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKuLanguage
+                  {isAr
+                    ? 'هذا المستند هو عرض سعر فقط وليس فاتورة بيع'
+                    : isKuLanguage
                     ? 'ئەم وەسڵە تەنها بۆ عەرزی نرخە و وەسڵی فرۆشتن نییە'
                     : 'THIS DOCUMENT IS A PRICE QUOTATION ONLY'}
                 </Text>
@@ -198,7 +202,9 @@ export function QuotationPreviewModal({
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
                 >
-                  {isKuLanguage
+                  {isAr
+                    ? 'جميع الأسعار المقترحة للزبون حسب التاريخ والمدة المحددة.'
+                    : isKuLanguage
                     ? 'سەرجەم نرخەکان پێشنیارکراون بۆ کڕیار بەپێی بەروار و ماوەی دیاریکراو.'
                     : 'All prices are offered for quotation purposes.'}
                 </Text>
@@ -225,7 +231,7 @@ export function QuotationPreviewModal({
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKuLanguage ? 'ئاماری وەسڵ:' : 'Invoice Stats:'}
+                  {isAr ? 'إحصائيات الفاتورة:' : isKuLanguage ? 'ئاماری وەسڵ:' : 'Invoice Stats:'}
                 </Text>
               </View>
 
@@ -248,7 +254,7 @@ export function QuotationPreviewModal({
                       isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isKuLanguage ? `بینین: ${viewCount} جار` : `Views: ${viewCount}`}
+                    {isAr ? `مشاهدات: ${viewCount}` : isKuLanguage ? `بینین: ${viewCount} جار` : `Views: ${viewCount}`}
                   </Text>
                 </View>
 
@@ -281,8 +287,8 @@ export function QuotationPreviewModal({
                     ]}
                   >
                     {printCount > 0
-                      ? (isKuLanguage ? `چاپ: ${printCount} جار` : `Prints: ${printCount}`)
-                      : (isKuLanguage ? 'چاپ نەکراوە' : 'Not printed')}
+                      ? (isAr ? `طباعة: ${printCount}` : isKuLanguage ? `چاپ: ${printCount} جار` : `Prints: ${printCount}`)
+                      : (isAr ? 'غير مطبوع' : isKuLanguage ? 'چاپ نەکراوە' : 'Not printed')}
                   </Text>
                 </View>
               </View>
@@ -313,7 +319,7 @@ export function QuotationPreviewModal({
                       isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
                     ]}
                   >
-                    {isKuLanguage ? 'کڕیار / کۆمپانیا:' : 'Client / Company:'}
+                    {isAr ? 'الزبون / الشركة:' : isKuLanguage ? 'کڕیار / کۆمپانیا:' : 'Client / Company:'}
                   </Text>
                   <Text
                     style={[
@@ -322,7 +328,9 @@ export function QuotationPreviewModal({
                       isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {quotation.customerName || (isKuLanguage ? 'کڕیاری گشتی' : 'Valued Client')}
+                    {!quotation.customerName || isDirectCustomerName(quotation.customerName)
+                      ? (isAr ? 'زبون مباشر' : isKuLanguage ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer')
+                      : quotation.customerName}
                   </Text>
 
                   {quotation.customerPhone ? (
@@ -361,7 +369,7 @@ export function QuotationPreviewModal({
                         isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
                       ]}
                     >
-                      {isKuLanguage ? 'ماوەی عەرز' : 'Validity'}
+                      {isAr ? 'مدة الصلاحية' : isKuLanguage ? 'ماوەی عەرز' : 'Validity'}
                     </Text>
                     <Text
                       style={[
@@ -370,7 +378,7 @@ export function QuotationPreviewModal({
                         isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
-                      {isKuLanguage ? `${quotation.validityDays} ڕۆژ` : `${quotation.validityDays} Days`}
+                      {isAr ? `${quotation.validityDays} يوم` : isKuLanguage ? `${quotation.validityDays} ڕۆژ` : `${quotation.validityDays} Days`}
                     </Text>
                   </View>
                 ) : null}
@@ -419,7 +427,7 @@ export function QuotationPreviewModal({
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKuLanguage ? 'لیستی کاڵاکانی عەرز:' : 'Quotation Items List:'}
+                  {isAr ? 'قائمة عناصر عرض السعر:' : isKuLanguage ? 'لیستی کاڵاکانی عەرز:' : 'Quotation Items List:'}
                 </Text>
                 <View
                   style={[
@@ -434,7 +442,7 @@ export function QuotationPreviewModal({
                       isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {quotation.items?.length || 0} {isKuLanguage ? 'کاڵا' : 'items'}
+                    {quotation.items?.length || 0} {isAr ? 'عنصر' : isKuLanguage ? 'کاڵا' : 'items'}
                   </Text>
                 </View>
               </View>
@@ -510,7 +518,7 @@ export function QuotationPreviewModal({
                       isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
                     ]}
                   >
-                    {isKuLanguage ? 'هیچ کاڵایەک لەم عەرزەدا تۆمار نەکراوە.' : 'No items recorded in this quotation.'}
+                    {isAr ? 'لا توجد عناصر مسجلة في هذا العرض.' : isKuLanguage ? 'هیچ کاڵایەک لەم عەرزەدا تۆمار نەکراوە.' : 'No items recorded in this quotation.'}
                   </Text>
                 </View>
               )}
@@ -536,7 +544,7 @@ export function QuotationPreviewModal({
                       isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isKuLanguage ? 'تێبینی و مەرجەکان:' : 'Notes & Terms:'}
+                    {isAr ? 'الملاحظات والشروط:' : isKuLanguage ? 'تێبینی و مەرجەکان:' : 'Notes & Terms:'}
                   </Text>
                 </View>
                 <Text
@@ -576,7 +584,7 @@ export function QuotationPreviewModal({
                         isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
                       ]}
                     >
-                      {isKuLanguage ? 'کۆی سەرەتایی:' : 'Subtotal:'}
+                      {isAr ? 'المجموع الفرعي:' : isKuLanguage ? 'کۆی سەرەتایی:' : 'Subtotal:'}
                     </Text>
                     <Text style={{ fontSize: 13, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
                       {formatPrice(quotation.subtotal)}
@@ -596,7 +604,7 @@ export function QuotationPreviewModal({
                         isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
                       ]}
                     >
-                      {isKuLanguage ? 'داشکاندن:' : 'Discount:'}
+                      {isAr ? 'الخصم:' : isKuLanguage ? 'داشکاندن:' : 'Discount:'}
                     </Text>
                     <Text style={{ fontSize: 13, fontWeight: '700', color: '#10B981', direction: 'ltr' }}>
                       −{formatPrice(quotation.discountTotal)}
@@ -621,7 +629,7 @@ export function QuotationPreviewModal({
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKuLanguage ? 'کۆی گشتی:' : 'Grand Total:'}
+                  {isAr ? 'المجموع الكلي:' : isKuLanguage ? 'کۆی گشتی:' : 'Grand Total:'}
                 </Text>
                 <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
                   <Text
@@ -678,7 +686,7 @@ export function QuotationPreviewModal({
                       isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isKuLanguage ? 'هاوبەشکردن و چاپکردن' : 'Share & Print PDF'}
+                    {isAr ? 'مشاركة وطباعة PDF' : isKuLanguage ? 'هاوبەشکردن و چاپکردن' : 'Share & Print PDF'}
                   </Text>
                 </>
               )}
@@ -705,7 +713,7 @@ export function QuotationPreviewModal({
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
-                {isKuLanguage ? 'داخستن' : 'Close'}
+                {isAr ? 'إغلاق' : isKuLanguage ? 'داخستن' : 'Close'}
               </Text>
             </TouchableOpacity>
           </View>

@@ -60,6 +60,7 @@ export default function InstallmentsScreen() {
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isArLanguage = useLanguageStore((s) => s.language === 'ar');
 
   const exchangeRate = useSettingsStore((s) => s.exchangeRate || 1310);
   const baseCurrency = useSettingsStore((s) => s.baseCurrency || 'USD');
@@ -278,12 +279,12 @@ export default function InstallmentsScreen() {
   // Period Filter keys and labels (History-style)
   const periodKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
   const periodLabels: Record<PeriodKey, string> = {
-    today: 'ئەمڕۆ',
-    week: 'ئەم هەفتەیە',
-    month: 'ئەم مانگە',
-    year: 'ئەمساڵ',
-    all: 'هەمووی',
-    custom: customRange ? `${customRange.from} → ${customRange.to}` : t('installmentList.customRange', 'دیاریکراو'),
+    today: isArLanguage ? 'اليوم' : isKuLanguage ? 'ئەمڕۆ' : 'Today',
+    week: isArLanguage ? 'هذا الأسبوع' : isKuLanguage ? 'ئەم هەفتەیە' : 'This Week',
+    month: isArLanguage ? 'هذا الشهر' : isKuLanguage ? 'ئەم مانگە' : 'This Month',
+    year: isArLanguage ? 'هذا العام' : isKuLanguage ? 'ئەمساڵ' : 'This Year',
+    all: isArLanguage ? 'الكل' : isKuLanguage ? 'هەمووی' : 'All Time',
+    custom: customRange ? `${customRange.from} → ${customRange.to}` : (isArLanguage ? 'مخصص' : isKuLanguage ? 'دیاریکراو' : 'Custom'),
   };
 
   const handlePeriodSelect = (key: PeriodKey) => {
@@ -1484,7 +1485,7 @@ export default function InstallmentsScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.modalTitle, { color: colors.black, textAlign, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                     {payMode === 'custom'
-                      ? (isKuLanguage ? 'دانەوەی تر (سافکردن / بڕی دڵخواز)' : 'Other Payment / Settle')
+                      ? (isArLanguage ? 'دفع آخر (تسوية / مبلغ مخصص)' : isKuLanguage ? 'دانەوەی تر (سافکردن / بڕی دڵخواز)' : 'Other Payment / Settle')
                       : t('installmentList.paymentModalTitle')}
                   </Text>
                   <Text style={[styles.modalSubtitle, { color: colors.gray500, textAlign }]}>
@@ -1527,7 +1528,7 @@ export default function InstallmentsScreen() {
                         { color: isDark ? '#FFFFFF' : '#334155', fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
-                      {isKuLanguage ? 'بەروار و کاتی پارەدان:' : 'Date & Time:'} {formattedRealTime}
+                      {isArLanguage ? 'تاريخ ووقت الدفع:' : isKuLanguage ? 'بەروار و کاتی پارەدان:' : 'Date & Time:'} {formattedRealTime}
                     </Text>
                   </View>
                 )}
@@ -1784,7 +1785,7 @@ export default function InstallmentsScreen() {
                         fontFamily: SETTINGS_KURDISH_FONT,
                       },
                     ]}
-                    placeholder={payMode === 'custom' ? (isKuLanguage ? 'تێبینی (بۆ نموونە: سافکردنی تەواوی قەرز...)' : 'Note...') : t('installmentList.notePlaceholder')}
+                    placeholder={payMode === 'custom' ? (isArLanguage ? 'ملاحظة (مثال: تسوية كامل الدين...)' : isKuLanguage ? 'تێبینی (بۆ نموونە: سافکردنی تەواوی قەرز...)' : 'Note...') : t('installmentList.notePlaceholder')}
                     placeholderTextColor={colors.gray400}
                     value={payNote}
                     onChangeText={setPayNote}

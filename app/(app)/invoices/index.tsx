@@ -68,6 +68,7 @@ import {
   incrementSaleViewCount,
   incrementPurchasePrintCount,
   incrementPurchaseViewCount,
+  isDirectCustomerName,
   type PurchaseItem,
 } from '@/lib/sqlite';
 import {
@@ -93,7 +94,9 @@ export default function InvoicesHubScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection, writingDirection } = useRTL();
-  const isKu = useLanguageStore((s) => s.language !== 'en');
+  const lang = useLanguageStore((s) => s.language);
+  const isKu = lang === 'ku';
+  const isAr = lang === 'ar';
   const { isTablet, isTabletLandscape } = useResponsive();
   const { width, height } = useWindowDimensions();
 
@@ -163,11 +166,15 @@ export default function InvoicesHubScreen() {
       const formattedView = formatCountNumber(viewCount);
       const formattedPrint = formatCountNumber(printCount);
 
-      const viewText = isKu
+      const viewText = isAr
+        ? `مشاهدات: ${formattedView}`
+        : isKu
         ? (isMobileGrid ? `بینین: ${formattedView}` : `بینین: ${formattedView} جار`)
         : `Views: ${formattedView}`;
 
-      const printText = isKu
+      const printText = isAr
+        ? `طباعة: ${formattedPrint}`
+        : isKu
         ? (isMobileGrid ? `چاپ: ${formattedPrint}` : `چاپ: ${formattedPrint} جار`)
         : `Prints: ${formattedPrint}`;
 
@@ -1086,12 +1093,12 @@ export default function InvoicesHubScreen() {
   // ─── Period Labels for Pills ───
   const periodPillKeys: PeriodKey[] = ['all', 'today', 'week', 'month', 'year', 'custom'];
   const periodPillLabels: Record<PeriodKey, string> = {
-    all: isKu ? 'هەموو کات' : 'All Time',
-    today: isKu ? 'ئەمڕۆ' : 'Today',
-    week: isKu ? 'ئەم هەفتەیە' : 'This Week',
-    month: isKu ? 'ئەم مانگە' : 'This Month',
-    year: isKu ? 'ئەمساڵ' : 'This Year',
-    custom: isKu ? 'دەستنیشانکراو' : 'Custom',
+    all: isAr ? 'الكل' : isKu ? 'هەموو کات' : 'All Time',
+    today: isAr ? 'اليوم' : isKu ? 'ئەمڕۆ' : 'Today',
+    week: isAr ? 'هذا الأسبوع' : isKu ? 'ئەم هەفتەیە' : 'This Week',
+    month: isAr ? 'هذا الشهر' : isKu ? 'ئەم مانگە' : 'This Month',
+    year: isAr ? 'هذا العام' : isKu ? 'ئەمساڵ' : 'This Year',
+    custom: isAr ? 'مخصص' : isKu ? 'دەستنیشانکراو' : 'Custom',
   };
 
   interface TabSearchConfig {
@@ -1358,7 +1365,7 @@ export default function InvoicesHubScreen() {
 
       {/* ── Header ── */}
       <AppHeader
-        title={isKu ? 'پسوڵەکان' : 'Invoices & Receipts'}
+        title={isAr ? 'الفواتير والإيصالات' : isKu ? 'پسوڵەکان' : 'Invoices & Receipts'}
         showBack
         rightAction={
           activeTab !== 'reports' ? (
@@ -1444,37 +1451,37 @@ export default function InvoicesHubScreen() {
             {[
               {
                 key: 'reports' as TabKey,
-                label: isKu ? 'ڕاپۆرت' : 'Reports',
+                label: isAr ? 'التقرير' : isKu ? 'ڕاپۆرت' : 'Reports',
                 icon: 'bar-chart-outline' as const,
                 count: 0,
               },
               {
                 key: 'purchases' as TabKey,
-                label: isKu ? (isTablet ? 'وەسڵی کڕین' : 'کڕین') : 'Purchases',
+                label: isAr ? 'المشتريات' : isKu ? (isTablet ? 'وەسڵی کڕین' : 'کڕین') : 'Purchases',
                 icon: 'cart-outline' as const,
                 count: filteredPurchasesByPeriod.length,
               },
               {
                 key: 'sales' as TabKey,
-                label: isKu ? (isTablet ? 'وەسڵی فرۆشتن' : 'فرۆشتن') : 'Sales',
+                label: isAr ? 'المبيعات' : isKu ? (isTablet ? 'وەسڵی فرۆشتن' : 'فرۆشتن') : 'Sales',
                 icon: 'receipt-outline' as const,
                 count: filteredSalesByPeriod.length,
               },
               {
                 key: 'installments' as TabKey,
-                label: isKu ? (isTablet ? 'وەسڵی قیست' : 'قیست') : 'Installments',
+                label: isAr ? 'الأقساط' : isKu ? (isTablet ? 'وەسڵی قیست' : 'قیست') : 'Installments',
                 icon: 'calendar-number-outline' as const,
                 count: filteredInstallmentSalesByPeriod.length + filteredInstallmentPaymentsByPeriod.length,
               },
               {
                 key: 'quotations' as TabKey,
-                label: isKu ? (isTablet ? 'وەسڵی عەرز' : 'عەرز') : 'Quotes',
+                label: isAr ? 'عروض الأسعار' : isKu ? (isTablet ? 'وەسڵی عەرز' : 'عەرز') : 'Quotes',
                 icon: 'document-text-outline' as const,
                 count: filteredQuotationsByPeriod.length,
               },
               {
                 key: 'debts' as TabKey,
-                label: isKu ? (isTablet ? 'وەسڵی قەرز' : 'قەرز') : 'Debts',
+                label: isAr ? 'الديون' : isKu ? (isTablet ? 'وەسڵی قەرز' : 'قەرز') : 'Debts',
                 icon: 'wallet-outline' as const,
                 count: filteredDebtsByPeriod.length,
               },
@@ -2083,7 +2090,9 @@ export default function InvoicesHubScreen() {
                             isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                           ]}
                         >
-                          {item.customerName || (isKu ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer')}
+                          {!item.customerName || isDirectCustomerName(item.customerName)
+                            ? (isAr ? 'زبون مباشر' : isKu ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer')
+                            : item.customerName}
                         </Text>
                         {!!item.customerPhone && (
                           <View style={[styles.phoneRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -3368,10 +3377,10 @@ export default function InvoicesHubScreen() {
         }
         title={
           formatPickerTarget?.type === 'sale'
-            ? (isKu ? 'قەبارەی چاپی وەسڵی فرۆشتن' : 'Sales Invoice Paper Size')
+            ? (isAr ? 'حجم طباعة فاتورة البيع' : isKu ? 'قەبارەی چاپی وەسڵی فرۆشتن' : 'Sales Invoice Paper Size')
             : formatPickerTarget?.type === 'purchase'
-            ? (isKu ? 'قەبارەی چاپی وەسڵی کڕین' : 'Purchase Invoice Paper Size')
-            : (isKu ? 'قەبارەی چاپی وەسڵی عەرز' : 'Quotation Paper Size')
+            ? (isAr ? 'حجم طباعة فاتورة الشراء' : isKu ? 'قەبارەی چاپی وەسڵی کڕین' : 'Purchase Invoice Paper Size')
+            : (isAr ? 'حجم طباعة عرض السعر' : isKu ? 'قەبارەی چاپی وەسڵی عەرز' : 'Quotation Paper Size')
         }
         invoiceNumber={
           formatPickerTarget?.type === 'sale'
@@ -3384,11 +3393,15 @@ export default function InvoicesHubScreen() {
         }
         partyName={
           formatPickerTarget?.type === 'sale'
-            ? (formatPickerTarget.sale.customerName || (isKu ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer'))
+            ? (!formatPickerTarget.sale.customerName || isDirectCustomerName(formatPickerTarget.sale.customerName)
+                ? (isAr ? 'زبون مباشر' : isKu ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer')
+                : formatPickerTarget.sale.customerName)
             : formatPickerTarget?.type === 'purchase'
-            ? (formatPickerTarget.purchase.supplierName || (isKu ? 'کڕینی ڕاستەوخۆ' : 'Direct Supplier'))
+            ? (formatPickerTarget.purchase.supplierName || (isAr ? 'مورد مباشر' : isKu ? 'کڕینی ڕاستەوخۆ' : 'Direct Supplier'))
             : formatPickerTarget?.type === 'quotation'
-            ? (formatPickerTarget.quotation.customerName || (isKu ? 'کڕیاری گشتی' : 'Valued Client'))
+            ? (!formatPickerTarget.quotation.customerName || isDirectCustomerName(formatPickerTarget.quotation.customerName)
+                ? (isAr ? 'زبون مباشر' : isKu ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer')
+                : formatPickerTarget.quotation.customerName)
             : undefined
         }
       />

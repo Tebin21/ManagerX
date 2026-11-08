@@ -188,7 +188,8 @@ export function SettingsGrid({
   const { isRTL } = useRTL();
   const { isTablet, isTabletLandscape } = useResponsive();
 
-  const isKu = language !== 'en';
+  const isKu = language === 'ku';
+  const isAr = language === 'ar';
   const tileColors = getSettingsTileColors(isDark);
   const expiryTrackingEnabled = useSettingsStore((s) => s.expiryTrackingEnabled);
 
@@ -214,7 +215,7 @@ export function SettingsGrid({
   const sectionBusinessAndSubs = (
     <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
-        {isKu ? 'پڕۆفایلی بازرگانی' : 'BUSINESS PROFILE'}
+        {isAr ? 'الملف التجاري' : isKu ? 'پڕۆفایلی بازرگانی' : 'BUSINESS PROFILE'}
       </Text>
       <View style={{ gap: 12 }}>
         {/* Profile & Customization */}
@@ -222,15 +223,15 @@ export function SettingsGrid({
           <SettingsGridTile
             icon="business"
             color={tileColors.profile}
-            title={isKu ? 'پڕۆفایل' : 'Business'}
-            sub={businessName || (isKu ? 'زانیاری کار' : 'Info')}
+            title={isAr ? 'الملف التجاري' : isKu ? 'پڕۆفایل' : 'Business'}
+            sub={businessName || (isAr ? 'معلومات العمل' : isKu ? 'زانیاری کار' : 'Info')}
             onPress={() => router.push('/(app)/settings/profile' as never)}
           />
           <SettingsGridTile
             icon="color-palette"
             color={tileColors.design}
-            title={isKu ? 'دیزاین' : 'Customization'}
-            sub={isKu ? 'داشبۆرد و ڕووکار' : 'UI & Styles'}
+            title={isAr ? 'التخصيص' : isKu ? 'دیزاین' : 'Customization'}
+            sub={isAr ? 'اللوحة والواجهة' : isKu ? 'داشبۆرد و ڕووکار' : 'UI & Styles'}
             onPress={() => router.push('/(app)/settings/customization' as never)}
           />
         </View>
@@ -250,7 +251,7 @@ export function SettingsGrid({
           <SettingsGridTile
             icon="swap-horizontal"
             color={tileColors.currency}
-            title={isKu ? 'نرخی دۆلار' : 'Exchange Rate'}
+            title={isAr ? 'سعر الصرف' : isKu ? 'نرخی دۆلار' : 'Exchange Rate'}
             sub={`100$ = ${fmtExchangeRate(exchangeRate)}`}
             onPress={() => router.push('/(app)/settings/currency' as never)}
             badge={
@@ -294,8 +295,8 @@ export function SettingsGrid({
           <SettingsGridTile
             icon={isDark ? 'moon' : 'sunny'}
             color={tileColors.appearance}
-            title={isKu ? 'ڕووکار' : 'Theme'}
-            sub={isDark ? (isKu ? 'تاریک (Dark)' : 'Dark mode') : (isKu ? 'ڕووناک (Light)' : 'Light mode')}
+            title={isAr ? 'المظهر' : isKu ? 'ڕووکار' : 'Theme'}
+            sub={isDark ? (isAr ? 'داكن (Dark)' : isKu ? 'تاریک (Dark)' : 'Dark mode') : (isAr ? 'فاتح (Light)' : isKu ? 'ڕووناک (Light)' : 'Light mode')}
             onPress={handleToggleTheme}
             badge={
               <View
@@ -326,8 +327,8 @@ export function SettingsGrid({
           <SettingsGridTile
             icon="color-filter"
             color={tileColors.themeColors}
-            title={isKu ? 'ڕەنگەکان' : 'Theme Colors'}
-            sub={isKu ? 'ئەکسێنت' : 'Accent Color'}
+            title={isAr ? 'الألوان' : isKu ? 'ڕەنگەکان' : 'Theme Colors'}
+            sub={isAr ? 'اللون المميز' : isKu ? 'ئەکسێنت' : 'Accent Color'}
             onPress={() => router.push('/(app)/settings/theme' as never)}
             badge={
               <View
@@ -353,16 +354,16 @@ export function SettingsGrid({
         <SettingsGridTile
           icon="grid"
           color={tileColors.modules}
-          title={isKu ? 'مۆدیوڵەکان' : 'Modules'}
-          sub={isKu ? 'بەشەکانی ئەپ' : 'Dashboard Grid'}
+          title={isAr ? 'الأقسام' : isKu ? 'مۆدیوڵەکان' : 'Modules'}
+          sub={isAr ? 'أقسام التطبيق' : isKu ? 'بەشەکانی ئەپ' : 'Dashboard Grid'}
           onPress={() => router.push('/(app)/settings/modules' as never)}
         />
         {showOnlineStore ? (
           <SettingsGridTile
             icon="storefront"
             color={tileColors.store}
-            title={isKu ? 'فرۆشگا' : 'Online Store'}
-            sub={isKu ? 'ڕێکخستنی وێب' : 'Web Storefront'}
+            title={isAr ? 'المتجر الإلكتروني' : isKu ? 'فرۆشگا' : 'Online Store'}
+            sub={isAr ? 'إعدادات المتجر' : isKu ? 'ڕێکخستنی وێب' : 'Web Storefront'}
             onPress={() => router.push('/(app)/settings/online-store' as never)}
           />
         ) : (
@@ -375,11 +376,11 @@ export function SettingsGrid({
         <SettingsGridTile
           icon="time"
           color={tileColors.expiry}
-          title={isKu ? 'بەسەرچوون' : 'Expiry Tracking'}
+          title={isAr ? 'تتبع الصلاحية' : isKu ? 'بەسەرچوون' : 'Expiry Tracking'}
           sub={
             expiryTrackingEnabled
-              ? (isKu ? 'سیستەمی بەروار چالاکە' : 'Active')
-              : (isKu ? 'سیستەمی بەروار ناچالاکە' : 'Disabled')
+              ? (isAr ? 'نظام الصلاحية نشط' : isKu ? 'سیستەمی بەروار چالاکە' : 'Active')
+              : (isAr ? 'نظام الصلاحية معطل' : isKu ? 'سیستەمی بەروار ناچالاکە' : 'Disabled')
           }
           onPress={() => router.push('/(app)/settings/expiry' as never)}
           badge={
@@ -404,7 +405,7 @@ export function SettingsGrid({
                   { color: expiryTrackingEnabled ? colors.success : colors.gray400, marginStart: 3 },
                 ]}
               >
-                {expiryTrackingEnabled ? (isKu ? 'چالاکە' : 'ON') : (isKu ? 'ناچالاکە' : 'OFF')}
+                {expiryTrackingEnabled ? (isAr ? 'مفعل' : isKu ? 'چالاکە' : 'ON') : (isAr ? 'معطل' : isKu ? 'ناچالاکە' : 'OFF')}
               </Text>
             </View>
           }
@@ -412,8 +413,8 @@ export function SettingsGrid({
         <SettingsGridTile
           icon="receipt"
           color={colors.primary}
-          title={isKu ? 'وەسڵی حەراری' : 'Thermal Receipt'}
-          sub={isKu ? '58mm, 80mm, 110mm' : 'Sizes & Fields'}
+          title={isAr ? 'إيصال حراري' : isKu ? 'وەسڵی حەراری' : 'Thermal Receipt'}
+          sub={isAr ? 'الأحجام والخيارات' : isKu ? '58mm, 80mm, 110mm' : 'Sizes & Fields'}
           onPress={() => router.push('/(app)/settings/receipt-customization' as never)}
         />
       </View>
@@ -424,14 +425,14 @@ export function SettingsGrid({
   const sectionData = (
     <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
-        {isKu ? 'داتا و باکئەپ' : t('settings.data').toUpperCase()}
+        {isAr ? 'البيانات والنسخ الاحتياطي' : isKu ? 'داتا و باکئەپ' : t('settings.data').toUpperCase()}
       </Text>
       <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <SettingsGridTile
           icon="server"
           color={tileColors.data}
-          title={isKu ? 'داتا و باکئەپ' : 'Data & Backup'}
-          sub={isKu ? 'هەڵگرتن و گەڕاندنەوەی داتا' : 'Backup & Restore Data'}
+          title={isAr ? 'البيانات والنسخ الاحتياطي' : isKu ? 'داتا و باکئەپ' : 'Data & Backup'}
+          sub={isAr ? 'حفظ واستعادة البيانات' : isKu ? 'هەڵگرتن و گەڕاندنەوەی داتا' : 'Backup & Restore Data'}
           onPress={() => router.push('/(app)/settings/data' as never)}
         />
       </View>
@@ -442,21 +443,21 @@ export function SettingsGrid({
   const sectionAbout = (
     <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
-        {isKu ? 'دەربارە و فێرکارییەکان' : t('settings.about').toUpperCase()}
+        {isAr ? 'حول والتطبيقات' : isKu ? 'دەربارە و فێرکارییەکان' : t('settings.about').toUpperCase()}
       </Text>
       <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <SettingsGridTile
           icon="information-circle"
           color={tileColors.about}
-          title={isKu ? 'دەربارە' : 'About'}
-          sub={isKu ? 'فرۆشیار v1.0' : 'Froshiar v1.0'}
+          title={isAr ? 'حول' : isKu ? 'دەربارە' : 'About'}
+          sub={isAr ? 'فروشیار v1.0' : isKu ? 'فرۆشیار v1.0' : 'Froshiar v1.0'}
           onPress={() => router.push('/(app)/settings/about' as never)}
         />
         <SettingsGridTile
           icon="play-circle"
           color={tileColors.tutorials}
-          title={isKu ? 'فێرکارییەکان' : 'Tutorials'}
-          sub={isKu ? 'ڕێبەری کارکردن' : 'User Guides'}
+          title={isAr ? 'الدروس والشروحات' : isKu ? 'فێرکارییەکان' : 'Tutorials'}
+          sub={isAr ? 'دليل الاستخدام' : isKu ? 'ڕێبەری کارکردن' : 'User Guides'}
           onPress={() => router.push('/(app)/settings/tutorials' as never)}
         />
       </View>
@@ -473,15 +474,15 @@ export function SettingsGrid({
         <SettingsGridTile
           icon="log-out"
           destructive
-          title={isKu ? 'دەرچوون' : 'Logout'}
-          sub={userEmail ? (isKu ? 'چوونەدەرەوە' : 'Sign out') : undefined}
+          title={isAr ? 'تسجيل الخروج' : isKu ? 'دەرچوون' : 'Logout'}
+          sub={userEmail ? (isAr ? 'تسجيل الخروج' : isKu ? 'چوونەدەرەوە' : 'Sign out') : undefined}
           onPress={onLogoutPress}
         />
         <SettingsGridTile
           icon="trash"
           destructive
-          title={isKu ? 'سڕینەوە' : 'Delete'}
-          sub={isKu ? 'سڕینەوەی ئەژمێر' : 'Delete Account'}
+          title={isAr ? 'حذف' : isKu ? 'سڕینەوە' : 'Delete'}
+          sub={isAr ? 'حذف الحساب' : isKu ? 'سڕینەوەی ئەژمێر' : 'Delete Account'}
           onPress={onDeleteAccountPress}
         />
       </View>

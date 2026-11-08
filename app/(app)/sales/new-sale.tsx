@@ -219,6 +219,7 @@ export default function NewSaleScreen() {
   // ─── Barcode Scanner ────────────────────────────────────────────────────────
   const [scannerOpen, setScannerOpen] = useState(false);
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isAr = useLanguageStore((s) => s.language === 'ar');
 
   const handleScanMulti = async (code: string) => {
     const cleanCode = code.trim();
@@ -249,7 +250,9 @@ export default function NewSaleScreen() {
     if (!found) {
       return {
         success: false,
-        message: isKuLanguage
+        message: isAr
+          ? `هذا الرمز غير موجود في المخزن: ${cleanCode}`
+          : isKuLanguage
           ? `ئەم کۆدە لە کۆگا نەدۆزرایەوە: ${cleanCode}`
           : `No product found for code: ${cleanCode}`,
       };
@@ -259,7 +262,9 @@ export default function NewSaleScreen() {
     if (found.quantity <= 0) {
       return {
         success: false,
-        message: isKuLanguage
+        message: isAr
+          ? `المنتج "${found.name}" نفد من المخزن`
+          : isKuLanguage
           ? `بەرهەمی "${found.name}" لە کۆگا نەماوە`
           : `"${found.name}" is out of stock`,
       };
@@ -268,7 +273,9 @@ export default function NewSaleScreen() {
     if (inCart >= found.quantity) {
       return {
         success: false,
-        message: isKuLanguage
+        message: isAr
+          ? `الكمية المتاحة في المخزن (${found.quantity}) مضافة بالكامل إلى السلة`
+          : isKuLanguage
           ? `بڕی بەردەست لە کۆگا (${found.quantity}) لە سەبەتەدایە`
           : `Max available stock (${found.quantity}) already in cart`,
       };
@@ -279,7 +286,9 @@ export default function NewSaleScreen() {
     return {
       success: true,
       title: found.name,
-      message: isKuLanguage
+      message: isAr
+        ? `تمت الإضافة: ${found.name} (الكمية: ${inCart + 1})`
+        : isKuLanguage
         ? `زیادکرا: ${found.name} (بڕ: ${inCart + 1})`
         : `Added: ${found.name} (Qty: ${inCart + 1})`,
     };
@@ -302,8 +311,10 @@ export default function NewSaleScreen() {
     const total = cart.grandTotal();
     if (total <= 0) {
       Alert.alert(
-        isKuLanguage ? 'نرخی پسوڵە ناتوانێت سفر بێت' : t('common.error'),
-        isKuLanguage
+        isAr ? 'لا يمكن أن يكون مبلغ الفاتورة صفراً' : isKuLanguage ? 'نرخی پسوڵە ناتوانێت سفر بێت' : t('common.error'),
+        isAr
+          ? 'فاتورة البيع لا يمكن أن تكون بمبلغ صفر. يرجى تحديد أسعار المنتجات.'
+          : isKuLanguage
           ? 'پسوڵەی فرۆشتن نابێت بێ نرخ (سفر) بێت. تکایە نرخی بەرهەمەکان دیاری بکە.'
           : 'Sale invoice total cannot be zero. Please enter product prices.'
       );
@@ -313,8 +324,10 @@ export default function NewSaleScreen() {
     const zeroPriceItem = cart.items.find((i) => i.sellingPrice <= 0);
     if (zeroPriceItem) {
       Alert.alert(
-        isKuLanguage ? 'نرخی کاڵا دیاری نەکراوە' : t('common.error'),
-        isKuLanguage
+        isAr ? 'لم يتم تحديد سعر المادة' : isKuLanguage ? 'نرخی کاڵا دیاری نەکراوە' : t('common.error'),
+        isAr
+          ? `المادة «${zeroPriceItem.product.name}» سعرها صفر. لا يمكن إتمام الفاتورة بسعر صفر.`
+          : isKuLanguage
           ? `کاڵای «${zeroPriceItem.product.name}» نرخی سفرە. پسوڵە نابێت بە نرخی سفر تەواو بکرێت.`
           : `Item "${zeroPriceItem.product.name}" has zero price. Invoices cannot be completed with zero price.`
       );
@@ -324,8 +337,10 @@ export default function NewSaleScreen() {
     if (cart.paymentMethod === 'cash' || cart.paymentMethod === 'fib') {
       if (total <= 0) {
         Alert.alert(
-          isKuLanguage ? 'پسوڵەی کاش نابێت سفر بێت' : t('common.error'),
-          isKuLanguage
+          isAr ? 'فاتورة النقد لا يمكن أن تكون صفراً' : isKuLanguage ? 'پسوڵەی کاش نابێت سفر بێت' : t('common.error'),
+          isAr
+            ? 'لا توجد فواتير نقدية بمبلغ صفر. يرجى تحديد أسعار المنتجات.'
+            : isKuLanguage
             ? 'بە کاش پسوڵەی سفرمان نییە. تکایە نرخی بەرهەمەکان بنووسە.'
             : 'Cash invoices cannot be zero.'
         );
@@ -351,7 +366,7 @@ export default function NewSaleScreen() {
     if (cart.paymentMethod === 'installment') {
       if (isDirectCust || !nameVal || !phoneVal) {
         Alert.alert(
-          isKuLanguage ? 'کڕیاری ڕاستەوخۆ بۆ قیست ڕێگەپێنەدراوە' : t('common.error'),
+          isAr ? 'الزبون المباشر غير مسموح به للأقساط' : isKuLanguage ? 'کڕیاری ڕاستەوخۆ بۆ قیست ڕێگەپێنەدراوە' : t('common.error'),
           t('sales.noDirectCustomerForInstallment', 'نابێت بە کڕیاری ڕاستەوخۆ قیست بدرێت. تکایە کڕیارێک دیاری بکە یان ناو و مۆبایلی کڕیار پڕ بکەرەوە.')
         );
         if (isDirectCust || !nameVal) setNameError(t('customers.nameRequired'));
@@ -494,18 +509,18 @@ export default function NewSaleScreen() {
 
   const getCompleteButtonLabel = () => {
     if (checkoutMode === 'print') {
-      return isKuLanguage ? 'تەواوکردن و پرینت A4 🖨️' : 'Complete & Print A4 🖨️';
+      return isAr ? 'إتمام وطباعة A4 🖨️' : isKuLanguage ? 'تەواوکردن و پرینت A4 🖨️' : 'Complete & Print A4 🖨️';
     }
     if (checkoutMode === 'print58') {
-      return isKuLanguage ? 'تەواوکردن و پرینت 58mm 🖨️' : 'Complete & Print 58mm 🖨️';
+      return isAr ? 'إتمام وطباعة 58mm 🖨️' : isKuLanguage ? 'تەواوکردن و پرینت 58mm 🖨️' : 'Complete & Print 58mm 🖨️';
     }
     if (checkoutMode === 'print80') {
-      return isKuLanguage ? 'تەواوکردن و پرینت 80mm 🖨️' : 'Complete & Print 80mm 🖨️';
+      return isAr ? 'إتمام وطباعة 80mm 🖨️' : isKuLanguage ? 'تەواوکردن و پرینت 80mm 🖨️' : 'Complete & Print 80mm 🖨️';
     }
     if (checkoutMode === 'print110') {
-      return isKuLanguage ? 'تەواوکردن و پرینت 110mm 🖨️' : 'Complete & Print 110mm 🖨️';
+      return isAr ? 'إتمام وطباعة 110mm 🖨️' : isKuLanguage ? 'تەواوکردن و پرینت 110mm 🖨️' : 'Complete & Print 110mm 🖨️';
     }
-    return isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓';
+    return isAr ? 'إتمام عملية البيع ✓' : isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓';
   };
 
   // ─── Step 1: Product Search ────────────────────────────────────────────────
@@ -583,10 +598,10 @@ export default function NewSaleScreen() {
               </View>
               <View style={[styles.navBarScanTextCol, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
                 <Text style={[styles.navBarScanTitle, { color: colors.black }]}>
-                  {isKuLanguage ? 'سکانەری بارکۆد و QR' : 'Barcode & QR Scanner'}
+                  {isAr ? 'ماسح الباركود و QR' : isKuLanguage ? 'سکانەری بارکۆد و QR' : 'Barcode & QR Scanner'}
                 </Text>
                 <Text style={[styles.navBarScanSub, { color: colors.gray400 }]}>
-                  {isKuLanguage ? 'بەرهەمەکان سکان بکە بۆ سەبەتە' : 'Scan items rapidly into cart'}
+                  {isAr ? 'امسح المنتجات سريعاً إلى السلة' : isKuLanguage ? 'بەرهەمەکان سکان بکە بۆ سەبەتە' : 'Scan items rapidly into cart'}
                 </Text>
               </View>
             </View>
@@ -735,7 +750,7 @@ export default function NewSaleScreen() {
                           isTablet && { fontSize: 14.5 },
                         ]}
                       >
-                        {isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
+                        {isAr ? 'مسح المزيد' : isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -762,7 +777,7 @@ export default function NewSaleScreen() {
                         isTablet && { fontSize: 14.5 },
                       ]}
                     >
-                      {isKuLanguage ? 'زیادکردنی بەرهەم' : 'Add Items'}
+                      {isAr ? 'إضافة مواد' : isKuLanguage ? 'زیادکردنی بەرهەم' : 'Add Items'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -880,7 +895,7 @@ export default function NewSaleScreen() {
                     isTablet && { fontSize: 14.5 },
                   ]}
                 >
-                  {isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
+                  {isAr ? 'مسح المزيد' : isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
                 </Text>
               </TouchableOpacity>
             )}
@@ -907,7 +922,7 @@ export default function NewSaleScreen() {
                   isTablet && { fontSize: 14.5 },
                 ]}
               >
-                {isKuLanguage ? 'زیادکردنی بەرهەم' : 'Add Items'}
+                {isAr ? 'إضافة مواد' : isKuLanguage ? 'زیادکردنی بەرهەم' : 'Add Items'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -991,7 +1006,7 @@ export default function NewSaleScreen() {
                       isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isKuLanguage ? 'پێشوو' : 'Prev'}
+                    {isAr ? 'السابق' : isKuLanguage ? 'پێشوو' : 'Prev'}
                   </Text>
                 </TouchableOpacity>
 
@@ -1004,7 +1019,9 @@ export default function NewSaleScreen() {
                       isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isKuLanguage
+                    {isAr
+                      ? `السلعة ${activeCartIndex + 1} من ${cart.items.length}`
+                      : isKuLanguage
                       ? `کاڵای ${activeCartIndex + 1} لە ${cart.items.length}`
                       : `Item ${activeCartIndex + 1} of ${cart.items.length}`}
                   </Text>
@@ -1064,7 +1081,7 @@ export default function NewSaleScreen() {
                       isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isKuLanguage ? 'دواتر' : 'Next'}
+                    {isAr ? 'التالي' : isKuLanguage ? 'دواتر' : 'Next'}
                   </Text>
                   <Ionicons
                     name={isRTL ? "chevron-back" : "chevron-forward"}
@@ -1289,8 +1306,10 @@ export default function NewSaleScreen() {
                 numberOfLines={1}
               >
                 {showSalesInvoicePreview
-                  ? (isKuLanguage ? 'داخستنی پێشبینین' : 'Hide Preview')
-                  : (isKuLanguage
+                  ? (isAr ? 'إخفاء المعاينة' : isKuLanguage ? 'داخستنی پێشبینین' : 'Hide Preview')
+                  : (isAr
+                      ? `عرض الفاتورة • ${checkoutMode === 'print' ? 'A4' : checkoutMode === 'print58' ? '58mm' : checkoutMode === 'print80' ? '80mm' : checkoutMode === 'print110' ? '110mm' : 'عادي'}`
+                      : isKuLanguage
                       ? `پیشاندانی پسوولە • ${checkoutMode === 'print' ? 'A4' : checkoutMode === 'print58' ? '58mm' : checkoutMode === 'print80' ? '80mm' : checkoutMode === 'print110' ? '110mm' : 'ئاسایی'}`
                       : `Show Preview • ${checkoutMode === 'print' ? 'A4' : checkoutMode === 'print58' ? '58mm' : checkoutMode === 'print80' ? '80mm' : checkoutMode === 'print110' ? '110mm' : 'Normal'}`)}
               </Text>
@@ -1328,8 +1347,8 @@ export default function NewSaleScreen() {
                 ]}
               >
                 {showSalesInvoicePreview
-                  ? (isKuLanguage ? 'کراوەیە' : 'Visible')
-                  : (isKuLanguage ? 'پیشاندان' : 'Preview')}
+                  ? (isAr ? 'معروض' : isKuLanguage ? 'کراوەیە' : 'Visible')
+                  : (isAr ? 'معاينة' : isKuLanguage ? 'پیشاندان' : 'Preview')}
               </Text>
             </View>
 
@@ -1451,7 +1470,7 @@ export default function NewSaleScreen() {
               {t('sales.installmentDownPayment', 'بڕی پێشەکی (ئارەزوومەندانە)')}
             </Text>
             <Text style={[{ fontSize: 11, color: colors.gray400 }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-              {rawPaidNum > 0 ? '' : (isKuLanguage ? 'بێ پێشەکی (٠)' : 'No down payment')}
+              {rawPaidNum > 0 ? '' : (isAr ? 'بدون مقدم (٠)' : isKuLanguage ? 'بێ پێشەکی (٠)' : 'No down payment')}
             </Text>
           </View>
 
@@ -1587,7 +1606,7 @@ export default function NewSaleScreen() {
                       },
                     ]}
                   >
-                    {m} {isKuLanguage ? 'مانگ' : 'mo'}
+                    {m} {isAr ? 'شهر' : isKuLanguage ? 'مانگ' : 'mo'}
                   </Text>
                 </TouchableOpacity>
               );
@@ -1627,8 +1646,8 @@ export default function NewSaleScreen() {
                 ]}
               >
                 {!INSTALLMENT_MONTH_PRESETS.includes(cart.installmentMonths)
-                  ? `${cart.installmentMonths} ${isKuLanguage ? 'مانگ' : 'mo'}`
-                  : (isKuLanguage ? 'کەستەم' : 'Custom')}
+                  ? `${cart.installmentMonths} ${isAr ? 'شهر' : isKuLanguage ? 'مانگ' : 'mo'}`
+                  : (isAr ? 'مخصص' : isKuLanguage ? 'کەستەم' : 'Custom')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1685,12 +1704,12 @@ export default function NewSaleScreen() {
             <View style={[{ flexDirection, alignItems: 'center', gap: 6 }]}>
               <Ionicons name="calculator-outline" size={18} color="#D4AF37" />
               <Text style={[{ fontSize: 14, color: isDark ? '#F1F5F9' : '#854D0E', textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                {isKuLanguage ? 'وردەکاری قیست' : 'Installment Summary'}
+                {isAr ? 'ملخص الأقساط' : isKuLanguage ? 'وردەکاری قیست' : 'Installment Summary'}
               </Text>
             </View>
             <View style={[styles.durationBadge, { backgroundColor: isDark ? '#0F172A' : '#FEF3C7' }]}>
               <Text style={[{ fontSize: 12, color: '#D4AF37' }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                {durationMonths} {isKuLanguage ? 'مانگ' : 'Months'}
+                {durationMonths} {isAr ? 'شهر' : isKuLanguage ? 'مانگ' : 'Months'}
               </Text>
             </View>
           </View>
@@ -1729,8 +1748,8 @@ export default function NewSaleScreen() {
                 </Text>
                 <Text style={[{ fontSize: 11, color: colors.gray400, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                   {hasDifferentLastInstallment
-                    ? `(${durationMonths - 1} ${isKuLanguage ? 'مانگ بە' : 'mo @'} ${isUSD ? '$' + fmtUSD(baseMonthlyAmount) : fmtIQD(baseMonthlyAmount)} + ${isKuLanguage ? 'کۆتایی' : 'last'} ${isUSD ? '$' + fmtUSD(lastInstallmentAmount) : fmtIQD(lastInstallmentAmount)})`
-                    : `(${durationMonths} ${isKuLanguage ? 'قیستی یەکسان' : 'equal payments'})`}
+                    ? `(${durationMonths - 1} ${isAr ? 'أشهر بـ' : isKuLanguage ? 'مانگ بە' : 'mo @'} ${isUSD ? '$' + fmtUSD(baseMonthlyAmount) : fmtIQD(baseMonthlyAmount)} + ${isAr ? 'الأخير' : isKuLanguage ? 'کۆتایی' : 'last'} ${isUSD ? '$' + fmtUSD(lastInstallmentAmount) : fmtIQD(lastInstallmentAmount)})`
+                    : `(${durationMonths} ${isAr ? 'أقساط متساوية' : isKuLanguage ? 'قیستی یەکسان' : 'equal payments'})`}
                 </Text>
               </View>
               <View style={{ alignItems: alignEnd }}>
@@ -2131,8 +2150,8 @@ export default function NewSaleScreen() {
           visible={scannerOpen}
           onClose={() => handleFinishScanner(0)}
           mode="multi"
-          title={isKuLanguage ? 'سکانەری بەرهەمەکانی فرۆشتن' : 'Sales Barcode Scanner'}
-          subtitle={isKuLanguage ? 'کامێرا بگرە لەسەر بارکۆدەکان بۆ زیادکردنی ڕاستەوخۆ' : 'Scan items rapidly into cart'}
+          title={isAr ? 'ماسح باركود المبيعات' : isKuLanguage ? 'سکانەری بەرهەمەکانی فرۆشتن' : 'Sales Barcode Scanner'}
+          subtitle={isAr ? 'وجّه الكاميرا نحو الباركود لإضافته مباشرة' : isKuLanguage ? 'کامێرا بگرە لەسەر بارکۆدەکان بۆ زیادکردنی ڕاستەوخۆ' : 'Scan items rapidly into cart'}
           onScanMulti={handleScanMulti}
           onFinishMulti={handleFinishScanner}
         />

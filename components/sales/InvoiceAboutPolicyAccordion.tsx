@@ -26,6 +26,7 @@ export function InvoiceAboutPolicyAccordion() {
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const isAr = useLanguageStore((s) => s.language === 'ar');
 
   const [isExpanded, setIsExpanded] = useState(false);
   const invoiceAboutPolicy = useSettingsStore((s) => s.invoiceAboutPolicy);
@@ -83,7 +84,7 @@ export function InvoiceAboutPolicyAccordion() {
               ]}
               numberOfLines={1}
             >
-              {isKurdish ? 'دەربارەی کۆمپانیا و سیاسەت' : 'About & Business Policy'}
+              {isAr ? 'حول المتجر وسياسة العمل' : isKurdish ? 'دەربارەی کۆمپانیا و سیاسەت' : 'About & Business Policy'}
             </Text>
             <Text
               style={[
@@ -94,8 +95,8 @@ export function InvoiceAboutPolicyAccordion() {
               numberOfLines={1}
             >
               {hasContent
-                ? (isKurdish ? 'سیاسەت لەسەر وەسڵەکە چاپ دەکرێت' : 'Printed on invoice top')
-                : (isKurdish ? 'زانیاری دەربارە و مەرجەکانی فرۆشتن' : 'Add business policy & terms')}
+                ? (isAr ? 'تُطبع السياسة أعلى الفاتورة' : isKurdish ? 'سیاسەت لەسەر وەسڵەکە چاپ دەکرێت' : 'Printed on invoice top')
+                : (isAr ? 'إضافة سياسة وشروط العمل' : isKurdish ? 'زانیاری دەربارە و مەرجەکانی فرۆشتن' : 'Add business policy & terms')}
             </Text>
           </View>
         </View>
@@ -131,8 +132,8 @@ export function InvoiceAboutPolicyAccordion() {
               ]}
             >
               {hasContent
-                ? (isKurdish ? 'چالاکە' : 'Active')
-                : (isKurdish ? 'دەربارە' : 'About')}
+                ? (isAr ? 'نشط' : isKurdish ? 'چالاکە' : 'Active')
+                : (isAr ? 'حول' : isKurdish ? 'دەربارە' : 'About')}
             </Text>
           </View>
 
@@ -168,7 +169,9 @@ export function InvoiceAboutPolicyAccordion() {
                 isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
               ]}
             >
-              {isKurdish
+              {isAr
+                ? 'هذا النص يُطبع في أعلى الفاتورة فوق ملخص الأسعار ويُحفظ تلقائياً لكل عملية بيع:'
+                : isKurdish
                 ? 'ئەم دەقە لە سەرووی پوختەی نرخەکانی وەسڵ چاپ دەکرێت و خۆکارانە پاشەکەوت دەبێت بۆ هەموو فرۆشتنێک:'
                 : 'This text prints at the very top of invoices above prices and is auto-saved for every sale:'}
             </Text>
@@ -191,7 +194,9 @@ export function InvoiceAboutPolicyAccordion() {
             value={invoiceAboutPolicy}
             onChangeText={setInvoiceAboutPolicy}
             placeholder={
-              isKurdish
+              isAr
+                ? 'مثال:\n١. البضاعة المباعة لا ترد ولا تستبدل لأسباب صحية.\n٢. أوقات العمل: من ٩ صباحاً حتى ٩ مساءً.\n٣. لأي استفسار يرجى الاتصال بقسم خدمة العملاء.'
+                : isKurdish
                 ? 'بۆ نموونە:\n١. کاڵای فرۆشراو بە مەرجی تەندروستی ناگەڕێتەوە.\n٢. کاتی کارکردن: ٩ی بەیانی تا ٩ی شەو.\n٣. بۆ هەر سەرنجێک پەیوەندی بە بەشی خزمەتگوزاری بکەن.'
                 : 'e.g. Return policies, warranty terms, working hours, company description...'
             }
@@ -209,7 +214,7 @@ export function InvoiceAboutPolicyAccordion() {
                   isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
               >
-                {isKurdish ? 'خۆکارانە پاشەکەوت دەبێت' : 'Auto-saved permanently'}
+                {isAr ? 'يتم الحفظ تلقائياً بشكل دائم' : isKurdish ? 'خۆکارانە پاشەکەوت دەبێت' : 'Auto-saved permanently'}
               </Text>
             </View>
 
@@ -226,7 +231,7 @@ export function InvoiceAboutPolicyAccordion() {
                     isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKurdish ? 'سڕینەوە' : 'Clear'}
+                  {isAr ? 'مسح' : isKurdish ? 'سڕینەوە' : 'Clear'}
                 </Text>
               </TouchableOpacity>
             )}

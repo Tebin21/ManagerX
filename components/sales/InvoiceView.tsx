@@ -10,6 +10,7 @@ import { useRTL } from '@/lib/rtl';
 import { useBusinessStore } from '@/store/businessStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useLanguageStore } from '@/store/languageStore';
+import { isDirectCustomerName } from '@/lib/sqlite';
 import type { Sale } from '@/types/sales';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 import {
@@ -61,12 +62,17 @@ export function InvoiceView({ sale, compact = false, currencyMode }: Props) {
   const statusBg = isDark ? hexToRgba(colors[STATUS_TONE[status]], 0.18) : STATUS_BG_LIGHT[status];
   const statusText = isDark ? colors[STATUS_TONE[status]] : STATUS_TEXT_LIGHT[status];
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isAr = useLanguageStore((s) => s.language === 'ar');
 
-  const paymentMethodLabel = isKuLanguage
+  const paymentMethodLabel = isAr
+    ? (sale.paymentMethod === 'cash' ? 'نقداً' : sale.paymentMethod === 'debt' ? 'آجل (دين)' : sale.paymentMethod === 'installment' ? 'أقساط' : 'FIB')
+    : isKuLanguage
     ? (sale.paymentMethod === 'cash' ? 'کاش' : sale.paymentMethod === 'debt' ? 'قەرز' : sale.paymentMethod === 'installment' ? 'قیست' : 'FIB')
     : (PAYMENT_LABEL[sale.paymentMethod] || (sale.paymentMethod === 'installment' ? 'Installment' : sale.paymentMethod));
 
-  const paymentStatusLabel = isKuLanguage
+  const paymentStatusLabel = isAr
+    ? (status === 'paid' ? 'مدفوع' : status === 'partial' ? 'مدفوع جزئياً' : 'غير مدفوع')
+    : isKuLanguage
     ? (status === 'paid' ? 'پارەدراو' : status === 'partial' ? 'بەشێکی دراوە' : 'نەدراو')
     : (PAYMENT_STATUS_LABEL[status] || status);
 
@@ -141,7 +147,9 @@ export function InvoiceView({ sale, compact = false, currencyMode }: Props) {
               {sale.customerName ? (
                 <Text style={[styles.infoLine, { color: colors.black, textAlign, writingDirection }]}>
                   <Text style={[styles.infoLineLabel, { color: colors.gray400 }, kuInfoLabel]}>{t('invoicePreview.name')}: </Text>
-                  {sale.customerName}
+                  {isDirectCustomerName(sale.customerName)
+                    ? (isAr ? 'زبون مباشر' : isKuLanguage ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer')
+                    : sale.customerName}
                 </Text>
               ) : null}
               {sale.customerPhone ? (
@@ -173,7 +181,7 @@ export function InvoiceView({ sale, compact = false, currencyMode }: Props) {
       {(sale.aboutPolicy || useSettingsStore.getState().invoiceAboutPolicy) ? (
         <View style={[styles.card, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
           <Text style={[styles.cardLabel, { color: colors.gray400, textAlign, writingDirection }, kuLabel]}>
-            {isKuLanguage ? 'دەربارەی کۆمپانیا و سیاسەت' : 'About & Business Policy'}
+            {isAr ? 'حول المتجر وسياسة العمل' : isKuLanguage ? 'دەربارەی کۆمپانیا و سیاسەت' : 'About & Business Policy'}
           </Text>
           <Text style={[styles.blockText, { color: colors.black, textAlign, writingDirection }]}>
             {(sale.aboutPolicy || useSettingsStore.getState().invoiceAboutPolicy || '').trim()}
@@ -288,7 +296,7 @@ export function InvoiceView({ sale, compact = false, currencyMode }: Props) {
               <View style={[styles.totalRow, { flexDirection }]}>
                 <Text style={[styles.totalLabel, { color: colors.gray500, textAlign, writingDirection }]}>
                   {t('invoicePreview.paid')}
-                  {sale.initialPaymentMethod ? ` (${sale.initialPaymentMethod === 'fib' ? 'FIB' : (isKuLanguage ? 'کاش' : 'Cash')})` : ''}
+                  {sale.initialPaymentMethod ? ` (${sale.initialPaymentMethod === 'fib' ? 'FIB' : (isAr ? 'نقداً' : isKuLanguage ? 'کاش' : 'Cash')})` : ''}
                 </Text>
                 <Text style={[styles.totalValue, { color: colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtMoney(sale.paidAmount)}</Text>
               </View>
@@ -307,16 +315,16 @@ export function InvoiceView({ sale, compact = false, currencyMode }: Props) {
           <>
             <View style={[styles.totalRow, { flexDirection }]}>
               <Text style={[styles.totalLabel, { color: colors.gray500, textAlign, writingDirection }]}>
-                {isKuLanguage ? 'پێشەکی' : 'Down Payment'}
-                {sale.initialPaymentMethod ? ` (${sale.initialPaymentMethod === 'fib' ? 'FIB' : (isKuLanguage ? 'کاش' : 'Cash')})` : ''}
+                {isAr ? 'الدفعة الأولى (المقدم)' : isKuLanguage ? 'پێشەکی' : 'Down Payment'}
+                {sale.initialPaymentMethod ? ` (${sale.initialPaymentMethod === 'fib' ? 'FIB' : (isAr ? 'نقداً' : isKuLanguage ? 'کاش' : 'Cash')})` : ''}
               </Text>
               <Text style={[styles.totalValue, { color: colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>
-                {sale.paidAmount > 0 ? fmtMoney(sale.paidAmount) : (isKuLanguage ? 'بێ پێشەکی' : 'None')}
+                {sale.paidAmount > 0 ? fmtMoney(sale.paidAmount) : (isAr ? 'بدون مقدم' : isKuLanguage ? 'بێ پێشەکی' : 'None')}
               </Text>
             </View>
             <View style={[styles.totalRow, { flexDirection }]}>
               <Text style={[styles.totalLabel, { color: colors.error, textAlign, writingDirection }]}>
-                {isKuLanguage ? 'بڕی ماوە بە قیست' : 'Remaining Balance'}
+                {isAr ? 'المبلغ المتبقي بالأقساط' : isKuLanguage ? 'بڕی ماوە بە قیست' : 'Remaining Balance'}
               </Text>
               <Text style={[styles.totalValue, { color: colors.error, fontWeight: '700', textAlign: valueAlign, writingDirection: 'ltr' }]}>
                 {fmtMoney(sale.remainingDebt)}
@@ -324,15 +332,15 @@ export function InvoiceView({ sale, compact = false, currencyMode }: Props) {
             </View>
             <View style={[styles.totalRow, { flexDirection }]}>
               <Text style={[styles.totalLabel, { color: colors.primary, textAlign, writingDirection }]}>
-                {isKuLanguage ? 'ماوەی قیست' : 'Duration'}
+                {isAr ? 'مدة الأقساط' : isKuLanguage ? 'ماوەی قیست' : 'Duration'}
               </Text>
               <Text style={[styles.totalValue, { color: colors.primary, fontWeight: '700', textAlign: valueAlign, writingDirection: 'ltr' }]}>
-                {sale.installmentMonths || 1} {isKuLanguage ? 'مانگ' : 'Months'}
+                {sale.installmentMonths || 1} {isAr ? 'أشهر' : isKuLanguage ? 'مانگ' : 'Months'}
               </Text>
             </View>
             <View style={[styles.totalRow, { flexDirection, borderTopWidth: 1, borderTopColor: colors.gray200, paddingTop: 4 }]}>
               <Text style={[styles.totalLabel, { color: colors.black, fontWeight: '700', textAlign, writingDirection }]}>
-                {isKuLanguage ? 'قیستی مانگانە' : 'Monthly Installment'}
+                {isAr ? 'القسط الشهري' : isKuLanguage ? 'قیستی مانگانە' : 'Monthly Installment'}
               </Text>
               <Text style={[styles.totalValue, { color: colors.primary, fontWeight: '800', textAlign: valueAlign, writingDirection: 'ltr' }]}>
                 {fmtMoney(sale.installmentMonthlyAmount || Math.round((sale.remainingDebt / (sale.installmentMonths || 1)) * 100) / 100)}

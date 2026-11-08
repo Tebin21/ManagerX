@@ -38,7 +38,9 @@ export function CustomAlertDaysModal({
   initialDays = 30,
 }: CustomAlertDaysModalProps) {
   const { colors, isDark } = useAppTheme();
-  const isKu = useLanguageStore((s) => s.language !== 'en');
+  const lang = useLanguageStore((s) => s.language);
+  const isKu = lang === 'ku';
+  const isAr = lang === 'ar';
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { isTablet } = useResponsive();
 
@@ -117,7 +119,7 @@ export function CustomAlertDaysModal({
                         isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
-                      {isKu ? 'ماوەی هۆشداری بە کەستەم' : 'Custom Alert Window'}
+                      {isAr ? 'تحديد فترة التنبيه المخصصة' : isKu ? 'ماوەی هۆشداری بە کەستەم' : 'Custom Alert Window'}
                     </Text>
                     <Text
                       style={[
@@ -189,7 +191,7 @@ export function CustomAlertDaysModal({
                         isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                       ]}
                     >
-                      {isKu ? 'ڕۆژ پێش بەسەرچوون' : 'days before expiry'}
+                      {isAr ? 'يوماً قبل انتهاء الصلاحية' : isKu ? 'ڕۆژ پێش بەسەرچوون' : 'days before expiry'}
                     </Text>
                   </View>
 
@@ -219,7 +221,7 @@ export function CustomAlertDaysModal({
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
                 >
-                  {isKu ? 'هەڵبژاردنی خێرا:' : 'Quick Suggestions:'}
+                  {isAr ? 'خيارات سريعة:' : isKu ? 'هەڵبژاردنی خێرا:' : 'Quick Suggestions:'}
                 </Text>
                 <ScrollView
                   horizontal
@@ -263,7 +265,7 @@ export function CustomAlertDaysModal({
                             isKu && { fontFamily: isSelected ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
                           ]}
                         >
-                          {isKu ? `\u200F${val} ڕۆژ` : `${val}d`}
+                          {isAr ? `\u200F${val} يوم` : isKu ? `\u200F${val} ڕۆژ` : `${val}d`}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -291,7 +293,7 @@ export function CustomAlertDaysModal({
                       isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                     ]}
                   >
-                    {isKu ? 'پاشگەزبوونەوە' : 'Cancel'}
+                    {isAr ? 'إلغاء' : isKu ? 'پاشگەزبوونەوە' : 'Cancel'}
                   </Text>
                 </TouchableOpacity>
 
@@ -315,7 +317,7 @@ export function CustomAlertDaysModal({
                       isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isKu ? 'جێبەجێکردن' : 'Apply'}
+                    {isAr ? 'تطبيق' : isKu ? 'جێبەجێکردن' : 'Apply'}
                   </Text>
                 </TouchableOpacity>
               </View>

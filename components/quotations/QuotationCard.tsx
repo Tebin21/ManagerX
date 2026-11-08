@@ -11,6 +11,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { Theme } from '@/constants/theme';
 import { useLanguageStore } from '@/store/languageStore';
 import { fmtUSD, formatTime } from '@/utils/formatters';
+import { isDirectCustomerName } from '@/lib/sqlite';
 import type { Quotation } from '@/types/quotation';
 
 export interface QuotationCardProps {
@@ -25,6 +26,7 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
   const { colors, isDark } = useAppTheme();
   const { t } = useTranslation();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isAr = useLanguageStore((s) => s.language === 'ar');
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const { isTablet, isTabletLandscape } = useResponsive();
@@ -35,15 +37,22 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
   const printCount = quotation.printCount || 0;
   const isPrinted = printCount > 0;
 
+  const isDirectCust = !quotation.customerName || isDirectCustomerName(quotation.customerName);
+  const displayCustomerName = isDirectCust
+    ? (isAr ? 'زبون مباشر' : isKuLanguage ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer')
+    : quotation.customerName;
+
   const handleDeletePrompt = () => {
     Alert.alert(
-      isKuLanguage ? 'سڕینەوەی عەرز' : 'Delete Quotation',
-      isKuLanguage
+      isAr ? 'حذف عرض السعر' : isKuLanguage ? 'سڕینەوەی عەرز' : 'Delete Quotation',
+      isAr
+        ? `هل أنت متأكد من حذف عرض السعر ${quotation.quotationNumber}؟`
+        : isKuLanguage
         ? `ئایا دڵنیایت لە سڕینەوەی عەرزی ${quotation.quotationNumber}؟`
         : `Are you sure you want to delete quotation ${quotation.quotationNumber}?`,
       [
-        { text: isKuLanguage ? 'پاشگەزبوونەوە' : 'Cancel', style: 'cancel' },
-        { text: isKuLanguage ? 'سڕینەوە' : 'Delete', style: 'destructive', onPress: () => onDelete(quotation) },
+        { text: isAr ? 'إلغاء' : isKuLanguage ? 'پاشگەزبوونەوە' : 'Cancel', style: 'cancel' },
+        { text: isAr ? 'حذف' : isKuLanguage ? 'سڕینەوە' : 'Delete', style: 'destructive', onPress: () => onDelete(quotation) },
       ]
     );
   };
@@ -98,7 +107,7 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
             ]}
             numberOfLines={1}
           >
-            {quotation.customerName || (isKuLanguage ? 'کڕیاری گشتی' : 'General Client')}
+            {displayCustomerName}
           </Text>
           {quotation.customerPhone ? (
             <View style={[styles.gridPhoneRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -137,8 +146,8 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
               ]}
             >
               {isPrinted
-                ? (isKuLanguage ? `چاپکراوە (${printCount})` : `Printed (${printCount})`)
-                : (isKuLanguage ? 'چاپ نەکراوە' : 'Not printed')}
+                ? (isAr ? `مطبوع (${printCount})` : isKuLanguage ? `چاپکراوە (${printCount})` : `Printed (${printCount})`)
+                : (isAr ? 'غير مطبوع' : isKuLanguage ? 'چاپ نەکراوە' : 'Not printed')}
             </Text>
           </View>
         </View>
@@ -147,7 +156,7 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
         <View style={[styles.gridStatsBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50 }]}>
           <View style={styles.gridStatItem}>
             <Text style={[styles.gridStatLabel, { color: colors.gray400 }]}>
-              {isKuLanguage ? 'کۆی گشتی' : 'Total'}
+              {isAr ? 'المجموع الكلي' : isKuLanguage ? 'کۆی گشتی' : 'Total'}
             </Text>
             {quotation.currencyMode === 'usd' ? (
               <Text style={[styles.gridStatValue, { color: colors.primary, fontWeight: '800', direction: 'ltr' }]}>
@@ -178,7 +187,7 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
           >
             <Ionicons name="receipt-outline" size={14} color={colors.primary} />
             <Text style={[styles.gridActionBtnText, { color: colors.primary }]}>
-              {isKuLanguage ? 'وەسڵ' : 'Invoice'}
+              {isAr ? 'فاتورة' : isKuLanguage ? 'وەسڵ' : 'Invoice'}
             </Text>
           </TouchableOpacity>
 
@@ -233,7 +242,7 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
       <View style={[styles.body, { gap: isRTL ? RTL_SPACING.stackGap : 2 }]}>
         <View style={[styles.nameRow, { flexDirection, gap: 6, marginBottom: 2, flexWrap: 'wrap' }]}>
           <Text style={[styles.name, { color: colors.black, textAlign }]} numberOfLines={1}>
-            {quotation.customerName || (isKuLanguage ? 'کڕیاری گشتی' : 'General Client')}
+            {displayCustomerName}
           </Text>
           <View style={[styles.idBadge, { backgroundColor: colors.softBlue }]}>
             <IdText style={[styles.idBadgeText, { color: colors.primary }]}>
@@ -269,8 +278,8 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
               ]}
             >
               {isPrinted
-                ? (isKuLanguage ? `چاپکراوە (${printCount})` : `Printed (${printCount})`)
-                : (isKuLanguage ? 'چاپ نەکراوە' : 'Not printed')}
+                ? (isAr ? `مطبوع (${printCount})` : isKuLanguage ? `چاپکراوە (${printCount})` : `Printed (${printCount})`)
+                : (isAr ? 'غير مطبوع' : isKuLanguage ? 'چاپ نەکراوە' : 'Not printed')}
             </Text>
           </View>
         </View>
@@ -320,7 +329,7 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
           >
             <Ionicons name="receipt-outline" size={13} color={colors.primary} />
             <Text style={{ fontSize: 10, fontWeight: '700', color: colors.primary }}>
-              {isKuLanguage ? 'وەسڵ' : 'Invoice'}
+              {isAr ? 'فاتورة' : isKuLanguage ? 'وەسڵ' : 'Invoice'}
             </Text>
           </TouchableOpacity>
 

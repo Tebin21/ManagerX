@@ -58,7 +58,9 @@ export function DebtPaymentReceiptModal({
   const { isRTL, textAlign } = useRTL();
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
-  const isKu = useLanguageStore((s) => s.language !== 'en');
+  const lang = useLanguageStore((s) => s.language);
+  const isKu = lang === 'ku';
+  const isAr = lang === 'ar';
 
   const business = useBusinessStore();
   const defaultPaperSize = useSettingsStore((s) => s.debtPaperSizePreference ?? '80mm');
@@ -75,10 +77,18 @@ export function DebtPaymentReceiptModal({
   const exchangeRate = useSettingsStore.getState().exchangeRate || 1310;
   const usdValue = exchangeRate > 0 ? receipt.amount / exchangeRate : 0;
 
-  const docTitle = isCustomerPayment ? 'وەسڵی وەرگرتنی پارەی قەرز' : 'وەسڵی دانەوەی قەرزی دابینکەر';
-  const partyRoleLabel = isCustomerPayment ? 'کڕیار' : 'دابینکەر';
-  const statusLabel = isSettled ? (isKu ? 'تەواوبوو (بێ باڵانس)' : 'Settled') : (isKu ? 'بەشێکی دراوە (قەرز ماوە)' : 'Partial Payment');
-  const paymentMethodLabel = receipt.paymentMethod?.toLowerCase() === 'fib' ? 'FIB (ئۆنلاین)' : 'کاش (نەقد)';
+  const docTitle = isCustomerPayment
+    ? (isAr ? 'وصل استلام دفعة دين' : isKu ? 'وەسڵی وەرگرتنی پارەی قەرز' : 'Debt Collection Receipt')
+    : (isAr ? 'وصل تسديد دين للمورد' : isKu ? 'وەسڵی دانەوەی قەرزی دابینکەر' : 'Supplier Debt Payment Receipt');
+  const partyRoleLabel = isCustomerPayment
+    ? (isAr ? 'الزبون' : isKu ? 'کڕیار' : 'Customer')
+    : (isAr ? 'المورد' : isKu ? 'دابینکەر' : 'Supplier');
+  const statusLabel = isSettled
+    ? (isAr ? 'مسدد بالكامل' : isKu ? 'تەواوبوو (بێ باڵانس)' : 'Settled')
+    : (isAr ? 'دفعة جزئية (متبقي دين)' : isKu ? 'بەشێکی دراوە (قەرز ماوە)' : 'Partial Payment');
+  const paymentMethodLabel = receipt.paymentMethod?.toLowerCase() === 'fib'
+    ? 'FIB'
+    : (isAr ? 'نقداً (كاش)' : isKu ? 'کاش (نەقد)' : 'Cash');
 
   const handlePrint = async () => {
     if (isPrinting) return;
@@ -95,7 +105,7 @@ export function DebtPaymentReceiptModal({
       }
     } catch (err) {
       console.error('Print receipt error:', err);
-      Alert.alert(isKu ? 'هەڵە' : 'Error', isKu ? 'نەتوانرا چاپ بکرێت.' : 'Failed to print receipt.');
+      Alert.alert(isAr ? 'خطأ' : isKu ? 'هەڵە' : 'Error', isAr ? 'تعذرت الطباعة.' : isKu ? 'نەتوانرا چاپ بکرێت.' : 'Failed to print receipt.');
     } finally {
       setIsPrinting(false);
     }
@@ -140,22 +150,22 @@ export function DebtPaymentReceiptModal({
 
             <View style={{ alignItems: 'center' }}>
               <Text style={[styles.modalTitle, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                {isKu ? 'وەسڵی پارەدان (قەرز)' : 'Debt Payment Receipt'}
+                {isAr ? 'وصل دفع (دين)' : isKu ? 'وەسڵی پارەدان (قەرز)' : 'Debt Payment Receipt'}
               </Text>
               <Text style={[styles.modalSub, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                {receipt.paymentNumber} · {isCustomerPayment ? (isKu ? 'وەرگرتن لە کڕیار' : 'Customer Collection') : (isKu ? 'دانەوە بە دابینکەر' : 'Supplier Payment')}
+                {receipt.paymentNumber} · {isCustomerPayment ? (isAr ? 'استلام من زبون' : isKu ? 'وەرگرتن لە کڕیار' : 'Customer Collection') : (isAr ? 'تسديد لمورد' : isKu ? 'دانەوە بە دابینکەر' : 'Supplier Payment')}
               </Text>
               <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, alignItems: 'center', marginTop: 2 }}>
                 <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
                   <Ionicons name="eye-outline" size={11} color={colors.gray500} />
                   <Text style={[{ fontSize: 11, color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                    {isKu ? `بینین: ${receipt.viewCount || 0} جار` : `Views: ${receipt.viewCount || 0}`}
+                    {isAr ? `مشاهدات: ${receipt.viewCount || 0}` : isKu ? `بینین: ${receipt.viewCount || 0} جار` : `Views: ${receipt.viewCount || 0}`}
                   </Text>
                 </View>
                 <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
                   <Ionicons name="print-outline" size={11} color={colors.primary} />
                   <Text style={[{ fontSize: 11, color: colors.primary, fontWeight: '700' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {isKu ? `چاپ: ${receipt.printCount || 0} جار` : `Prints: ${receipt.printCount || 0}`}
+                    {isAr ? `طباعة: ${receipt.printCount || 0}` : isKu ? `چاپ: ${receipt.printCount || 0} جار` : `Prints: ${receipt.printCount || 0}`}
                   </Text>
                 </View>
               </View>
@@ -164,7 +174,7 @@ export function DebtPaymentReceiptModal({
             <View style={{ flex: 1, alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
               <View style={[styles.typeBadge, { backgroundColor: isCustomerPayment ? 'rgba(5, 150, 105, 0.12)' : 'rgba(180, 83, 9, 0.12)' }]}>
                 <Text style={[{ color: isCustomerPayment ? '#059669' : '#B45309', fontSize: 11, fontWeight: '700' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                  {isCustomerPayment ? (isKu ? 'وەرگرتن' : 'Inflow') : (isKu ? 'دانەوە' : 'Outflow')}
+                  {isCustomerPayment ? (isAr ? 'استلام' : isKu ? 'وەرگرتن' : 'Inflow') : (isAr ? 'تسديد' : isKu ? 'دانەوە' : 'Outflow')}
                 </Text>
               </View>
             </View>
@@ -266,7 +276,7 @@ export function DebtPaymentReceiptModal({
                 {receipt.partyPhone ? (
                   <View style={[styles.receiptInfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                     <Text style={[styles.receiptInfoLabel, isKu && { fontFamily: SETTINGS_KURDISH_FONT }, { textAlign: isRTL ? 'right' : 'left' }]}>
-                      {isKu ? 'تەلەفۆن:' : 'Phone:'}
+                      {isAr ? 'الهاتف:' : isKu ? 'تەلەفۆن:' : 'Phone:'}
                     </Text>
                     <Text style={[styles.receiptInfoVal, { textAlign: isRTL ? 'left' : 'right' }]}>
                       {receipt.partyPhone}
@@ -276,7 +286,7 @@ export function DebtPaymentReceiptModal({
                 {receipt.referenceNumber ? (
                   <View style={[styles.receiptInfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                     <Text style={[styles.receiptInfoLabel, isKu && { fontFamily: SETTINGS_KURDISH_FONT }, { textAlign: isRTL ? 'right' : 'left' }]}>
-                      {isKu ? 'ژ. پسوولە:' : 'Invoice #:'}
+                      {isAr ? 'رقم الفاتورة:' : isKu ? 'ژ. پسوولە:' : 'Invoice #:'}
                     </Text>
                     <Text style={[styles.receiptInfoVal, { textAlign: isRTL ? 'left' : 'right' }]}>
                       #{receipt.referenceNumber}
@@ -291,7 +301,7 @@ export function DebtPaymentReceiptModal({
               <View style={styles.financialSection}>
                 <View style={[styles.receiptInfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <Text style={[styles.receiptInfoLabel, isKu && { fontFamily: SETTINGS_KURDISH_FONT }, { textAlign: isRTL ? 'right' : 'left' }]}>
-                    {isKu ? 'قەرزی پێشوو:' : 'Previous Debt:'}
+                    {isAr ? 'الدين السابق:' : isKu ? 'قەرزی پێشوو:' : 'Previous Debt:'}
                   </Text>
                   <Text style={[styles.receiptInfoVal, { textAlign: isRTL ? 'left' : 'right' }]}>
                     {fmtIQD(receipt.previousBalance)} IQD
@@ -301,7 +311,9 @@ export function DebtPaymentReceiptModal({
                 {/* Highlight Paid Amount */}
                 <View style={styles.highlightPaidBox}>
                   <Text style={[styles.highlightPaidLabel, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {isCustomerPayment ? (isKu ? 'بڕی وەرگیراو لە کڕیار' : 'Received Amount') : (isKu ? 'بڕی دراو بە دابینکەر' : 'Paid Amount')}
+                    {isCustomerPayment
+                      ? (isAr ? 'المبلغ المستلم من الزبون' : isKu ? 'بڕی وەرگیراو لە کڕیار' : 'Received Amount')
+                      : (isAr ? 'المبلغ المسدد للمورد' : isKu ? 'بڕی دراو بە دابینکەر' : 'Paid Amount')}
                   </Text>
                   <Text style={styles.highlightPaidAmount}>
                     + {fmtIQD(receipt.amount)} IQD
@@ -313,7 +325,7 @@ export function DebtPaymentReceiptModal({
 
                 <View style={[styles.receiptInfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <Text style={[styles.receiptInfoLabel, { fontWeight: '700' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }, { textAlign: isRTL ? 'right' : 'left' }]}>
-                    {isKu ? 'قەرزی ماوە:' : 'Remaining Debt:'}
+                    {isAr ? 'الدين المتبقي:' : isKu ? 'قەرزی ماوە:' : 'Remaining Debt:'}
                   </Text>
                   <Text style={[styles.receiptInfoValBold, { color: '#000000', textAlign: isRTL ? 'left' : 'right' }]}>
                     {fmtIQD(receipt.remainingAfter)} IQD
@@ -322,7 +334,7 @@ export function DebtPaymentReceiptModal({
 
                 <View style={[styles.receiptInfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <Text style={[styles.receiptInfoLabel, isKu && { fontFamily: SETTINGS_KURDISH_FONT }, { textAlign: isRTL ? 'right' : 'left' }]}>
-                    {isKu ? 'شێوازی پارەدان:' : 'Payment Method:'}
+                    {isAr ? 'طريقة الدفع:' : isKu ? 'شێوازی پارەدان:' : 'Payment Method:'}
                   </Text>
                   <Text style={[styles.receiptInfoVal, { textAlign: isRTL ? 'left' : 'right' }]}>
                     {paymentMethodLabel}
@@ -331,7 +343,7 @@ export function DebtPaymentReceiptModal({
 
                 <View style={[styles.receiptInfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <Text style={[styles.receiptInfoLabel, isKu && { fontFamily: SETTINGS_KURDISH_FONT }, { textAlign: isRTL ? 'right' : 'left' }]}>
-                    {isKu ? 'دۆخی قەرز:' : 'Debt Status:'}
+                    {isAr ? 'حالة الدين:' : isKu ? 'دۆخی قەرز:' : 'Debt Status:'}
                   </Text>
                   <View style={[styles.statusPill, { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#000000' }]}>
                     <Text style={[{ color: '#000000', fontSize: 11, fontWeight: '800' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
@@ -347,13 +359,13 @@ export function DebtPaymentReceiptModal({
                   <View style={styles.signatureCol}>
                     <View style={styles.signatureLine} />
                     <Text style={[styles.signatureText, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                      {isKu ? 'واژووی دەرهێنەر / فرۆشگا' : 'Store Signature'}
+                      {isAr ? 'توقيع المتجر / المُصدِر' : isKu ? 'واژووی دەرهێنەر / فرۆشگا' : 'Store Signature'}
                     </Text>
                   </View>
                   <View style={styles.signatureCol}>
                     <View style={styles.signatureLine} />
                     <Text style={[styles.signatureText, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                      {isKu ? 'واژووی وەرگر' : 'Receiver Signature'}
+                      {isAr ? 'توقيع المستلم' : isKu ? 'واژووی وەرگر' : 'Receiver Signature'}
                     </Text>
                   </View>
                 </View>
@@ -363,7 +375,7 @@ export function DebtPaymentReceiptModal({
 
               {/* Receipt Footer */}
               <View style={styles.receiptFooter}>
-                <Text style={styles.receiptFooterText}>{isKu ? 'سوپاس بۆ مامەڵەکەتان' : 'Thank You'}</Text>
+                <Text style={styles.receiptFooterText}>{isAr ? 'شكراً لتعاملكم معنا' : isKu ? 'سوپاس بۆ مامەڵەکەتان' : 'Thank You'}</Text>
                 <Text style={styles.receiptFooterSub}>www.froshiar.store · Froshiar POS</Text>
               </View>
             </View>
@@ -383,7 +395,7 @@ export function DebtPaymentReceiptModal({
                 <>
                   <Ionicons name="print-outline" size={20} color="#FFFFFF" />
                   <Text style={[styles.actionBtnText, { color: '#FFFFFF' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {isKu ? 'چاپکردنی وەسڵ' : 'Print Receipt'}
+                    {isAr ? 'طباعة الوصل' : isKu ? 'چاپکردنی وەسڵ' : 'Print Receipt'}
                   </Text>
                 </>
               )}

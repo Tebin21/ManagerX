@@ -97,7 +97,9 @@ export function InventoryExpiryView({
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
-  const isKu = useLanguageStore((s) => s.language !== 'en');
+  const lang = useLanguageStore((s) => s.language);
+  const isKu = lang === 'ku';
+  const isAr = lang === 'ar';
   const { isTablet, isTabletLandscape } = useResponsive();
 
   const expiryAlertDays = useSettingsStore((s) => s.expiryAlertDays);
@@ -304,12 +306,12 @@ export function InventoryExpiryView({
 
   const periodKeys: PeriodKey[] = ['all', 'today', 'week', 'month', 'year', 'custom'];
   const periodLabels: Record<PeriodKey, string> = {
-    all:    isKu ? 'هەمووی' : 'All Time',
-    today:  isKu ? 'ئەمڕۆ' : 'Today',
-    week:   isKu ? 'ئەم هەفتەیە' : 'This Week',
-    month:  isKu ? 'ئەم مانگە' : 'This Month',
-    year:   isKu ? 'ئەمساڵ' : 'This Year',
-    custom: isKu ? 'دەستنیشانکراو' : 'Custom',
+    all:    isAr ? 'الكل' : isKu ? 'هەمووی' : 'All Time',
+    today:  isAr ? 'اليوم' : isKu ? 'ئەمڕۆ' : 'Today',
+    week:   isAr ? 'هذا الأسبوع' : isKu ? 'ئەم هەفتەیە' : 'This Week',
+    month:  isAr ? 'هذا الشهر' : isKu ? 'ئەم مانگە' : 'This Month',
+    year:   isAr ? 'هذا العام' : isKu ? 'ئەمساڵ' : 'This Year',
+    custom: isAr ? 'مخصص' : isKu ? 'دەستنیشانکراو' : 'Custom',
   };
 
   // ── 1. Compute status & days remaining for all products in stock ──

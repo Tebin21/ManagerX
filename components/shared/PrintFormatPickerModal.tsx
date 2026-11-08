@@ -32,10 +32,13 @@ interface PaperFormatOption {
   id: ReceiptPaperSize;
   titleKu: string;
   titleEn: string;
+  titleAr: string;
   dimKu: string;
   dimEn: string;
+  dimAr: string;
   descKu: string;
   descEn: string;
+  descAr: string;
   icon: keyof typeof Ionicons.glyphMap;
   isRecommended?: boolean;
 }
@@ -45,30 +48,39 @@ const PAPER_OPTIONS: PaperFormatOption[] = [
     id: 'A4',
     titleKu: 'پەڕەی فەرمی A4',
     titleEn: 'Standard A4 Sheet',
+    titleAr: 'ورق رسمي قياسي A4',
     dimKu: '21 × 29.7 سم',
     dimEn: '21 × 29.7 cm',
+    dimAr: '21 × 29.7 سم',
     descKu: 'چاپکەری ئۆفیس، خشتەی تەواو و لۆگۆ',
     descEn: 'Office printer, full table with logo',
+    descAr: 'طابعة مكتبية، جدول كامل مع الشعار',
     icon: 'document-text',
   },
   {
     id: '110mm',
     titleKu: 'تێرمالی پان (110mm)',
     titleEn: 'Wide Thermal (110mm)',
+    titleAr: 'حراري عريض (110mm)',
     dimKu: '11.0 سم',
     dimEn: '11.0 cm',
+    dimAr: '11.0 سم',
     descKu: 'تێرمالی پانی فرۆشگا و کۆگا',
     descEn: 'Wide thermal roll for retail & warehouse',
+    descAr: 'طابعة حرارية عريضة للمحلات والمستودعات',
     icon: 'receipt',
   },
   {
     id: '80mm',
     titleKu: 'ستاندارد (80mm)',
     titleEn: 'Standard POS (80mm)',
+    titleAr: 'قياسي كاشير (80mm)',
     dimKu: '8.0 سم',
     dimEn: '8.0 cm',
+    dimAr: '8.0 سم',
     descKu: 'باوترین تێرمالی دەسکتۆپ و کاشێر',
     descEn: 'Most common desktop cashier roll',
+    descAr: 'الأكثر استخداماً لكاشير ونقاط البيع',
     icon: 'print',
     isRecommended: true,
   },
@@ -76,10 +88,13 @@ const PAPER_OPTIONS: PaperFormatOption[] = [
     id: '58mm',
     titleKu: 'وەسڵی بچووک (58mm)',
     titleEn: 'Compact POS (58mm)',
+    titleAr: 'إيصال صغير (58mm)',
     dimKu: '5.8 سم',
     dimEn: '5.8 cm',
+    dimAr: '5.8 سم',
     descKu: 'چاپکەری مۆبایلی گەڕۆک و بلوتوس',
     descEn: 'Portable Bluetooth mobile printer',
+    descAr: 'طابعات البلوتوث المحمولة الصغيرة',
     icon: 'phone-portrait-outline',
   },
 ];
@@ -98,7 +113,9 @@ export function PrintFormatPickerModal({
   const { isRTL, textAlign } = useRTL();
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
-  const isKu = useLanguageStore((s) => s.language !== 'en');
+  const lang = useLanguageStore((s) => s.language);
+  const isKu = lang === 'ku';
+  const isAr = lang === 'ar';
 
   const [selectedSize, setSelectedSize] = useState<ReceiptPaperSize>(initialPaperSize);
 
@@ -175,7 +192,7 @@ export function PrintFormatPickerModal({
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {title || (isKu ? 'قەبارەی چاپ هەڵبژێرە' : 'Select Print Format')}
+                  {title || (isAr ? 'اختر حجم الطباعة' : isKu ? 'قەبارەی چاپ هەڵبژێرە' : 'Select Print Format')}
                 </Text>
                 {(!!invoiceNumber || !!partyName) && (
                   <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
@@ -282,7 +299,7 @@ export function PrintFormatPickerModal({
                           isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                         ]}
                       >
-                        {isKu ? opt.titleKu : opt.titleEn}
+                        {isAr ? opt.titleAr : isKu ? opt.titleKu : opt.titleEn}
                       </Text>
                       {opt.isRecommended && (
                         <View
@@ -298,7 +315,7 @@ export function PrintFormatPickerModal({
                               isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                             ]}
                           >
-                            {isKu ? 'پێشنیارکراو' : 'Popular'}
+                            {isAr ? 'موصى به' : isKu ? 'پێشنیارکراو' : 'Popular'}
                           </Text>
                         </View>
                       )}
@@ -312,7 +329,7 @@ export function PrintFormatPickerModal({
                         isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                       ]}
                     >
-                      {isKu ? opt.descKu : opt.descEn} • ({isKu ? opt.dimKu : opt.dimEn})
+                      {isAr ? opt.descAr : isKu ? opt.descKu : opt.descEn} • ({isAr ? opt.dimAr : isKu ? opt.dimKu : opt.dimEn})
                     </Text>
                   </View>
 
@@ -365,7 +382,7 @@ export function PrintFormatPickerModal({
                       isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isKu ? 'چاپکردنی وەسڵ' : 'Print Invoice'}
+                    {isAr ? 'طباعة الفاتورة' : isKu ? 'چاپکردنی وەسڵ' : 'Print Invoice'}
                   </Text>
                 </>
               )}
@@ -390,7 +407,7 @@ export function PrintFormatPickerModal({
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
               >
-                {isKu ? 'داخستن' : 'Cancel'}
+                {isAr ? 'إلغاء' : isKu ? 'داخستن' : 'Cancel'}
               </Text>
             </TouchableOpacity>
           </View>
