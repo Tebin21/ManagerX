@@ -46,6 +46,8 @@ export interface SalesDebtDetail {
   // Products & Batches Linkage
   productsSummary?: string | null;
   itemsCount?: number;
+  installmentMonths?: number | null;
+  installmentMonthlyAmount?: number | null;
 }
 
 export interface DebtPayment {

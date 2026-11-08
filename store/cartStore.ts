@@ -41,6 +41,10 @@ interface CartState {
   setInitialPaymentMethod: (method: 'cash' | 'fib') => void;
   setPaidAmount: (amount: string) => void;
   setSaleNotes: (notes: string) => void;
+  installmentMonths: number;
+  customInstallmentMonths: string;
+  setInstallmentMonths: (months: number) => void;
+  setCustomInstallmentMonths: (val: string) => void;
   clearCart: () => void;
 }
 
@@ -63,6 +67,8 @@ export const useCartStore = create<CartState>((set, get) => ({
   initialPaymentMethod: 'cash',
   paidAmount: '',
   saleNotes: '',
+  installmentMonths: 6,
+  customInstallmentMonths: '',
   globalDiscountType: 'none',
   globalDiscountValue: 0,
 
@@ -98,7 +104,7 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   effectivePaidIQD: () => {
     const s = get();
-    if (s.paymentMethod !== 'debt') return s.grandTotal();
+    if (s.paymentMethod !== 'debt' && s.paymentMethod !== 'installment') return s.grandTotal();
     const gt = s.grandTotal();
     const { baseCurrency, exchangeRate } = useSettingsStore.getState();
     const isUSD = baseCurrency === 'USD';
@@ -115,7 +121,7 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   remainingDebt: () => {
     const s = get();
-    if (s.paymentMethod !== 'debt') return 0;
+    if (s.paymentMethod !== 'debt' && s.paymentMethod !== 'installment') return 0;
     return Math.max(0, s.grandTotal() - s.effectivePaidIQD());
   },
 
@@ -307,6 +313,8 @@ export const useCartStore = create<CartState>((set, get) => ({
   setInitialPaymentMethod: (method) => set({ initialPaymentMethod: method }),
   setPaidAmount: (amount) => set({ paidAmount: amount }),
   setSaleNotes: (notes) => set({ saleNotes: notes }),
+  setInstallmentMonths: (months) => set({ installmentMonths: Math.max(1, months) }),
+  setCustomInstallmentMonths: (val) => set({ customInstallmentMonths: val }),
 
   clearCart: () =>
     set({
@@ -316,6 +324,8 @@ export const useCartStore = create<CartState>((set, get) => ({
       initialPaymentMethod: 'cash',
       paidAmount: '',
       saleNotes: '',
+      installmentMonths: 6,
+      customInstallmentMonths: '',
       globalDiscountType: 'none',
       globalDiscountValue: 0,
     }),

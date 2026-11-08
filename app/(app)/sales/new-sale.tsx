@@ -65,6 +65,8 @@ import type { Product } from '@/types/sales';
 
 type Step = 1 | 2 | 3;
 
+const INSTALLMENT_MONTH_PRESETS = [1, 2, 3, 6, 9, 12, 24];
+
 export default function NewSaleScreen() {
   const router = useRouter();
 
@@ -161,7 +163,7 @@ export default function NewSaleScreen() {
       animated: true,
     });
   };
-  const isPaidExceeded = cart.paymentMethod === 'debt' && rawPaidNum > maxDownPayment;
+  const isPaidExceeded = (cart.paymentMethod === 'debt' || cart.paymentMethod === 'installment') && rawPaidNum > maxDownPayment;
   const maxDownPaymentDisplay = isUSD ? `$${maxDownPayment}` : `${maxDownPayment.toLocaleString()} IQD`;
   const remainingDebt = cart.remainingDebt();
   const hasWarning = cart.hasAnyLossWarning();
@@ -343,7 +345,19 @@ export default function NewSaleScreen() {
       setPhoneError('');
     }
 
-    if (cart.paymentMethod === 'debt') {
+    if (cart.paymentMethod === 'installment') {
+      if (isDirectCust || !nameVal || !phoneVal) {
+        Alert.alert(
+          isKuLanguage ? 'کڕیاری ڕاستەوخۆ بۆ قیست ڕێگەپێنەدراوە' : t('common.error'),
+          t('sales.noDirectCustomerForInstallment', 'نابێت بە کڕیاری ڕاستەوخۆ قیست بدرێت. تکایە کڕیارێک دیاری بکە یان ناو و مۆبایلی کڕیار پڕ بکەرەوە.')
+        );
+        if (isDirectCust || !nameVal) setNameError(t('customers.nameRequired'));
+        if (isDirectCust || !phoneVal) setPhoneError(t('customers.phoneRequired'));
+        return;
+      }
+    }
+
+    if (cart.paymentMethod === 'debt' || cart.paymentMethod === 'installment') {
       const maxDown = cart.maxDownPayment();
       const rawPaid = parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0;
       if (rawPaid > 0 && (rawPaid > maxDown || cart.effectivePaidIQD() >= cart.grandTotal())) {
@@ -368,6 +382,7 @@ export default function NewSaleScreen() {
         paymentMethod: cart.paymentMethod,
         paidAmount: cart.paidAmount,
         initialPaymentMethod: cart.initialPaymentMethod,
+        installmentMonths: cart.installmentMonths,
         saleNotes: cart.saleNotes,
         saleDate,
         subtotal: cart.subtotal,
@@ -1321,12 +1336,15 @@ export default function NewSaleScreen() {
                 notes: cart.saleNotes || null,
                 paymentMethod: cart.paymentMethod,
                 initialPaymentMethod: cart.initialPaymentMethod,
+                installmentMonths: cart.paymentMethod === 'installment' ? cart.installmentMonths : undefined,
+                installmentDownPayment: cart.paymentMethod === 'installment' ? cart.effectivePaidIQD() : undefined,
+                installmentMonthlyAmount: cart.paymentMethod === 'installment' ? (cart.installmentMonths > 0 ? Math.round(cart.remainingDebt() / cart.installmentMonths) : 0) : undefined,
                 subtotal,
                 discountTotal,
                 globalDiscountType: cart.globalDiscountType,
                 globalDiscount: globalDiscountAmount,
                 grandTotal,
-                paidAmount: cart.paymentMethod === 'debt'
+                paidAmount: (cart.paymentMethod === 'debt' || cart.paymentMethod === 'installment')
                   ? cart.effectivePaidIQD()
                   : grandTotal,
                 remainingDebt: cart.remainingDebt(),
@@ -1356,6 +1374,315 @@ export default function NewSaleScreen() {
       </View>
     </MotiView>
   );
+
+  const isDirectCustomer = isDirectCustomerName(cart.customerInput.name);
+  const isCustomDuration = !INSTALLMENT_MONTH_PRESETS.includes(cart.installmentMonths) || cart.customInstallmentMonths !== '';
+
+  const renderInstallmentSection = () => {
+    if (cart.paymentMethod !== 'installment') return null;
+
+    const remainingBal = cart.remainingDebt();
+    const durationMonths = Math.max(1, cart.installmentMonths || 1);
+    const monthlyAmtIQD = Math.round(remainingBal / durationMonths);
+    const monthlyAmtUSD = exchangeRate ? Math.round((monthlyAmtIQD / exchangeRate) * 100) / 100 : 0;
+
+    return (
+      <View style={styles.installmentContainer}>
+        {/* Direct Customer Warning Banner if direct customer is selected */}
+        {isDirectCustomer && (
+          <View style={[styles.directCustWarningBox, { flexDirection }]}>
+            <Ionicons name="warning-outline" size={20} color="#D97706" style={{ marginTop: 2 }} />
+            <View style={{ flex: 1, marginHorizontal: 8 }}>
+              <Text style={[styles.directCustWarningTitle, { textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                {t('sales.directCustomerInstallmentWarning', '⚠️ قیست بە کڕیاری ڕاستەوخۆ نادرێت. تکایە ناوی کڕیار و مۆبایل پڕ بکەرەوە.')}
+              </Text>
+              <Text style={[styles.directCustWarningDesc, { textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                {t('sales.noDirectCustomerForInstallment', 'نابێت بە کڕیاری ڕاستەوخۆ قیست بدرێت. تکایە کڕیارێک دیاری بکە یان ناو و مۆبایلی کڕیار پڕ بکەرەوە.')}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* 1. Down Payment (Optional) */}
+        <View style={styles.installmentFieldGroup}>
+          <View style={[{ flexDirection, justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }]}>
+            <Text style={[{ fontSize: 13, color: colors.gray500, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+              {t('sales.installmentDownPayment', 'بڕی پێشەکی (ئارەزوومەندانە)')}
+            </Text>
+            <Text style={[{ fontSize: 11, color: colors.gray400 }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+              {rawPaidNum > 0 ? '' : (isKuLanguage ? 'بێ پێشەکی (٠)' : 'No down payment')}
+            </Text>
+          </View>
+
+          <AppTextInput
+            label=""
+            placeholder={isUSD ? '0.00 (سەر بەستانە)' : '0 (سەر بەستانە)'}
+            value={cart.paidAmount}
+            onChangeText={(text) => cart.setPaidAmount(sanitizeNumericInput(toEnglishDigits(text), 'decimal-pad'))}
+            onEndEditing={() => {
+              const n = parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0;
+              if (n > maxDownPayment) {
+                cart.setPaidAmount(maxDownPayment > 0 ? String(maxDownPayment) : '');
+              }
+            }}
+            keyboardType="decimal-pad"
+            forceLatin
+            error={isPaidExceeded ? t('sales.downPaymentMustBeLess') : undefined}
+          />
+          <Text style={[{ fontSize: 12, color: colors.gray400, marginTop: 4, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+            {t('sales.maxDownPayment')} {maxDownPaymentDisplay}
+          </Text>
+
+          {/* Down Payment Method (Cash vs FIB) if paidAmount > 0 */}
+          {rawPaidNum > 0 && (
+            <View style={{ marginTop: 10, marginBottom: 8 }}>
+              <Text
+                style={[
+                  { color: colors.gray500, fontSize: 13, marginBottom: 8, textAlign },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {t('sales.downPaymentMethod', 'شێوازی پارەدانی پێشەکی')}
+              </Text>
+              <View style={[{ flexDirection, gap: 8 }]}>
+                <TouchableOpacity
+                  onPress={() => cart.setInitialPaymentMethod('cash')}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.downPayBtn,
+                    cart.initialPaymentMethod === 'cash'
+                      ? { borderColor: colors.primary, backgroundColor: colors.softBlue }
+                      : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
+                    { flexDirection },
+                  ]}
+                >
+                  <Ionicons
+                    name="cash-outline"
+                    size={18}
+                    color={cart.initialPaymentMethod === 'cash' ? colors.primary : colors.gray400}
+                  />
+                  <Text
+                    style={[
+                      styles.downPayBtnText,
+                      { color: cart.initialPaymentMethod === 'cash' ? colors.primary : colors.gray500 },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
+                    {t('sales.cash', 'کاش')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => cart.setInitialPaymentMethod('fib')}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.downPayBtn,
+                    cart.initialPaymentMethod === 'fib'
+                      ? { borderColor: '#3B82F6', backgroundColor: isDark ? 'rgba(59, 130, 246, 0.18)' : '#EFF6FF' }
+                      : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
+                    { flexDirection },
+                  ]}
+                >
+                  <Ionicons
+                    name="phone-portrait-outline"
+                    size={17}
+                    color={cart.initialPaymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray400}
+                  />
+                  <Text
+                    style={[
+                      styles.downPayBtnText,
+                      { color: cart.initialPaymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray500 },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
+                    {t('sales.fib', 'FIB')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* 2. Duration (Months) presets + custom */}
+        <View style={styles.installmentFieldGroup}>
+          <Text style={[{ fontSize: 13, color: colors.gray500, marginBottom: 8, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+            {t('sales.installmentMonths', 'ماوەی قیست (بە مانگ)')}
+          </Text>
+
+          <View style={[styles.durationPresetsGrid, { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }]}>
+            {INSTALLMENT_MONTH_PRESETS.map((m) => {
+              const isSelected = cart.installmentMonths === m && cart.customInstallmentMonths === '';
+              return (
+                <TouchableOpacity
+                  key={m}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); } catch {}
+                    cart.setInstallmentMonths(m);
+                    cart.setCustomInstallmentMonths('');
+                  }}
+                  style={[
+                    styles.durationChip,
+                    {
+                      borderColor: isSelected ? colors.primary : colors.gray200,
+                      backgroundColor: isSelected
+                        ? (isDark ? 'rgba(212, 175, 55, 0.2)' : 'rgba(212, 175, 55, 0.12)')
+                        : (isDark ? colors.gray100 : colors.gray50),
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.durationChipText,
+                      {
+                        color: isSelected ? colors.primary : colors.gray500,
+                        fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                      },
+                    ]}
+                  >
+                    {m} {isKuLanguage ? 'مانگ' : 'mo'}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+
+            {/* Custom preset chip */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); } catch {}
+                if (cart.customInstallmentMonths === '') {
+                  cart.setCustomInstallmentMonths(String(cart.installmentMonths));
+                }
+              }}
+              style={[
+                styles.durationChip,
+                {
+                  borderColor: isCustomDuration ? colors.primary : colors.gray200,
+                  backgroundColor: isCustomDuration
+                    ? (isDark ? 'rgba(212, 175, 55, 0.2)' : 'rgba(212, 175, 55, 0.12)')
+                    : (isDark ? colors.gray100 : colors.gray50),
+                },
+              ]}
+            >
+              <Ionicons
+                name="options-outline"
+                size={14}
+                color={isCustomDuration ? colors.primary : colors.gray500}
+                style={{ marginEnd: 4 }}
+              />
+              <Text
+                style={[
+                  styles.durationChipText,
+                  {
+                    color: isCustomDuration ? colors.primary : colors.gray500,
+                    fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                  },
+                ]}
+              >
+                {t('sales.customDuration', 'دیاریکراو (کەستەم)')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Custom Month Input if selected */}
+          {isCustomDuration && (
+            <View style={{ marginTop: 10 }}>
+              <AppTextInput
+                label={t('sales.enterMonths', 'ژمارەی مانگەکان بنووسە')}
+                placeholder="1 - 60"
+                value={cart.customInstallmentMonths}
+                onChangeText={(val) => {
+                  const cleaned = sanitizeNumericInput(toEnglishDigits(val), 'number-pad').replace(/[^0-9]/g, '');
+                  cart.setCustomInstallmentMonths(cleaned);
+                  const parsed = parseInt(cleaned, 10);
+                  if (!isNaN(parsed) && parsed > 0) {
+                    cart.setInstallmentMonths(parsed);
+                  }
+                }}
+                keyboardType="number-pad"
+                forceLatin
+              />
+            </View>
+          )}
+        </View>
+
+        {/* 3. Live Installment Summary Card */}
+        <View
+          style={[
+            styles.installmentSummaryCard,
+            {
+              backgroundColor: isDark ? '#1E293B' : '#FEFCE8',
+              borderColor: isDark ? '#334155' : '#FEF08A',
+            },
+          ]}
+        >
+          <View style={[{ flexDirection, justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }]}>
+            <View style={[{ flexDirection, alignItems: 'center', gap: 6 }]}>
+              <Ionicons name="calculator-outline" size={18} color="#D4AF37" />
+              <Text style={[{ fontSize: 14, color: isDark ? '#F1F5F9' : '#854D0E', textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                {isKuLanguage ? 'وردەکاری قیست' : 'Installment Summary'}
+              </Text>
+            </View>
+            <View style={[styles.durationBadge, { backgroundColor: isDark ? '#0F172A' : '#FEF3C7' }]}>
+              <Text style={[{ fontSize: 12, color: '#D4AF37' }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                {durationMonths} {isKuLanguage ? 'مانگ' : 'Months'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ gap: 6 }}>
+            <View style={[{ flexDirection, justifyContent: 'space-between' }]}>
+              <Text style={[{ fontSize: 12, color: colors.gray400, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                {t('sales.grandTotal', 'کۆی گشتی')}:
+              </Text>
+              <AmountText value={cart.grandTotal()} variant="small" style={{ fontSize: 13, color: colors.gray500 }} />
+            </View>
+
+            {rawPaidNum > 0 && (
+              <View style={[{ flexDirection, justifyContent: 'space-between' }]}>
+                <Text style={[{ fontSize: 12, color: colors.gray400, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                  {t('sales.downPayment', 'پێشەکی')}:
+                </Text>
+                <AmountText value={cart.effectivePaidIQD()} variant="small" style={{ fontSize: 13, color: '#16A34A' }} />
+              </View>
+            )}
+
+            <View style={[{ flexDirection, justifyContent: 'space-between' }]}>
+              <Text style={[{ fontSize: 12, color: colors.gray400, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                {t('sales.installmentRemaining', 'بڕی ماوە بە قیست')}:
+              </Text>
+              <AmountText value={remainingBal} variant="small" style={{ fontSize: 13, color: errorTint.text }} />
+            </View>
+
+            <View style={[styles.installmentDivider, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
+
+            {/* Monthly Installment Highlight */}
+            <View style={[{ flexDirection, justifyContent: 'space-between', alignItems: 'center', paddingTop: 4 }]}>
+              <View>
+                <Text style={[{ fontSize: 13, color: isDark ? '#F8FAFC' : '#1E293B', textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  {t('sales.monthlyInstallment', 'قیستی مانگانە')}:
+                </Text>
+                <Text style={[{ fontSize: 11, color: colors.gray400, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                  ({durationMonths} {isKuLanguage ? 'قیستی یەکسان' : 'equal payments'})
+                </Text>
+              </View>
+              <View style={{ alignItems: alignEnd }}>
+                <Text style={[styles.monthlyInstallmentValue, { color: '#D4AF37' }]}>
+                  {isUSD ? `$${fmtUSD(monthlyAmtUSD)}` : fmtIQD(monthlyAmtIQD)}
+                </Text>
+                {isUSD && (
+                  <Text style={{ fontSize: 11, color: colors.gray400 }}>
+                    ≈ {fmtIQD(monthlyAmtIQD)}
+                  </Text>
+                )}
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  };
 
   const renderStep3 = () => (
     <KeyboardAvoidingView
@@ -1428,7 +1755,12 @@ export default function NewSaleScreen() {
                     <Text style={[styles.sectionTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 10 }]}>{t('sales.paymentMethod')}</Text>
                     <PaymentMethodSelector
                       selected={cart.paymentMethod}
-                      onChange={(m) => cart.setPaymentMethod(m)}
+                      onChange={(m) => {
+                        cart.setPaymentMethod(m);
+                        if (m === 'installment' && isDirectCustomerName(cart.customerInput.name)) {
+                          cart.setCustomerInput({ name: '', phone: '' });
+                        }
+                      }}
                     />
 
                     {cart.paymentMethod === 'debt' && (
@@ -1526,6 +1858,8 @@ export default function NewSaleScreen() {
                         )}
                       </View>
                     )}
+
+                    {renderInstallmentSection()}
                   </PremiumCard>
                 </MotiView>
 
@@ -1586,7 +1920,12 @@ export default function NewSaleScreen() {
               <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.paymentMethod')}</Text>
               <PaymentMethodSelector
                 selected={cart.paymentMethod}
-                onChange={(m) => cart.setPaymentMethod(m)}
+                onChange={(m) => {
+                  cart.setPaymentMethod(m);
+                  if (m === 'installment' && isDirectCustomerName(cart.customerInput.name)) {
+                    cart.setCustomerInput({ name: '', phone: '' });
+                  }
+                }}
               />
 
               {cart.paymentMethod === 'debt' && (
@@ -1684,6 +2023,8 @@ export default function NewSaleScreen() {
                   )}
                 </View>
               )}
+
+              {renderInstallmentSection()}
             </PremiumCard>
           </MotiView>
 
@@ -2099,5 +2440,65 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 12,
     paddingBottom: 14,
+  },
+  installmentContainer: {
+    marginTop: 12,
+    gap: 12,
+  },
+  directCustWarningBox: {
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    alignItems: 'flex-start',
+  },
+  directCustWarningTitle: {
+    fontSize: 13,
+    color: '#D97706',
+    marginBottom: 2,
+  },
+  directCustWarningDesc: {
+    fontSize: 12,
+    color: '#B45309',
+  },
+  installmentFieldGroup: {
+    gap: 4,
+  },
+  durationPresetsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  durationChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  durationChipText: {
+    fontSize: 13,
+  },
+  installmentSummaryCard: {
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  durationBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  installmentDivider: {
+    height: 1,
+    marginVertical: 6,
+  },
+  monthlyInstallmentValue: {
+    fontSize: 17,
+    fontWeight: '700',
   },
 });

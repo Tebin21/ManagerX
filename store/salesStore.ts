@@ -25,6 +25,7 @@ interface CartStateArg {
   initialPaymentMethod?: 'cash' | 'fib';
   saleNotes: string;
   saleDate?: Date;
+  installmentMonths?: number;
   subtotal: () => number;
   discountTotal: () => number;
   globalDiscountType: GlobalDiscountType;
@@ -86,16 +87,22 @@ export const useSalesStore = create<SalesState>((set, get) => ({
           Math.max(0, grandTotal - 250)
         )
       : Math.max(0, grandTotal - 250);
-    const paid = cart.paymentMethod === 'debt'
+    const isDebt = cart.paymentMethod === 'debt';
+    const isInstallment = cart.paymentMethod === 'installment';
+    const isPartial = isDebt || isInstallment;
+    const paid = isPartial
       ? Math.max(0, Math.min(enteredPaid, maxPaidIQD))
       : grandTotal;
-    const remaining = cart.paymentMethod === 'debt' ? Math.max(0, grandTotal - paid) : 0;
+    const remaining = isPartial ? Math.max(0, grandTotal - paid) : 0;
 
     const customer = cart.customerInput;
     let customerId: number | null = null;
     const isDirect = !customer.name.trim() || isDirectCustomerName(customer.name);
 
     if (isDirect) {
+      if (isInstallment) {
+        throw new Error('DIRECT_CUSTOMER_NOT_ALLOWED_FOR_INSTALLMENT');
+      }
       customerId = await getOrCreateDirectCustomer();
     } else if (customer.name.trim()) {
       customerId = await upsertCustomer({
@@ -133,6 +140,9 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       ? (mgmt.currentEmployeeAccount?.email?.toLowerCase() || '')
       : (authUser?.email?.toLowerCase() || '');
 
+    const months = isInstallment ? Math.max(1, cart.installmentMonths || 6) : null;
+    const monthlyAmount = isInstallment && months ? Math.round((remaining / months) * 100) / 100 : null;
+
     const saleData = {
       invoiceNumber,
       customerId,
@@ -142,19 +152,22 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       warranty: customer.warranty.trim() || null,
       notes: cart.saleNotes.trim() || null,
       paymentMethod: cart.paymentMethod,
-      initialPaymentMethod: cart.paymentMethod === 'debt' && paid > 0 ? (cart.initialPaymentMethod ?? 'cash') : null,
+      initialPaymentMethod: isPartial && paid > 0 ? (cart.initialPaymentMethod ?? 'cash') : null,
       subtotal,
       discountTotal,
       globalDiscountType: cart.globalDiscountType,
       globalDiscount: globalDiscountAmount,
       grandTotal,
-      paidAmount: cart.paymentMethod === 'debt' ? paid : grandTotal,
+      paidAmount: isPartial ? paid : grandTotal,
       remainingDebt: remaining,
       status: 'completed' as const,
       exchangeRateUsed,
       date: (cart.saleDate ?? new Date()).toISOString(),
       createdBy,
       createdByEmail,
+      installmentMonths: months,
+      installmentDownPayment: isInstallment ? paid : null,
+      installmentMonthlyAmount: monthlyAmount,
     };
 
     const saleId = await insertSale(saleData, saleItems);

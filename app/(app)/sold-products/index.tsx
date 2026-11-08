@@ -177,10 +177,11 @@ export default function SoldProductsScreen() {
   };
 
   const filterLabelKey: Record<SoldPaymentFilter, string> = {
-    all:  t('soldProducts.filterAll'),
-    cash: t('soldProducts.filterCash'),
-    fib:  t('soldProducts.filterFib'),
-    debt: t('soldProducts.filterDebt'),
+    all:         t('soldProducts.filterAll'),
+    cash:        t('soldProducts.filterCash'),
+    fib:         t('soldProducts.filterFib'),
+    debt:        t('soldProducts.filterDebt'),
+    installment: t('sales.installment', 'قیست'),
   };
 
   const renderEmpty = () => (

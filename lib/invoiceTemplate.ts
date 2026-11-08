@@ -510,10 +510,21 @@ export function buildInvoiceHTML(
     ? `<img src="${safeLogoUri}" class="logo-img" alt="logo" />`
     : `<div class="logo-mono">${escHtml(monogram)}</div>`;
 
+  const currentLang = i18n.language || 'ku';
+  const isAr = currentLang === 'ar';
+  const isKu = currentLang === 'ku';
+
+  const isInstallment = sale.paymentMethod === 'installment';
   const paymentStatus = getPaymentStatus(sale);
-  const statusKey = paymentStatus === 'paid' ? 'statusPaid' : paymentStatus === 'partial' ? 'statusPartial' : 'statusUnpaid';
-  const pillClass = paymentStatus === 'paid' ? 'pill-paid' : paymentStatus === 'partial' ? 'pill-partial' : 'pill-debt';
-  const statusBadge = `<span class="pill ${pillClass}">${ku(t(statusKey))}</span>`;
+  const statusKey = isInstallment
+    ? (isAr ? 'تقسيط' : isKu ? 'قیست' : 'Installment')
+    : (paymentStatus === 'paid' ? 'statusPaid' : paymentStatus === 'partial' ? 'statusPartial' : 'statusUnpaid');
+  const pillClass = isInstallment
+    ? 'pill-partial'
+    : (paymentStatus === 'paid' ? 'pill-paid' : paymentStatus === 'partial' ? 'pill-partial' : 'pill-debt');
+  const statusBadge = isInstallment
+    ? `<span class="pill" style="background:#e0f2fe;color:#0284c7;border:1px solid #bae6fd;">${ku(statusKey)}</span>`
+    : `<span class="pill ${pillClass}">${ku(t(statusKey))}</span>`;
 
   // ── Customer (rendered inside the header's middle column) ──
   const showCustName = salesSettings.showCustomerName && sale.customerName;
@@ -570,10 +581,6 @@ export function buildInvoiceHTML(
 
   const { totalBlock, usdCard } = buildGrandTotal(currencyMode, sale.grandTotal, rate, isUsdBase, isKurdish);
 
-  const currentLang = i18n.language || 'ku';
-  const isAr = currentLang === 'ar';
-  const isKu = currentLang === 'ku';
-
   const initialMethodTag = sale.initialPaymentMethod ? ` (${sale.initialPaymentMethod === 'fib' ? 'FIB' : (isAr ? 'نقداً' : isKu ? 'کاش' : 'Cash')})` : '';
   const paidRow = sale.paidAmount > 0 && sale.paymentMethod === 'debt' ? `
     <div class="fin-row" style="margin-top:3px;">
@@ -581,10 +588,28 @@ export function buildInvoiceHTML(
       <span class="fin-amount fin-amount-paid en-num" dir="ltr">${fmtRow(sale.paidAmount)}</span>
     </div>` : '';
 
-  const debtRow = sale.remainingDebt > 0 ? `
+  const debtRow = sale.paymentMethod === 'debt' && sale.remainingDebt > 0 ? `
     <div class="fin-row" style="margin-top:2px;">
       <span style="color:#b91c1c;font-weight:700;">${ku(t('remainingDebt'))}</span>
       <span class="fin-amount fin-amount-debt en-num" dir="ltr">${fmtRow(sale.remainingDebt)}</span>
+    </div>` : '';
+
+  const installmentRows = isInstallment ? `
+    <div class="fin-row" style="margin-top:4px;">
+      <span style="color:#047857;font-weight:600;">${ku(isAr ? 'الدفعة الأولى (المقدمة):' : isKu ? 'پێشەکی:' : 'Down Payment:')}${initialMethodTag}</span>
+      <span class="fin-amount fin-amount-paid en-num" dir="ltr">${sale.paidAmount > 0 ? fmtRow(sale.paidAmount) : ku(isAr ? 'بدون مقدمة (0)' : isKu ? 'بێ پێشەکی (0)' : 'None (0)')}</span>
+    </div>
+    <div class="fin-row" style="margin-top:2px;">
+      <span style="color:#b91c1c;font-weight:700;">${ku(isAr ? 'المتبقي بالتقسيط:' : isKu ? 'بڕی ماوە بە قیست:' : 'Remaining Balance:')}</span>
+      <span class="fin-amount fin-amount-debt en-num" dir="ltr">${fmtRow(sale.remainingDebt)}</span>
+    </div>
+    <div class="fin-row" style="margin-top:2px;">
+      <span style="color:#0369a1;font-weight:600;">${ku(isAr ? 'مدة التقسيط:' : isKu ? 'ماوەی قیست:' : 'Duration:')}</span>
+      <span class="fin-amount en-num" dir="ltr">${sale.installmentMonths || 1} ${ku(isAr ? 'أشهر' : isKu ? 'مانگ' : 'Months')}</span>
+    </div>
+    <div class="fin-row" style="margin-top:4px;border-top:1px dashed #cbd5e1;padding-top:4px;">
+      <span style="color:#0f172a;font-weight:800;">${ku(isAr ? 'القسط الشهري:' : isKu ? 'قیستی مانگانە:' : 'Monthly Installment:')}</span>
+      <span class="fin-amount en-num" dir="ltr" style="font-weight:800;color:#0284c7;">${fmtRow(sale.installmentMonthlyAmount || Math.round((sale.remainingDebt / (sale.installmentMonths || 1)) * 100) / 100)}</span>
     </div>` : '';
 
   const financialCard = `
@@ -607,6 +632,7 @@ export function buildInvoiceHTML(
       ${totalBlock}
       ${paidRow}
       ${debtRow}
+      ${installmentRows}
     </div>`;
 
   const aboutPolicyText = (sale.aboutPolicy ?? useSettingsStore.getState().invoiceAboutPolicy ?? '').trim();

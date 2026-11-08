@@ -1,5 +1,5 @@
 export type IdMode        = 'repeatable' | 'unique';
-export type PaymentMethod = 'cash' | 'debt' | 'fib';
+export type PaymentMethod = 'cash' | 'debt' | 'fib' | 'installment';
 export type SaleStatus    = 'completed' | 'cancelled';
 export type DebtStatus    = 'active' | 'settled';
 
@@ -115,6 +115,9 @@ export interface Sale {
   items?: SaleItem[];
   printCount?: number;
   viewCount?: number;
+  installmentMonths?: number | null;
+  installmentDownPayment?: number | null;
+  installmentMonthlyAmount?: number | null;
 }
 
 export interface UpdateSaleCompleteInput {
@@ -135,6 +138,9 @@ export interface UpdateSaleCompleteInput {
   remainingDebt: number;
   date?: string;
   items: Array<Omit<SaleItem, 'id' | 'saleId'>>;
+  installmentMonths?: number | null;
+  installmentDownPayment?: number | null;
+  installmentMonthlyAmount?: number | null;
 }
 
 export interface Debt {

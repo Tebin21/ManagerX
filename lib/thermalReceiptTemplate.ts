@@ -546,6 +546,8 @@ export function buildThermalReceiptHTML(
   const methodLabel =
     sale.paymentMethod === 'debt'
       ? (isAr ? 'دين' : isKu ? 'قەرز (Debt)' : 'Debt')
+      : sale.paymentMethod === 'installment'
+      ? (isAr ? 'تقسيط' : isKu ? 'قیست (Installment)' : 'Installment')
       : sale.paymentMethod === 'fib'
       ? 'FIB'
       : (isAr ? 'نقداً' : isKu ? 'کاش (Cash)' : 'Cash');
@@ -657,10 +659,28 @@ export function buildThermalReceiptHTML(
         <span class="info-value">${fmtRow(sale.paidAmount)}</span>
       </div>` : ''}
 
-      ${settings.showRemainingDebt && sale.remainingDebt > 0 ? `
+      ${sale.paymentMethod === 'debt' && settings.showRemainingDebt && sale.remainingDebt > 0 ? `
       <div class="total-row" style="font-weight:800;">
         <span class="info-label">${ku(isAr ? 'الدين المتبقي:' : isKu ? 'قەرزی ماوە:' : 'Remaining Debt:')}</span>
         <span class="info-value">${fmtRow(sale.remainingDebt)}</span>
+      </div>` : ''}
+
+      ${sale.paymentMethod === 'installment' ? `
+      <div class="total-row">
+        <span class="info-label">${ku(isAr ? 'الدفعة الأولى (المقدمة):' : isKu ? 'پێشەکی:' : 'Down Payment:')}</span>
+        <span class="info-value">${sale.paidAmount > 0 ? fmtRow(sale.paidAmount) : ku(isAr ? 'بدون مقدمة (0)' : isKu ? 'بێ پێشەکی (0)' : 'None (0)')}</span>
+      </div>
+      <div class="total-row">
+        <span class="info-label">${ku(isAr ? 'المتبقي بالتقسيط:' : isKu ? 'بڕی ماوە بە قیست:' : 'Remaining Balance:')}</span>
+        <span class="info-value" style="font-weight:700;">${fmtRow(sale.remainingDebt)}</span>
+      </div>
+      <div class="total-row">
+        <span class="info-label">${ku(isAr ? 'مدة التقسيط:' : isKu ? 'ماوەی قیست:' : 'Duration:')}</span>
+        <span class="info-value">${sale.installmentMonths || 1} ${ku(isAr ? 'أشهر' : isKu ? 'مانگ' : 'Months')}</span>
+      </div>
+      <div class="total-row" style="font-weight:800;border-top:1px dashed #000;padding-top:3px;margin-top:2px;">
+        <span class="info-label">${ku(isAr ? 'القسط الشهري:' : isKu ? 'قیستی مانگانە:' : 'Monthly Installment:')}</span>
+        <span class="info-value">${fmtRow(sale.installmentMonthlyAmount || Math.round((sale.remainingDebt / (sale.installmentMonths || 1)) * 100) / 100)}</span>
       </div>` : ''}
     </div>
 

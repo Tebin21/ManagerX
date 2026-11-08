@@ -14,7 +14,7 @@ export interface SoldProductRecord {
   customerName: string | null
   customerPhone: string | null
   customerId: number | null
-  paymentMethod: 'cash' | 'debt' | 'fib'
+  paymentMethod: 'cash' | 'debt' | 'fib' | 'installment'
   saleStatus: 'completed' | 'cancelled'
   paidAmount: number
   remainingDebt: number
@@ -23,4 +23,4 @@ export interface SoldProductRecord {
 }
 
 export type SoldSortBy = 'date' | 'customer' | 'product' | 'profit'
-export type SoldPaymentFilter = 'all' | 'cash' | 'debt' | 'fib'
+export type SoldPaymentFilter = 'all' | 'cash' | 'debt' | 'fib' | 'installment'

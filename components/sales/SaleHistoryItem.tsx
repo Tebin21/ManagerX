@@ -40,9 +40,10 @@ export function SaleHistoryItem({ sale, onPress }: Props) {
   const debtTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
 
   const paymentColors: Record<string, { bg: string; text: string; label: string }> = {
-    cash: { bg: cashTint.bg, text: cashTint.text, label: isAr ? 'نقداً' : isKuLanguage ? 'کاش' : 'Cash' },
-    fib:  { bg: colors.lightBlue, text: colors.darkBlue, label: 'FIB' },
-    debt: { bg: debtTint.bg, text: debtTint.text, label: isAr ? 'آجل' : isKuLanguage ? 'قەرز' : 'Debt' },
+    cash:        { bg: cashTint.bg, text: cashTint.text, label: isAr ? 'نقداً' : isKuLanguage ? 'کاش' : 'Cash' },
+    fib:         { bg: colors.lightBlue, text: colors.darkBlue, label: 'FIB' },
+    debt:        { bg: debtTint.bg, text: debtTint.text, label: isAr ? 'آجل' : isKuLanguage ? 'قەرز' : 'Debt' },
+    installment: { bg: isDark ? 'rgba(212, 175, 55, 0.2)' : '#FEF3C7', text: '#D4AF37', label: isAr ? 'تقسيط' : isKuLanguage ? 'قیست' : 'Installment' },
   };
 
   const badge = paymentColors[sale.paymentMethod] ?? paymentColors.cash;

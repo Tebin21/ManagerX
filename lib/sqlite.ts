@@ -779,6 +779,12 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     // Standardize sales invoice numbers to 5-digit F-00000 format
     `UPDATE OR IGNORE sales SET invoice_number = 'F-' || substr(invoice_number, 4) WHERE invoice_number LIKE 'F-00000%' AND length(invoice_number) = 8`,
     `UPDATE sales SET invoice_number = 'F-' || substr('00000' || invoice_number, -5) WHERE invoice_number NOT LIKE 'F-%' AND invoice_number GLOB '[0-9]*'`,
+    // Installment support for sales and debts
+    `ALTER TABLE sales ADD COLUMN installment_months INTEGER`,
+    `ALTER TABLE sales ADD COLUMN installment_down_payment REAL`,
+    `ALTER TABLE sales ADD COLUMN installment_monthly_amount REAL`,
+    `ALTER TABLE debts ADD COLUMN installment_months INTEGER`,
+    `ALTER TABLE debts ADD COLUMN installment_monthly_amount REAL`,
   ];
   for (const sql of migrations) {
     // Most failures here are the expected "column/table already exists" from a
@@ -3240,6 +3246,9 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
         paid_amount           = ?,
         remaining_debt        = ?,
         date                  = COALESCE(?, date),
+        installment_months    = ?,
+        installment_down_payment = ?,
+        installment_monthly_amount = ?,
         updated_at            = CURRENT_TIMESTAMP
        WHERE id = ?`,
       [
@@ -3258,6 +3267,9 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
         input.paidAmount,
         input.remainingDebt,
         input.date ?? null,
+        input.installmentMonths ?? null,
+        input.installmentDownPayment ?? null,
+        input.installmentMonthlyAmount ?? null,
         saleId,
       ]
     );
@@ -3276,6 +3288,8 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
             original_amount  = ?,
             paid_amount      = ?,
             remaining_amount = ?,
+            installment_months = ?,
+            installment_monthly_amount = ?,
             status           = 'active',
             updated_at       = CURRENT_TIMESTAMP
            WHERE id = ?`,
@@ -3285,6 +3299,8 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
             input.grandTotal,
             input.paidAmount,
             input.remainingDebt,
+            input.installmentMonths ?? null,
+            input.installmentMonthlyAmount ?? null,
             existingDebt.id,
           ]
         );
@@ -3292,8 +3308,9 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
         const newDebtResult = await database.runAsync(
           `INSERT INTO debts (
             sale_id, customer_name, customer_phone,
-            original_amount, paid_amount, remaining_amount, status, uuid
-          ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?)`,
+            original_amount, paid_amount, remaining_amount, status, uuid,
+            installment_months, installment_monthly_amount
+          ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
           [
             saleId,
             input.customerName,
@@ -3302,6 +3319,8 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
             input.paidAmount,
             input.remainingDebt,
             await newUuid(),
+            input.installmentMonths ?? null,
+            input.installmentMonthlyAmount ?? null,
           ]
         );
 
@@ -3378,6 +3397,9 @@ function rowToSale(row: Record<string, unknown>): Sale {
     updatedAt: row.updated_at as string,
     printCount: (row.print_count as number) ?? 0,
     viewCount: (row.view_count as number) ?? 0,
+    installmentMonths: row.installment_months != null ? Number(row.installment_months) : null,
+    installmentDownPayment: row.installment_down_payment != null ? Number(row.installment_down_payment) : null,
+    installmentMonthlyAmount: row.installment_monthly_amount != null ? Number(row.installment_monthly_amount) : null,
   };
 }
 
@@ -3433,8 +3455,9 @@ export async function insertSale(
         customer_address, warranty, notes, payment_method,
         subtotal, discount_total, global_discount_type, global_discount,
         grand_total, paid_amount, remaining_debt, status, exchange_rate, date, created_at, uuid,
-        initial_payment_method, created_by, created_by_email
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        initial_payment_method, created_by, created_by_email,
+        installment_months, installment_down_payment, installment_monthly_amount
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         saleData.invoiceNumber,
         saleData.customerId ?? null,
@@ -3459,6 +3482,9 @@ export async function insertSale(
         saleData.initialPaymentMethod ?? null,
         saleData.createdBy ?? null,
         saleData.createdByEmail ?? null,
+        saleData.installmentMonths ?? null,
+        saleData.installmentDownPayment ?? null,
+        saleData.installmentMonthlyAmount ?? null,
       ]
     );
 
@@ -3515,8 +3541,8 @@ export async function insertSale(
         `INSERT INTO debts (
           sale_id, customer_name, customer_phone,
           original_amount, paid_amount, remaining_amount, status, uuid,
-          initial_payment_method
-        ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+          initial_payment_method, installment_months, installment_monthly_amount
+        ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)`,
         [
           saleId,
           saleData.customerName ?? 'Unknown',
@@ -3526,6 +3552,8 @@ export async function insertSale(
           saleData.remainingDebt,
           await newUuid(),
           saleData.paidAmount > 0 ? (saleData.initialPaymentMethod ?? 'cash') : null,
+          saleData.installmentMonths ?? null,
+          saleData.installmentMonthlyAmount ?? null,
         ]
       );
 
@@ -5026,6 +5054,8 @@ function rowToSalesDebtDetail(row: Record<string, unknown>): SalesDebtDetail {
     saleNotes: (row.sale_notes as string | null) ?? null,
     productsSummary: (row.products_summary as string | null) ?? null,
     itemsCount: row.items_count != null ? Number(row.items_count) : undefined,
+    installmentMonths: row.installment_months != null ? Number(row.installment_months) : null,
+    installmentMonthlyAmount: row.installment_monthly_amount != null ? Number(row.installment_monthly_amount) : null,
   };
 }
 
@@ -5461,10 +5491,10 @@ export async function getSalesReportData(from?: string, to?: string): Promise<Sa
         COALESCE(SUM(discount_total + COALESCE(global_discount, 0)), 0)            AS totalDiscounts,
         COALESCE(SUM(CASE WHEN payment_method='cash' THEN paid_amount END), 0)    AS cashRevenue,
         COALESCE(SUM(CASE WHEN payment_method='fib'  THEN paid_amount END), 0)    AS fibRevenue,
-        COALESCE(SUM(CASE WHEN payment_method='debt' THEN paid_amount END), 0)    AS debtRevenue,
+        COALESCE(SUM(CASE WHEN payment_method='debt' OR payment_method='installment' THEN paid_amount END), 0) AS debtRevenue,
         COUNT(CASE WHEN payment_method='cash' THEN 1 END)                         AS cashCount,
         COUNT(CASE WHEN payment_method='fib'  THEN 1 END)                         AS fibCount,
-        COUNT(CASE WHEN payment_method='debt' THEN 1 END)                         AS debtCount
+        COUNT(CASE WHEN payment_method='debt' OR payment_method='installment' THEN 1 END) AS debtCount
       FROM sales ${saleWhere}
     `, rangeParams),
     database.getFirstAsync<{ totalItemsSold: number }>(`

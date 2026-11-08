@@ -45,6 +45,11 @@ export function PaymentMethodSelector({ selected, onChange }: Props) {
         label: isKuLanguage ? 'قەرز' : t('sales.debt', 'Debt'),
         icon: 'time-outline',
       },
+      {
+        method: 'installment',
+        label: isKuLanguage ? 'قیست' : t('sales.installment', 'Installment'),
+        icon: 'calendar-number-outline',
+      },
     ],
     [isKuLanguage, t]
   );
@@ -75,6 +80,7 @@ export function PaymentMethodSelector({ selected, onChange }: Props) {
               color={active ? colors.primary : colors.gray400}
             />
             <Text
+              numberOfLines={1}
               style={[
                 styles.label,
                 isTablet && { fontSize: isTabletLandscape ? 17 : 16 },
@@ -92,16 +98,17 @@ export function PaymentMethodSelector({ selected, onChange }: Props) {
 }
 
 const styles = StyleSheet.create({
-  row:    { flexDirection: 'row', gap: 8 },
+  row:    { flexDirection: 'row', gap: 6 },
   option: {
     flex:           1,
     flexDirection:  'column',
     alignItems:     'center',
     justifyContent: 'center',
     gap:            4,
-    paddingVertical: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 2,
     borderRadius:   12,
     borderWidth:    2,
   },
-  label: { fontSize: 13, fontWeight: '600' },
+  label: { fontSize: 12.5, fontWeight: '600' },
 });
