@@ -1067,6 +1067,8 @@ export default function NewPurchaseScreen() {
       ) {
         const business = useBusinessStore.getState();
         const { directPrintPurchaseInvoice } = await import('@/lib/generateInvoice');
+        const { incrementPurchasePrintCount } = await import('@/lib/sqlite');
+        incrementPurchasePrintCount(purchase.id).catch(() => {});
         const purchaseItems = [{
           productName: purchase.productName,
           category: purchase.category,

@@ -832,6 +832,9 @@ export default function InvoicesHubScreen() {
     setSales((prev) =>
       prev.map((s) => (Number(s.id) === Number(sale.id) ? { ...s, printCount: nextPrintCount } : s))
     );
+    setInstallmentSales((prev) =>
+      prev.map((s) => (Number(s.saleId) === Number(sale.id) ? { ...s, printCount: nextPrintCount } : s))
+    );
     setSelectedSale((s) => (s && Number(s.id) === Number(sale.id) ? { ...s, printCount: nextPrintCount } : s));
 
     try {

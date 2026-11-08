@@ -40,7 +40,7 @@ interface SalesState {
   /** saleId -> "productName itemId productName itemId …", used only by searchSales. */
   saleItemsIndex: Record<number, string>;
   loadSales: () => Promise<void>;
-  createSale: (cart: CartStateArg) => Promise<Sale>;
+  createSale: (cart: CartStateArg, options?: { isPrinted?: boolean }) => Promise<Sale>;
   updateSale: (saleId: number, input: UpdateSaleCompleteInput) => Promise<void>;
   deleteSale: (id: number) => Promise<void>;
   refreshSales: () => Promise<void>;
@@ -63,7 +63,7 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     }
   },
 
-  createSale: async (cart: CartStateArg): Promise<Sale> => {
+  createSale: async (cart: CartStateArg, options?: { isPrinted?: boolean }): Promise<Sale> => {
     const { assertSalesLimit } = await import('@/lib/usageLimits');
     await assertSalesLimit();
 
@@ -142,6 +142,7 @@ export const useSalesStore = create<SalesState>((set, get) => ({
 
     const months = isInstallment ? Math.max(1, cart.installmentMonths || 6) : null;
     const monthlyAmount = isInstallment && months ? Math.round((remaining / months) * 100) / 100 : null;
+    const initialPrintCount = options?.isPrinted ? 1 : 0;
 
     const saleData = {
       invoiceNumber,
@@ -168,6 +169,7 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       installmentMonths: months,
       installmentDownPayment: isInstallment ? paid : null,
       installmentMonthlyAmount: monthlyAmount,
+      printCount: initialPrintCount,
     };
 
     const saleId = await insertSale(saleData, saleItems);
@@ -179,6 +181,8 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       createdAt: ts,
       updatedAt: ts,
       items: saleItems.map((item, i) => ({ ...item, id: i, saleId })),
+      printCount: initialPrintCount,
+      viewCount: 0,
     };
 
     const itemsText = saleItems

@@ -2961,7 +2961,8 @@ export async function addPaymentToDebt(
   debtId: number,
   amount: number,
   paymentDate?: string,
-  paymentMethod: string = 'cash'
+  paymentMethod: string = 'cash',
+  initialPrintCount: number = 0
 ): Promise<DebtPaymentReceiptData> {
   const database = await getDatabase();
   const ts = paymentDate ?? new Date().toISOString();
@@ -3031,9 +3032,9 @@ export async function addPaymentToDebt(
       `INSERT INTO debt_payments (
          debt_id, debt_type, amount, remaining_after, created_at, uuid,
          event_type, customer_id, reference_number, original_amount, payment_method,
-         created_by, created_by_email
-       ) VALUES (?, 'sales', ?, ?, ?, ?, 'payment', ?, ?, ?, ?, ?, ?)`,
-      [debtId, clamped, newRemaining, ts, await newUuid(), sale?.customer_id ?? null, sale?.invoice_number ?? null, debt.original_amount, paymentMethod, createdBy, createdByEmail]
+         created_by, created_by_email, print_count
+       ) VALUES (?, 'sales', ?, ?, ?, ?, 'payment', ?, ?, ?, ?, ?, ?, ?)`,
+      [debtId, clamped, newRemaining, ts, await newUuid(), sale?.customer_id ?? null, sale?.invoice_number ?? null, debt.original_amount, paymentMethod, createdBy, createdByEmail, initialPrintCount]
     );
 
     const paymentId = insertRes.lastInsertRowId;
@@ -3058,6 +3059,8 @@ export async function addPaymentToDebt(
       note: null,
       createdAt: ts,
       originalAmount: debt.original_amount,
+      printCount: initialPrintCount,
+      viewCount: 0,
     };
   });
 
@@ -3456,8 +3459,9 @@ export async function insertSale(
         subtotal, discount_total, global_discount_type, global_discount,
         grand_total, paid_amount, remaining_debt, status, exchange_rate, date, created_at, uuid,
         initial_payment_method, created_by, created_by_email,
-        installment_months, installment_down_payment, installment_monthly_amount
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        installment_months, installment_down_payment, installment_monthly_amount,
+        print_count
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         saleData.invoiceNumber,
         saleData.customerId ?? null,
@@ -3485,6 +3489,7 @@ export async function insertSale(
         saleData.installmentMonths ?? null,
         saleData.installmentDownPayment ?? null,
         saleData.installmentMonthlyAmount ?? null,
+        saleData.printCount ?? 0,
       ]
     );
 
@@ -5257,7 +5262,8 @@ export async function recordInstallmentPayment(
   saleId: number,
   amount: number,
   paymentMethod: string = 'cash',
-  note?: string
+  note?: string,
+  initialPrintCount: number = 0
 ): Promise<DebtPaymentReceiptData> {
   const database = await getDatabase();
   
@@ -5306,7 +5312,7 @@ export async function recordInstallmentPayment(
   }
 
   // 2. Add payment to debt (which updates debts, sales, inserts debt_payments, returns receipt)
-  const receipt = await addPaymentToDebt(debtId, amount, undefined, paymentMethod);
+  const receipt = await addPaymentToDebt(debtId, amount, undefined, paymentMethod, initialPrintCount);
 
   // 3. Attach custom note if provided
   if (note && note.trim().length > 0) {

@@ -379,32 +379,36 @@ export default function NewSaleScreen() {
 
     setIsSubmitting(true);
     try {
-      const sale = await createSale({
-        items: cart.items,
-        customerInput: cart.customerInput,
-        paymentMethod: cart.paymentMethod,
-        paidAmount: cart.paidAmount,
-        initialPaymentMethod: cart.initialPaymentMethod,
-        installmentMonths: cart.installmentMonths,
-        saleNotes: cart.saleNotes,
-        saleDate,
-        subtotal: cart.subtotal,
-        discountTotal: cart.discountTotal,
-        globalDiscountType: cart.globalDiscountType,
-        globalDiscountAmount: cart.globalDiscountAmount,
-        grandTotal: cart.grandTotal,
-        remainingDebt: cart.remainingDebt,
-      });
+      const isPrintedMode =
+        checkoutMode === 'print' ||
+        checkoutMode === 'print58' ||
+        checkoutMode === 'print80' ||
+        checkoutMode === 'print110';
+
+      const sale = await createSale(
+        {
+          items: cart.items,
+          customerInput: cart.customerInput,
+          paymentMethod: cart.paymentMethod,
+          paidAmount: cart.paidAmount,
+          initialPaymentMethod: cart.initialPaymentMethod,
+          installmentMonths: cart.installmentMonths,
+          saleNotes: cart.saleNotes,
+          saleDate,
+          subtotal: cart.subtotal,
+          discountTotal: cart.discountTotal,
+          globalDiscountType: cart.globalDiscountType,
+          globalDiscountAmount: cart.globalDiscountAmount,
+          grandTotal: cart.grandTotal,
+          remainingDebt: cart.remainingDebt,
+        },
+        { isPrinted: isPrintedMode }
+      );
 
       cart.clearCart();
       setIsSubmitting(false);
 
-      if (
-        checkoutMode === 'print' ||
-        checkoutMode === 'print58' ||
-        checkoutMode === 'print80' ||
-        checkoutMode === 'print110'
-      ) {
+      if (isPrintedMode) {
         const business = useBusinessStore.getState();
         const paperSize: ReceiptPaperSize =
           checkoutMode === 'print58'
@@ -414,6 +418,11 @@ export default function NewSaleScreen() {
             : checkoutMode === 'print110'
             ? '110mm'
             : 'A4';
+
+        // Ensure database print count is incremented
+        import('@/lib/sqlite').then(({ incrementSalePrintCount }) => {
+          incrementSalePrintCount(sale.id).catch(() => {});
+        }).catch(() => {});
 
         if (paperSize === 'A4') {
           // Fire A4 direct print in background so checkout screen transitions instantly

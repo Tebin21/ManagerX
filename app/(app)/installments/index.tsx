@@ -44,7 +44,7 @@ import {
   getDebtPayments,
   type InstallmentSaleRow,
 } from '@/lib/sqlite';
-import { directPrintInvoice } from '@/lib/generateInvoice';
+import { directPrintInvoice, directPrintDebtPaymentReceipt } from '@/lib/generateInvoice';
 import type { DebtPaymentReceiptData } from '@/types/debt';
 import type { DebtReceiptPaperSize } from '@/lib/debtPaymentReceiptTemplate';
 import type { Sale } from '@/types/sales';
@@ -370,23 +370,29 @@ export default function InstallmentsScreen() {
         selectedSaleForPay.saleId,
         payAmtIQD,
         payMethod,
-        finalNote
+        finalNote,
+        shouldPrint ? 1 : 0
       );
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setPayModalVisible(false);
       setSelectedSaleForPay(null);
 
-      // Reload list
-      await loadData();
-
       // Only show receipt modal if user selected to print!
       if (shouldPrint && receipt) {
+        receipt.printCount = Math.max(1, receipt.printCount || 1);
+        const business = useBusinessStore.getState();
+        directPrintDebtPaymentReceipt(receipt, business, payReceiptPaperSize, exchangeRate).catch((err: unknown) => {
+          console.warn('[Installments] Direct print receipt error:', err);
+        });
         setLastPaymentReceipt(receipt);
         setTimeout(() => {
           setReceiptModalVisible(true);
         }, Platform.OS === 'ios' ? 450 : 150);
       }
+
+      // Reload list so cards reflect the fresh print count
+      await loadData();
     } catch (err: any) {
       console.error('Failed to record installment payment:', err);
       Alert.alert(t('common.error'), err.message || t('installmentList.errorOccurred'));
@@ -2029,6 +2035,9 @@ export default function InstallmentsScreen() {
         receipt={lastPaymentReceipt}
         initialPaperSize={payReceiptPaperSize}
         onClose={() => setReceiptModalVisible(false)}
+        onPrinted={() => {
+          loadData();
+        }}
       />
 
       {/* ── Sale Invoice Preview Modal (with 4 paper sizes) ── */}
