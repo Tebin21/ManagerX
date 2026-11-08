@@ -61,7 +61,9 @@ export default async function ProductDetailsPage({
   }
 
   const product = store.products.find((p) => String(p.productId) === String(productId));
-  if (!product) {
+  const hideOutOfStock = Boolean(store.info?.hideOutOfStock);
+  const isOutOfStock = product && (product.quantity === undefined || product.quantity <= 0);
+  if (!product || (hideOutOfStock && isOutOfStock)) {
     notFound();
   }
 

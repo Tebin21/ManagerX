@@ -136,9 +136,17 @@ storesRouter.get('/:slug', asyncHandler(async (req, res) => {
     return;
   }
 
-  // Return all published products (including 0-quantity items so merchant's full catalog is always visible)
+  // Return published products. If merchant enabled hideOutOfStock, filter out quantity <= 0 items
+  const hideOutOfStock = Boolean(store.info?.hideOutOfStock);
   const products = store.products
     .filter((p) => p.isPublished !== false)
+    .filter((p) => {
+      if (hideOutOfStock) {
+        const qty = typeof p.quantity === 'number' ? p.quantity : 0;
+        return qty > 0;
+      }
+      return true;
+    })
     .map((p) => ({
       productId: p.productId,
       name: p.name,
@@ -166,10 +174,11 @@ storesRouter.get('/:slug/products/:productId', asyncHandler(async (req, res) => 
     return;
   }
   const targetId = parseInt(req.params.productId, 10);
+  const hideOutOfStock = Boolean(store.info?.hideOutOfStock);
   const product = store.products.find(
     (p) => p.productId === targetId && p.isPublished !== false
   );
-  if (!product) {
+  if (!product || (hideOutOfStock && (typeof product.quantity === 'number' ? product.quantity : 0) <= 0)) {
     res.status(404).json({ error: 'Product not found in this store' });
     return;
   }

@@ -148,6 +148,7 @@ export interface StoreInfoPayload {
   description?: string;
   address?: string;
   phone?: string;
+  phoneSecondary?: string;
   logoUrl?: string;
   facebookUrl?: string;
   instagramUrl?: string;
@@ -155,6 +156,7 @@ export interface StoreInfoPayload {
   whatsappNumber?: string;
   themeColor?: string;
   themeMode?: 'dark' | 'light' | 'system';
+  hideOutOfStock?: boolean;
 }
 
 export async function pushStoreInfo(slug: string, apiKey: string, info: StoreInfoPayload): Promise<void> {

@@ -15,6 +15,7 @@ export interface StoreInfo {
   description?: string;
   address?: string;
   phone?: string;
+  phoneSecondary?: string;
   logoUrl?: string;
   facebookUrl?: string;
   instagramUrl?: string;
@@ -22,6 +23,7 @@ export interface StoreInfo {
   whatsappNumber?: string;
   themeColor?: string;
   themeMode?: 'dark' | 'light' | 'system';
+  hideOutOfStock?: boolean;
 }
 
 export interface StoreRecord {

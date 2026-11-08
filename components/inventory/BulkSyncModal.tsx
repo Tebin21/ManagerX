@@ -25,19 +25,26 @@ export function BulkSyncModal({ visible, onClose }: Props) {
   const { colors } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
 
-  const { bulkPublishEnabled, isBulkPublishing, setBulkPublishEnabled } = useOnlineStoreStore();
+  const { bulkPublishEnabled, isBulkPublishing, setBulkPublishEnabled, storeInfoFields, saveStoreInfo } = useOnlineStoreStore();
   const hasActiveSubscription = useOnlineStoreSubscriptionStore((s) => s.isActive);
   const totalProducts = useInventoryStore((s) => s.stats?.totalProducts ?? 0);
 
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [hideOutOfStock, setHideOutOfStock] = useState(storeInfoFields.hideOutOfStock ?? false);
 
   React.useEffect(() => {
     if (visible) {
       // Force refresh subscription and store info on open so new activations reflect instantly
       useOnlineStoreSubscriptionStore.getState().loadSubscription();
       useOnlineStoreStore.getState().load();
+      setHideOutOfStock(useOnlineStoreStore.getState().storeInfoFields.hideOutOfStock ?? false);
     }
   }, [visible]);
+
+  const handleToggleHideOutOfStock = async (val: boolean) => {
+    setHideOutOfStock(val);
+    await saveStoreInfo({ hideOutOfStock: val });
+  };
 
   const runBulkToggle = async (enabled: boolean) => {
     setProgress({ done: 0, total: totalProducts });
@@ -99,6 +106,21 @@ export function BulkSyncModal({ visible, onClose }: Props) {
             value={bulkPublishEnabled}
             onToggle={handleToggle}
             disabled={!hasActiveSubscription || isBulkPublishing}
+          />
+
+          <View style={{ height: 12 }} />
+
+          <SettingSwitch
+            icon="eye-off-outline"
+            label={t('inventory.bulkSync.hideOutOfStockLabel', 'شاردنەوەی بەرهەمی نەماو لە وێب ستۆر')}
+            sub={
+              !hasActiveSubscription
+                ? t('dashboard.onlineStore.subscriptionRequired')
+                : t('inventory.bulkSync.hideOutOfStockSub', 'ئەگەر بەرهەمێ بڕەکەی تەواو بوو (سفر بوو) لە وێب ستۆرەکە نیشان نادرێت تا دووبارە کڕینەوەی')
+            }
+            value={hideOutOfStock}
+            onToggle={handleToggleHideOutOfStock}
+            disabled={!hasActiveSubscription}
           />
 
           {progress && (

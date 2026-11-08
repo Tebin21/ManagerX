@@ -66,7 +66,9 @@ function StorefrontContent({ store, slug }: Props) {
   const categories = useMemo(() => {
     const seen = new Set<string>();
     const ordered: string[] = [];
+    const hideOutOfStock = Boolean(store.info?.hideOutOfStock);
     for (const p of store.products) {
+      if (hideOutOfStock && (p.quantity === undefined || p.quantity <= 0)) continue;
       if (p.category && !seen.has(p.category)) {
         seen.add(p.category);
         ordered.push(p.category);
@@ -77,7 +79,11 @@ function StorefrontContent({ store, slug }: Props) {
 
   const filteredProducts = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const hideOutOfStock = Boolean(store.info?.hideOutOfStock);
     return store.products.filter((p) => {
+      if (hideOutOfStock && (p.quantity === undefined || p.quantity <= 0)) {
+        return false;
+      }
       const matchesQuery =
         !q ||
         p.name.toLowerCase().includes(q) ||

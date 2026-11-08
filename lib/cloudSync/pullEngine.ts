@@ -255,11 +255,18 @@ export async function applyRootDoc(data: Record<string, unknown> | undefined): P
         }
         if (onlineStore.slug) await setStoreSlug(onlineStore.slug as string, true);
         await saveStoreInfoFields({
+          businessName: (onlineStore.businessName as string) ?? '',
+          logoUri: (onlineStore.logoUri as string) ?? '',
+          phone: (onlineStore.phone as string) ?? '',
+          phoneSecondary: (onlineStore.phoneSecondary as string) ?? '',
+          address: (onlineStore.address as string) ?? '',
           description: (onlineStore.description as string) ?? '',
           facebookUrl: (onlineStore.facebookUrl as string) ?? '',
           instagramUrl: (onlineStore.instagramUrl as string) ?? '',
           tiktokUrl: (onlineStore.tiktokUrl as string) ?? '',
           whatsappNumber: (onlineStore.whatsappNumber as string) ?? '',
+          themeMode: (onlineStore.themeMode as 'dark' | 'light') ?? 'dark',
+          hideOutOfStock: Boolean(onlineStore.hideOutOfStock),
         }, true);
       }
       await saveSetting('cloud_prefs_updated_at', incomingTs);

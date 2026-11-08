@@ -107,14 +107,18 @@ function toSyncChange(item: PendingSyncItem): SyncChange | null {
 // Returns [url, changed] — `changed` is true when a fresh upload just happened,
 // which counts as something new to push even if the dirty flag wasn't set.
 async function ensureRemoteLogo(slug: string, apiKey: string): Promise<[string | null, boolean]> {
+  const { loadStoreInfoFields } = await import('./storeInfo');
+  const fields = await loadStoreInfoFields();
   const { useBusinessStore } = await import('@/store/businessStore');
   const { resolveImageUri } = await import('@/lib/imageStorage');
-  const rawLogoUri = useBusinessStore.getState().logoUri;
+
+  // Prioritize dedicated online store logo; fall back to general business logo
+  const rawLogoUri = fields.logoUri || useBusinessStore.getState().logoUri;
   if (!rawLogoUri) return [null, false];
   if (!LOCAL_URI_PATTERN.test(rawLogoUri)) return [rawLogoUri, false]; // already a remote URL
 
   const logoUri = resolveImageUri(rawLogoUri) || rawLogoUri;
-  if (logoUri !== rawLogoUri) {
+  if (!fields.logoUri && logoUri !== rawLogoUri) {
     useBusinessStore.getState().updateLogo(logoUri);
   }
 
@@ -157,13 +161,19 @@ async function pushStoreInfoOpportunistically(slug: string, apiKey: string): Pro
       ? fields.themeMode
       : (isDarkMode ? 'dark' : 'light');
     await pushStoreInfo(slug, apiKey, {
-      ...fields,
-      businessName: business.name || undefined,
-      phone: business.phone || undefined,
-      address: business.address || undefined,
+      description: fields.description || undefined,
+      facebookUrl: fields.facebookUrl || undefined,
+      instagramUrl: fields.instagramUrl || undefined,
+      tiktokUrl: fields.tiktokUrl || undefined,
+      whatsappNumber: fields.whatsappNumber || undefined,
+      businessName: fields.businessName?.trim() || business.name || undefined,
+      phone: fields.phone?.trim() || business.phone || undefined,
+      phoneSecondary: fields.phoneSecondary?.trim() || undefined,
+      address: fields.address?.trim() || business.address || undefined,
       logoUrl: logoUrl ?? undefined,
       themeColor: accentColor ?? undefined,
       themeMode: storeThemeMode,
+      hideOutOfStock: fields.hideOutOfStock ?? false,
     });
     await clearStoreInfoDirty();
   } catch (err) {

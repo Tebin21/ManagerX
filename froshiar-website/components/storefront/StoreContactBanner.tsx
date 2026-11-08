@@ -10,12 +10,13 @@ interface Props {
 
 export function StoreContactBanner({ info }: Props) {
   const hasPhone = Boolean(info.phone && info.phone.trim());
+  const hasPhoneSecondary = Boolean(info.phoneSecondary && info.phoneSecondary.trim());
   const hasAddress = Boolean(info.address && info.address.trim());
 
   return (
     <div className="mx-auto mt-8 mb-8 flex w-full max-w-xl flex-col items-center gap-3.5 px-4">
       {/* 1. Phone & Address Liquid Glass Banner */}
-      {(hasPhone || hasAddress) && (
+      {(hasPhone || hasPhoneSecondary || hasAddress) && (
         <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 rounded-2xl border border-white/60 bg-white/40 p-3 shadow-xs backdrop-blur-xl transition-all dark:border-white/10 dark:bg-white/[0.04] sm:p-3.5">
           {hasPhone && (
             <a
@@ -29,7 +30,26 @@ export function StoreContactBanner({ info }: Props) {
             </a>
           )}
 
-          {hasPhone && hasAddress && (
+          {hasPhoneSecondary && (
+            <>
+              {hasPhone && (
+                <span className="hidden text-slate-300 sm:inline dark:text-slate-700">
+                  •
+                </span>
+              )}
+              <a
+                href={`tel:${info.phoneSecondary}`}
+                className="group flex items-center gap-2 text-xs font-bold text-slate-800 transition hover:text-[var(--brand-600,#D4AF37)] sm:text-sm dark:text-slate-200 dark:hover:text-[var(--brand-500,#D4AF37)]"
+              >
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 transition group-hover:bg-amber-500/25 dark:bg-amber-500/20 dark:text-amber-400">
+                  <Phone size={12} />
+                </div>
+                <span dir="ltr">{info.phoneSecondary}</span>
+              </a>
+            </>
+          )}
+
+          {(hasPhone || hasPhoneSecondary) && hasAddress && (
             <span className="hidden text-slate-300 sm:inline dark:text-slate-700">
               •
             </span>

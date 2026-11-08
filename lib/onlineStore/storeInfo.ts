@@ -9,21 +9,33 @@ import { saveSetting, loadSetting } from '@/lib/sqlite';
 import { notifyOnlineStoreSettingChanged } from '@/lib/onlineStore/storage';
 
 export interface StoreInfoFields {
+  businessName?: string;
+  logoUri?: string;
+  phone?: string;
+  phoneSecondary?: string;
+  address?: string;
   description: string;
   facebookUrl: string;
   instagramUrl: string;
   tiktokUrl: string;
   whatsappNumber: string;
   themeMode?: 'dark' | 'light';
+  hideOutOfStock?: boolean;
 }
 
 const FIELD_KEYS: Record<keyof StoreInfoFields, string> = {
+  businessName: 'online_store_business_name',
+  logoUri: 'online_store_logo_uri',
+  phone: 'online_store_phone',
+  phoneSecondary: 'online_store_phone_secondary',
+  address: 'online_store_address',
   description: 'online_store_description',
   facebookUrl: 'online_store_facebook',
   instagramUrl: 'online_store_instagram',
   tiktokUrl: 'online_store_tiktok',
   whatsappNumber: 'online_store_whatsapp',
   themeMode: 'online_store_theme_mode',
+  hideOutOfStock: 'online_store_hide_out_of_stock',
 };
 
 export async function loadStoreInfoFields(): Promise<StoreInfoFields> {
@@ -32,10 +44,21 @@ export async function loadStoreInfoFields(): Promise<StoreInfoFields> {
       async (key) => [key, (await loadSetting(FIELD_KEYS[key])) ?? ''] as const
     )
   );
-  const result = Object.fromEntries(entries) as unknown as StoreInfoFields;
-  if (!result.themeMode || (result.themeMode !== 'dark' && result.themeMode !== 'light')) {
-    result.themeMode = 'dark';
-  }
+  const raw = Object.fromEntries(entries) as Record<keyof StoreInfoFields, string>;
+  const result: StoreInfoFields = {
+    businessName: raw.businessName || '',
+    logoUri: raw.logoUri || '',
+    phone: raw.phone || '',
+    phoneSecondary: raw.phoneSecondary || '',
+    address: raw.address || '',
+    description: raw.description || '',
+    facebookUrl: raw.facebookUrl || '',
+    instagramUrl: raw.instagramUrl || '',
+    tiktokUrl: raw.tiktokUrl || '',
+    whatsappNumber: raw.whatsappNumber || '',
+    themeMode: raw.themeMode === 'light' ? 'light' : 'dark',
+    hideOutOfStock: raw.hideOutOfStock === '1' || raw.hideOutOfStock === 'true',
+  };
   return result;
 }
 
@@ -45,9 +68,11 @@ export async function loadStoreInfoFields(): Promise<StoreInfoFields> {
 // back to Firestore.
 export async function saveStoreInfoFields(fields: Partial<StoreInfoFields>, silent = false): Promise<void> {
   await Promise.all(
-    (Object.keys(fields) as (keyof StoreInfoFields)[]).map((key) =>
-      saveSetting(FIELD_KEYS[key], fields[key] ?? '')
-    )
+    (Object.keys(fields) as (keyof StoreInfoFields)[]).map((key) => {
+      const val = fields[key];
+      const stringVal = typeof val === 'boolean' ? (val ? '1' : '0') : (val ?? '');
+      return saveSetting(FIELD_KEYS[key], stringVal);
+    })
   );
   await markStoreInfoDirty();
   if (!silent) await notifyOnlineStoreSettingChanged();
