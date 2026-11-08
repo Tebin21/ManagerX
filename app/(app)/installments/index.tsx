@@ -77,8 +77,8 @@ export default function InstallmentsScreen() {
     return `≈ $${fmtUSD(valIQD / exchangeRate)}`;
   }, [isUSD, exchangeRate]);
 
-  // Main Tab State: 'report' or 'customers'
-  const [tab, setTab] = useState<MainTab>('report');
+  // Main Tab State: 'customers' or 'report'
+  const [tab, setTab] = useState<MainTab>('customers');
 
   // Raw data from SQLite
   const [installments, setInstallments] = useState<InstallmentSaleRow[]>([]);
@@ -95,6 +95,7 @@ export default function InstallmentsScreen() {
   const [query, setQuery] = useState('');
   const searchInputRef = useRef<TextInput>(null);
   const filterScrollRef = useRef<ScrollView>(null);
+  const statusScrollRef = useRef<ScrollView>(null);
 
   // Sub-filter category for the Customers tab
   const [statusFilter, setStatusFilter] = useState<StatusFilterType>('all');
@@ -149,7 +150,7 @@ export default function InstallmentsScreen() {
     return getPeriodBounds(periodKey);
   }, [periodKey, customRange]);
 
-  // 1. Filter by Date Period
+  // 1. Filter by Date Period (for Report Tab)
   const periodFilteredInstallments = useMemo(() => {
     if (periodKey === 'all') return installments;
     return installments.filter((item) =>
@@ -157,9 +158,42 @@ export default function InstallmentsScreen() {
     );
   }, [installments, periodKey, bounds]);
 
+  // Summary for Customers Tab (total, active, settled, short-term, long-term)
+  const customersSummary = useMemo(() => {
+    let total = installments.length;
+    let active = 0;
+    let settled = 0;
+    let shortTerm = 0;
+    let longTerm = 0;
+
+    installments.forEach((item) => {
+      if (item.remainingDebt > 0 && item.debtStatus !== 'settled') {
+        active += 1;
+      } else {
+        settled += 1;
+      }
+      if (item.installmentMonths <= 6) {
+        shortTerm += 1;
+      } else {
+        longTerm += 1;
+      }
+    });
+
+    return { total, active, settled, shortTerm, longTerm };
+  }, [installments]);
+
+  // Status Filter Pills for Customers Tab (matching media_1794138477479_e9550980.png)
+  const statusPills: { key: StatusFilterType; label: string }[] = useMemo(() => [
+    { key: 'all', label: `${t('installmentList.all')} (${customersSummary.total})` },
+    { key: 'active', label: `${t('installmentList.active')} (${customersSummary.active})` },
+    { key: 'settled', label: `${t('installmentList.settled')} (${customersSummary.settled})` },
+    { key: 'shortTerm', label: t('installmentList.shortTerm') },
+    { key: 'longTerm', label: t('installmentList.longTerm') },
+  ], [t, customersSummary]);
+
   // 2. Filter by Search Query & Sub-filter Status (for Customers Tab)
   const visibleInstallments = useMemo(() => {
-    return periodFilteredInstallments.filter((item) => {
+    return installments.filter((item) => {
       // Search text match
       const q = query.toLowerCase().trim();
       if (q) {
@@ -188,7 +222,7 @@ export default function InstallmentsScreen() {
 
       return true;
     });
-  }, [periodFilteredInstallments, query, statusFilter]);
+  }, [installments, query, statusFilter]);
 
   // Summary Metrics (Computed from current period)
   const periodSummary = useMemo(() => {
@@ -742,7 +776,7 @@ export default function InstallmentsScreen() {
             >
               {t('installmentList.customersTab')}
             </Text>
-            {periodFilteredInstallments.length > 0 && (
+            {customersSummary.total > 0 && (
               <View
                 style={[
                   styles.tabBadge,
@@ -757,7 +791,7 @@ export default function InstallmentsScreen() {
                     { color: tab === 'customers' ? '#FFFFFF' : colors.gray700 },
                   ]}
                 >
-                  {periodFilteredInstallments.length}
+                  {customersSummary.active > 0 ? customersSummary.active : customersSummary.total}
                 </Text>
               </View>
             )}
@@ -765,162 +799,235 @@ export default function InstallmentsScreen() {
         </View>
       </View>
 
-      {/* ── Period Filter Horizontal Bar with Expandable Search (Identical to History & Debts) ── */}
-      <View
-        style={[
-          styles.filterWrapper,
-          {
-            backgroundColor: colors.white,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.gray200,
-          },
-        ]}
-      >
-        <ScrollView
-          ref={filterScrollRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
+      {/* ── Sub-Filter Bar (فلتەری چالاک و شتە - ONLY in کەسەکان Tab) ── */}
+      {tab === 'customers' && (
+        <View
           style={[
-            styles.periodScrollView,
-            isRTL ? { transform: [{ scaleX: -1 }] } : undefined,
-          ]}
-          contentContainerStyle={[
-            styles.filterRow,
+            styles.filterWrapper,
             {
-              paddingHorizontal: isTabletLandscape ? 24 : 16,
-              gap: isTablet ? 10 : 8,
+              backgroundColor: colors.white,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.gray200,
             },
           ]}
         >
-          {/* Search Button / Expandable Search Bar on Right of Row in RTL */}
-          {isSearchExpanded ? (
-            <Pressable
-              onPress={(e) => e.stopPropagation?.()}
-              style={[
-                styles.expandedSearchBox,
-                isRTL && { transform: [{ scaleX: -1 }] },
-                {
-                  width: dynamicSearchWidth,
-                  height: isTablet ? 42 : 38,
-                  borderRadius: isTablet ? 21 : 19,
-                  backgroundColor: isDark ? colors.gray100 : colors.white,
-                  borderColor: colors.primary,
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                },
-              ]}
-            >
-              <Ionicons name="search" size={16} color={colors.primary} />
-              <TextInput
-                ref={searchInputRef}
+          <ScrollView
+            ref={statusScrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={[
+              styles.periodScrollView,
+              isRTL ? { transform: [{ scaleX: -1 }] } : undefined,
+            ]}
+            contentContainerStyle={[
+              styles.filterRow,
+              {
+                paddingHorizontal: isTabletLandscape ? 24 : 16,
+                gap: isTablet ? 10 : 8,
+              },
+            ]}
+          >
+            {/* Search Button / Expandable Search Bar on Right of Row in RTL */}
+            {isSearchExpanded ? (
+              <Pressable
+                onPress={(e) => e.stopPropagation?.()}
                 style={[
-                  styles.expandedSearchInput,
-                  {
-                    color: colors.black,
-                    textAlign: isRTL ? 'right' : 'left',
-                    fontFamily: SETTINGS_KURDISH_FONT,
-                    fontSize: isTablet ? 14 : 13,
-                  },
-                ]}
-                placeholder={t('installmentList.searchPlaceholder')}
-                placeholderTextColor={colors.gray400}
-                value={query}
-                onChangeText={setQuery}
-                returnKeyType="search"
-              />
-              {query.length > 0 && (
-                <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
-                  <Ionicons name="close-circle" size={17} color={colors.gray400} />
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                onPress={handleCollapseSearch}
-                style={[
-                  styles.closeSearchBtn,
-                  {
-                    backgroundColor: isDark ? colors.gray200 : colors.gray100,
-                  },
-                ]}
-                hitSlop={8}
-              >
-                <Ionicons name="close" size={14} color={colors.gray500} />
-              </TouchableOpacity>
-            </Pressable>
-          ) : (
-            <TouchableOpacity
-              onPress={handleExpandSearch}
-              style={[
-                styles.searchIconBtn,
-                isRTL && { transform: [{ scaleX: -1 }] },
-                {
-                  width: isTablet ? 42 : 38,
-                  height: isTablet ? 42 : 38,
-                  borderRadius: isTablet ? 21 : 19,
-                  backgroundColor: query ? colors.primary : (isDark ? colors.gray100 : colors.white),
-                  borderColor: query ? colors.primary : colors.gray200,
-                },
-              ]}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name="search"
-                size={16}
-                color={query ? '#FFFFFF' : (isDark ? colors.gray400 : '#0F172A')}
-              />
-              {query.length > 0 && (
-                <View
-                  style={{
-                    position: 'absolute',
-                    top: 4,
-                    right: 4,
-                    width: 7,
-                    height: 7,
-                    borderRadius: 3.5,
-                    backgroundColor: '#10B981',
-                  }}
-                />
-              )}
-            </TouchableOpacity>
-          )}
-
-          {/* Period Pills: ئەمڕۆ, ئەم هەفتەیە, ئەم مانگە, ئەمساڵ, هەمووی, دیاریکراو */}
-          {periodKeys.map((key) => {
-            const active = periodKey === key;
-            return (
-              <TouchableOpacity
-                key={key}
-                style={[
-                  styles.periodPill,
+                  styles.expandedSearchBox,
                   isRTL && { transform: [{ scaleX: -1 }] },
                   {
+                    width: dynamicSearchWidth,
                     height: isTablet ? 42 : 38,
                     borderRadius: isTablet ? 21 : 19,
-                    backgroundColor: active
-                      ? (isDark ? colors.primary : '#1E293B')
-                      : (isDark ? colors.gray100 : colors.white),
-                    borderColor: active ? (isDark ? colors.primary : '#1E293B') : colors.gray200,
+                    backgroundColor: isDark ? colors.gray100 : colors.white,
+                    borderColor: colors.primary,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
                   },
                 ]}
-                onPress={() => handlePeriodSelect(key)}
-                activeOpacity={0.7}
               >
-                <Text
+                <Ionicons name="search" size={16} color={colors.primary} />
+                <TextInput
+                  ref={searchInputRef}
                   style={[
-                    styles.periodPillText,
+                    styles.expandedSearchInput,
                     {
-                      color: active ? '#FFFFFF' : colors.gray600,
-                      fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                      color: colors.black,
+                      textAlign: isRTL ? 'right' : 'left',
+                      fontFamily: SETTINGS_KURDISH_FONT,
+                      fontSize: isTablet ? 14 : 13,
                     },
                   ]}
-                  numberOfLines={1}
+                  placeholder={t('installmentList.searchPlaceholder')}
+                  placeholderTextColor={colors.gray400}
+                  value={query}
+                  onChangeText={setQuery}
+                  returnKeyType="search"
+                />
+                {query.length > 0 && (
+                  <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
+                    <Ionicons name="close-circle" size={17} color={colors.gray400} />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={handleCollapseSearch}
+                  style={[
+                    styles.closeSearchBtn,
+                    {
+                      backgroundColor: isDark ? colors.gray200 : colors.gray100,
+                    },
+                  ]}
+                  hitSlop={8}
                 >
-                  {periodLabels[key]}
-                </Text>
+                  <Ionicons name="close" size={14} color={colors.gray500} />
+                </TouchableOpacity>
+              </Pressable>
+            ) : (
+              <TouchableOpacity
+                onPress={handleExpandSearch}
+                style={[
+                  styles.searchIconBtn,
+                  isRTL && { transform: [{ scaleX: -1 }] },
+                  {
+                    width: isTablet ? 42 : 38,
+                    height: isTablet ? 42 : 38,
+                    borderRadius: isTablet ? 21 : 19,
+                    backgroundColor: query ? colors.primary : (isDark ? colors.gray100 : colors.white),
+                    borderColor: query ? colors.primary : colors.gray200,
+                  },
+                ]}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons
+                  name="search"
+                  size={16}
+                  color={query ? '#FFFFFF' : (isDark ? colors.gray400 : '#0F172A')}
+                />
+                {query.length > 0 && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      width: 7,
+                      height: 7,
+                      borderRadius: 3.5,
+                      backgroundColor: '#10B981',
+                    }}
+                  />
+                )}
               </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
+            )}
+
+            {/* Status Pills: هەمووی, چالاک / ماوە, تەواوبوو, کورتخایەن, درێژخایەن */}
+            {statusPills.map((item) => {
+              const active = statusFilter === item.key;
+              return (
+                <TouchableOpacity
+                  key={item.key}
+                  style={[
+                    styles.periodPill,
+                    isRTL && { transform: [{ scaleX: -1 }] },
+                    {
+                      height: isTablet ? 42 : 38,
+                      borderRadius: isTablet ? 21 : 19,
+                      backgroundColor: active
+                        ? (isDark ? colors.primary : '#1E293B')
+                        : (isDark ? colors.gray100 : colors.white),
+                      borderColor: active ? (isDark ? colors.primary : '#1E293B') : colors.gray200,
+                    },
+                  ]}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setStatusFilter(item.key);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.periodPillText,
+                      {
+                        color: active ? '#FFFFFF' : colors.gray600,
+                        fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* ── Period Filter Horizontal Bar (ONLY in ڕاپۆرت Tab) ── */}
+      {tab === 'report' && (
+        <View
+          style={[
+            styles.filterWrapper,
+            {
+              backgroundColor: colors.white,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.gray200,
+            },
+          ]}
+        >
+          <ScrollView
+            ref={filterScrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={[
+              styles.periodScrollView,
+              isRTL ? { transform: [{ scaleX: -1 }] } : undefined,
+            ]}
+            contentContainerStyle={[
+              styles.filterRow,
+              {
+                paddingHorizontal: isTabletLandscape ? 24 : 16,
+                gap: isTablet ? 10 : 8,
+              },
+            ]}
+          >
+            {/* Period Pills: ئەمڕۆ, ئەم هەفتەیە, ئەم مانگە, ئەمساڵ, هەمووی, دیاریکراو */}
+            {periodKeys.map((key) => {
+              const active = periodKey === key;
+              return (
+                <TouchableOpacity
+                  key={key}
+                  style={[
+                    styles.periodPill,
+                    isRTL && { transform: [{ scaleX: -1 }] },
+                    {
+                      height: isTablet ? 42 : 38,
+                      borderRadius: isTablet ? 21 : 19,
+                      backgroundColor: active
+                        ? (isDark ? colors.primary : '#1E293B')
+                        : (isDark ? colors.gray100 : colors.white),
+                      borderColor: active ? (isDark ? colors.primary : '#1E293B') : colors.gray200,
+                    },
+                  ]}
+                  onPress={() => handlePeriodSelect(key)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.periodPillText,
+                      {
+                        color: active ? '#FFFFFF' : colors.gray600,
+                        fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {periodLabels[key]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
 
       {/* ── Main Scroll View ── */}
       <ScrollView
@@ -1175,153 +1282,6 @@ export default function InstallmentsScreen() {
            ═══════════════════════════════════════════════════════ */}
         {tab === 'customers' && (
           <View>
-            {/* Sub-filter Category Chips: هەمووی, چالاک, تەواوبوو, کورتخایەن, درێژخایەن */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[styles.filtersScroll, { flexDirection }]}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  statusFilter === 'all'
-                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                    : {
-                        backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-                        borderColor: isDark ? colors.gray200 : '#E2E8F0',
-                      },
-                ]}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setStatusFilter('all');
-                }}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    {
-                      color: statusFilter === 'all' ? '#FFFFFF' : colors.black,
-                      fontFamily: statusFilter === 'all' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
-                    },
-                  ]}
-                >
-                  {t('installmentList.all')} ({periodFilteredInstallments.length})
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  statusFilter === 'active'
-                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                    : {
-                        backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-                        borderColor: isDark ? colors.gray200 : '#E2E8F0',
-                      },
-                ]}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setStatusFilter('active');
-                }}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    {
-                      color: statusFilter === 'active' ? '#FFFFFF' : colors.black,
-                      fontFamily: statusFilter === 'active' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
-                    },
-                  ]}
-                >
-                  {t('installmentList.active')} ({periodSummary.activeAccounts})
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  statusFilter === 'settled'
-                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                    : {
-                        backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-                        borderColor: isDark ? colors.gray200 : '#E2E8F0',
-                      },
-                ]}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setStatusFilter('settled');
-                }}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    {
-                      color: statusFilter === 'settled' ? '#FFFFFF' : colors.black,
-                      fontFamily: statusFilter === 'settled' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
-                    },
-                  ]}
-                >
-                  {t('installmentList.settled')} ({periodSummary.settledAccounts})
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  statusFilter === 'shortTerm'
-                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                    : {
-                        backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-                        borderColor: isDark ? colors.gray200 : '#E2E8F0',
-                      },
-                ]}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setStatusFilter('shortTerm');
-                }}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    {
-                      color: statusFilter === 'shortTerm' ? '#FFFFFF' : colors.black,
-                      fontFamily: statusFilter === 'shortTerm' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
-                    },
-                  ]}
-                >
-                  {t('installmentList.shortTerm')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  statusFilter === 'longTerm'
-                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                    : {
-                        backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-                        borderColor: isDark ? colors.gray200 : '#E2E8F0',
-                      },
-                ]}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setStatusFilter('longTerm');
-                }}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    {
-                      color: statusFilter === 'longTerm' ? '#FFFFFF' : colors.black,
-                      fontFamily: statusFilter === 'longTerm' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
-                    },
-                  ]}
-                >
-                  {t('installmentList.longTerm')}
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
-
             {/* List of Customer Installment Cards */}
             {loading ? (
               <View style={styles.loadingContainer}>
