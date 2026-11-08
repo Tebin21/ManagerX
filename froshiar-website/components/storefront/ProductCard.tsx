@@ -42,14 +42,14 @@ export function ProductCard({ product, slug }: Props) {
         {/* Product Image Box */}
         <div className="relative aspect-square bg-slate-100 dark:bg-slate-900 overflow-hidden">
           {product.category && (
-            <span className="absolute left-2.5 top-2.5 z-10 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-700 shadow-xs backdrop-blur-sm dark:bg-slate-800 dark:text-slate-200">
+            <span className="absolute start-2.5 top-2.5 z-10 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-700 shadow-xs backdrop-blur-sm dark:bg-slate-800 dark:text-slate-200 max-w-[70%] truncate">
               {product.category}
             </span>
           )}
 
           {/* Selected Checkmark Badge */}
           {selected && (
-            <span className="absolute right-2.5 top-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md animate-in zoom-in-75 duration-200">
+            <span className="absolute end-2.5 top-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md animate-in zoom-in-75 duration-200">
               <Check size={16} strokeWidth={3} />
             </span>
           )}
@@ -61,7 +61,7 @@ export function ProductCard({ product, slug }: Props) {
               onClick={(e) => e.stopPropagation()}
               title="Info"
               aria-label="Product info"
-              className="absolute left-2.5 bottom-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 hover:scale-105"
+              className="absolute start-2.5 bottom-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 hover:scale-105"
             >
               <ExternalLink size={13} />
             </Link>
@@ -89,25 +89,25 @@ export function ProductCard({ product, slug }: Props) {
         </div>
 
         {/* Text Info */}
-        <div className="p-3.5 sm:p-4 pb-1">
-          <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">
+        <div className="p-3 sm:p-4 pb-1">
+          <p className="line-clamp-1 sm:line-clamp-2 text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100">
             {product.name}
           </p>
           {product.websiteDescription ? (
-            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            <p className="mt-1 line-clamp-1 sm:line-clamp-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
               {product.websiteDescription}
             </p>
           ) : product.description ? (
-            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            <p className="mt-1 line-clamp-1 sm:line-clamp-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
               {product.description}
             </p>
           ) : null}
         </div>
       </div>
 
-      {/* Bottom Row: Price + Selection Toggle Button */}
-      <div className="p-3.5 sm:p-4 pt-2 border-t border-slate-100/70 dark:border-slate-700/70 mt-2 flex items-center justify-between gap-2">
-        <p className="text-sm sm:text-base font-extrabold text-[var(--brand-600,#2563eb)]">
+      {/* Bottom Row: Price + Selection Toggle Button (Clean Mobile Responsiveness) */}
+      <div className="p-3 sm:p-4 pt-2 border-t border-slate-100/70 dark:border-slate-700/70 mt-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <p className="text-sm sm:text-base font-extrabold text-[var(--brand-600,#2563eb)] dark:text-[var(--brand-400,#60a5fa)] tracking-tight truncate">
           {formatIQD(product.price)}
         </p>
 
@@ -115,7 +115,7 @@ export function ProductCard({ product, slug }: Props) {
           type="button"
           onClick={handleToggle}
           aria-label={selected ? t('inCart') : t('addToCart')}
-          className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0 ${
+          className={`w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 sm:py-1.5 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0 ${
             selected
               ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-500/20'
               : 'bg-slate-100 text-slate-700 hover:bg-[var(--brand-500,#D4AF37)] hover:text-slate-950 dark:bg-slate-700/80 dark:text-slate-200 dark:hover:bg-[var(--brand-500,#D4AF37)] dark:hover:text-slate-950'
@@ -123,13 +123,13 @@ export function ProductCard({ product, slug }: Props) {
         >
           {selected ? (
             <>
-              <Check size={13} strokeWidth={2.5} />
-              <span>{t('inCart')} {quantity > 1 ? `(${quantity})` : ''}</span>
+              <Check size={14} strokeWidth={2.5} />
+              <span className="truncate">{t('inCart')} {quantity > 1 ? `(${quantity})` : ''}</span>
             </>
           ) : (
             <>
-              <Plus size={13} strokeWidth={2.5} />
-              <span>{t('addToCart')}</span>
+              <Plus size={14} strokeWidth={2.5} />
+              <span className="truncate">{t('addToCart')}</span>
             </>
           )}
         </button>

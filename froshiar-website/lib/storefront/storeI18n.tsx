@@ -75,6 +75,11 @@ export interface StoreTranslations {
   whatsappOrderTime: string;
   whatsappThanks: string;
   unspecified: string;
+  page: string;
+  ofPages: string;
+  previousPage: string;
+  nextPage: string;
+  showingItems: string;
 }
 
 export const STORE_TRANSLATIONS: Record<StoreLocale, StoreTranslations> = {
@@ -149,6 +154,11 @@ export const STORE_TRANSLATIONS: Record<StoreLocale, StoreTranslations> = {
     whatsappOrderTime: 'کاتی داواکاری',
     whatsappThanks: 'سوپاس',
     unspecified: 'دیاری نەکراوە',
+    page: 'لاپەڕە',
+    ofPages: 'لە',
+    previousPage: 'پێشوو',
+    nextPage: 'دواتر',
+    showingItems: 'پیشاندانی {start} - {end} لە کۆی {total} کاڵا',
   },
   ar: {
     activeStore: 'المتجر نشط ومتاح',
@@ -221,6 +231,11 @@ export const STORE_TRANSLATIONS: Record<StoreLocale, StoreTranslations> = {
     whatsappOrderTime: 'وقت الطلب',
     whatsappThanks: 'شكراً جزيلاً',
     unspecified: 'غير محدد',
+    page: 'صفحة',
+    ofPages: 'من',
+    previousPage: 'السابق',
+    nextPage: 'التالي',
+    showingItems: 'عرض {start} - {end} من أصل {total} منتج',
   },
   en: {
     activeStore: 'Store is Active',
@@ -293,6 +308,11 @@ export const STORE_TRANSLATIONS: Record<StoreLocale, StoreTranslations> = {
     whatsappOrderTime: 'Order Time',
     whatsappThanks: 'Thank you',
     unspecified: 'Not specified',
+    page: 'Page',
+    ofPages: 'of',
+    previousPage: 'Previous',
+    nextPage: 'Next',
+    showingItems: 'Showing {start} - {end} of {total} items',
   },
 };
 

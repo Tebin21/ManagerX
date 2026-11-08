@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useTheme } from 'next-themes';
 import type { StoreResponse } from '@/lib/storefront/storeApi';
 import { getBrandCssVars } from '@/lib/storefront/theme';
@@ -13,6 +13,9 @@ import { CartProvider } from './CartContext';
 import { CartDrawer } from './CartDrawer';
 import { FloatingCartBar } from './FloatingCartBar';
 import { StoreLanguageProvider, useStoreLanguage } from './StoreLanguageContext';
+import { PaginationControls } from './PaginationControls';
+
+const ITEMS_PER_PAGE = 10;
 
 function CenteredMessage({ children }: { children: React.ReactNode }) {
   return (
@@ -31,9 +34,16 @@ function StorefrontContent({ store, slug }: Props) {
   const [query, setQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const catalogRef = useRef<HTMLDivElement>(null);
 
   const { isRTL, dir, t } = useStoreLanguage();
   const { setTheme } = useTheme();
+
+  // Reset page when category or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, selectedCategory]);
 
   // Set theme on mount or when slug changes, respecting visitor preference or merchant default
   useEffect(() => {
@@ -77,6 +87,25 @@ function StorefrontContent({ store, slug }: Props) {
     });
   }, [store, query, selectedCategory]);
 
+  const totalItems = filteredProducts.length;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  const validPage = Math.min(Math.max(1, currentPage), Math.max(1, totalPages));
+
+  const paginatedProducts = useMemo(() => {
+    if (totalItems <= ITEMS_PER_PAGE) return filteredProducts;
+    const start = (validPage - 1) * ITEMS_PER_PAGE;
+    return filteredProducts.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredProducts, validPage, totalItems]);
+
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+    if (catalogRef.current) {
+      const top = catalogRef.current.getBoundingClientRect().top + window.scrollY - 70;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }
+  };
+
   return (
     <CartProvider storeSlug={slug || 'demo'} products={store.products}>
       <div
@@ -98,7 +127,7 @@ function StorefrontContent({ store, slug }: Props) {
         />
 
         {/* 2. Product Catalog */}
-        <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-6">
+        <main ref={catalogRef} className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-3 sm:px-4 py-4 sm:py-6">
           {!store.enabled ? (
             <div className="mx-auto my-12 max-w-lg rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-xs dark:border-amber-500/30 dark:bg-slate-800">
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-500 ring-8 ring-amber-50/50 dark:bg-amber-950 dark:ring-amber-900/30">
@@ -131,7 +160,7 @@ function StorefrontContent({ store, slug }: Props) {
           ) : (
             <>
               {categories.length > 1 && (
-                <div className="sticky top-0 z-20 mb-6 bg-slate-50/95 py-2.5 backdrop-blur-sm dark:bg-slate-900/95">
+                <div className="sticky top-0 z-20 mb-4 bg-slate-50/95 py-2 backdrop-blur-sm dark:bg-slate-900/95">
                   <CategoryFilterBar
                     categories={categories}
                     selected={selectedCategory}
@@ -143,11 +172,42 @@ function StorefrontContent({ store, slug }: Props) {
               {filteredProducts.length === 0 ? (
                 <CenteredMessage>{t('noProductsMatched')}</CenteredMessage>
               ) : (
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-                  {filteredProducts.map((product) => (
-                    <ProductCard key={product.productId} product={product} slug={slug} />
-                  ))}
-                </div>
+                <>
+                  {/* Top Pagination Summary on Multi-page */}
+                  {totalPages > 1 && (
+                    <div className="mb-3 flex items-center justify-between px-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      <span>
+                        {t('showingItems')
+                          ? t('showingItems')
+                              .replace('{start}', String((validPage - 1) * ITEMS_PER_PAGE + 1))
+                              .replace('{end}', String(Math.min(validPage * ITEMS_PER_PAGE, totalItems)))
+                              .replace('{total}', String(totalItems))
+                          : `${(validPage - 1) * ITEMS_PER_PAGE + 1} - ${Math.min(validPage * ITEMS_PER_PAGE, totalItems)} / ${totalItems}`}
+                      </span>
+                      <span className="font-bold text-[var(--brand-600,#2563eb)] dark:text-[var(--brand-400,#60a5fa)]">
+                        {t('page')} {validPage} {t('ofPages')} {totalPages}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                    {paginatedProducts.map((product) => (
+                      <ProductCard key={product.productId} product={product} slug={slug} />
+                    ))}
+                  </div>
+
+                  {/* Bottom Pagination Controls (Next/Prev + Number Pills) */}
+                  {totalPages > 1 && (
+                    <PaginationControls
+                      currentPage={validPage}
+                      totalPages={totalPages}
+                      totalItems={totalItems}
+                      itemsPerPage={ITEMS_PER_PAGE}
+                      onPageChange={handlePageChange}
+                      isRTL={isRTL}
+                    />
+                  )}
+                </>
               )}
             </>
           )}
