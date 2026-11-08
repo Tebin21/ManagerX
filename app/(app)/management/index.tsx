@@ -150,19 +150,6 @@ export default function ManagementScreen() {
     <View style={[styles.screen, { backgroundColor: colors.gray50 }]}>
       <AppHeader
         title={t('management.title')}
-        rightAction={
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-              router.push('/(app)/management/new-employee' as never);
-            }}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="person-add" size={16} color="#FFFFFF" />
-            <Text style={styles.addBtnText}>{t('management.addEmployee')}</Text>
-          </TouchableOpacity>
-        }
       />
 
       <ScrollView
@@ -298,6 +285,13 @@ export default function ManagementScreen() {
               <Ionicons name="people-outline" size={48} color={colors.gray400} />
               <Text style={[styles.emptyText, { color: colors.gray500 }]}>
                 {t('management.noEmployeesFound')}
+              </Text>
+              <Text style={[styles.emptyHint, { color: colors.gray400 }]}>
+                {isAr
+                  ? 'يتم تفعيل وإنشاء حسابات الموظفين حصرياً من قِبل الإدارة (Admin Panel).'
+                  : isKu
+                  ? 'هەژماری کارمەندان تەنها لە ڕێگەی ئەدمین پانێڵەوە زیاد و چالاک دەکرێت.'
+                  : 'Employee accounts are provisioned exclusively via the Admin Panel.'}
               </Text>
             </View>
           ) : (
@@ -658,6 +652,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 12,
     fontWeight: '600',
+  },
+  emptyHint: {
+    fontSize: 12,
+    marginTop: 6,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 20,
   },
 });
 

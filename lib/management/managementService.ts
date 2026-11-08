@@ -140,82 +140,8 @@ export async function createEmployeeAccount(input: {
   priceAmount?: string;
   limits?: import('./types').EmployeeUsageLimits;
 }): Promise<EmployeeAccount> {
-  const db = getFirebaseFirestore();
-  const cleanEmail = input.email.trim().toLowerCase();
-  const docId = getCleanDocId(cleanEmail);
-  const docRef = doc(db, COLLECTION_NAME, docId);
-
-  const existing = await getDoc(docRef);
-  if (existing.exists()) {
-    throw new Error('EMPLOYEE_EMAIL_ALREADY_EXISTS');
-  }
-
-  const isManagerRole = input.role === 'manager';
-  const defaultLimits: import('./types').EmployeeUsageLimits = isManagerRole
-    ? {
-        maxItems: 'unlimited',
-        maxQuantity: 'unlimited',
-        maxSales: 'unlimited',
-        maxInvoices: 'unlimited',
-        maxQuotations: 'unlimited',
-      }
-    : (input.limits || {
-        maxItems: 'unlimited',
-        maxQuantity: 'unlimited',
-        maxSales: 'unlimited',
-        maxInvoices: 'unlimited',
-        maxQuotations: 'unlimited',
-      });
-
-  const newAccount: EmployeeAccount & { password?: string } = {
-    id: `emp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    email: cleanEmail,
-    password: input.password,
-    displayName: input.displayName.trim(),
-    managerEmail: (input.managerEmail || cleanEmail).trim().toLowerCase(),
-    phone: input.phone?.trim() || undefined,
-    priceAmount: input.priceAmount || (isManagerRole ? 'PRO / هەمیشەیی' : undefined),
-    role: input.role || 'employee',
-    createdAt: new Date().toISOString(),
-    status: 'active',
-    limits: defaultLimits,
-    permissions: isManagerRole
-      ? ALL_ACTIVE_PERMISSIONS
-      : {
-          ...DEFAULT_EMPLOYEE_PERMISSIONS,
-          ...(input.permissions || {}),
-        },
-  };
-
-  await setDoc(docRef, newAccount, { merge: true });
-
-  // If this is a store manager or PRO account, mirror to user_subscriptions so PRO activates instantly everywhere
-  if (isManagerRole || input.role === 'user') {
-    try {
-      const subRef = doc(db, 'user_subscriptions', docId);
-      await setDoc(
-        subRef,
-        {
-          id: docId,
-          email: cleanEmail,
-          customerName: input.displayName.trim(),
-          phone: input.phone?.trim() || null,
-          status: 'active',
-          tier: 'pro',
-          planId: 'lifetime',
-          startDate: new Date().toISOString(),
-          priceAmount: input.priceAmount || 'PRO / هەمیشەیی',
-          limits: defaultLimits,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true }
-      );
-    } catch (e) {
-      console.warn('[ManagementService] user_subscriptions sync warning:', e);
-    }
-  }
-
-  return newAccount;
+  // Hard security rule: Employee accounts can NEVER be created from the mobile app
+  throw new Error('EMPLOYEE_CREATION_RESTRICTED_TO_ADMIN: Creating employee accounts from the mobile app is disabled. Please create accounts via the Admin Panel.');
 }
 
 /**
