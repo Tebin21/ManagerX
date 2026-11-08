@@ -14,6 +14,7 @@ import {
   useWindowDimensions,
   Linking,
   Pressable,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
@@ -320,8 +321,8 @@ export default function InstallmentsScreen() {
     setPayModalVisible(true);
   };
 
-  // Submit Payment
-  const handleConfirmPayment = async () => {
+  // Submit Payment (supports normal completion without print, or complete & print)
+  const handleConfirmPayment = async (shouldPrint: boolean = false) => {
     if (!selectedSaleForPay) return;
     const cleanAmount = parseFloat(toEnglishDigits(payAmountInput).replace(/,/g, ''));
     if (isNaN(cleanAmount) || cleanAmount <= 0) {
@@ -354,8 +355,8 @@ export default function InstallmentsScreen() {
       // Reload list
       await loadData();
 
-      // Show receipt modal with 4 paper sizes safely after iOS modal dismissal
-      if (receipt) {
+      // Only show receipt modal if user selected to print!
+      if (shouldPrint && receipt) {
         setLastPaymentReceipt(receipt);
         setTimeout(() => {
           setReceiptModalVisible(true);
@@ -1420,11 +1421,11 @@ export default function InstallmentsScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* ── Payment Modal ── */}
+      {/* ── Payment Modal (Centered) ── */}
       <Modal
         visible={payModalVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
         onRequestClose={() => setPayModalVisible(false)}
       >
@@ -1432,312 +1433,367 @@ export default function InstallmentsScreen() {
           style={styles.modalOverlay}
           onPress={() => setPayModalVisible(false)}
         >
-          <Pressable
-            style={[
-              styles.modalCard,
-              {
-                backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-                borderColor: isDark ? colors.gray200 : '#E2E8F0',
-              },
-            ]}
-            onPress={(e) => e.stopPropagation()}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}
           >
-            {/* Modal Header */}
-            <View style={[styles.modalHeader, { flexDirection }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.modalTitle, { color: colors.black, textAlign, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                  {t('installmentList.paymentModalTitle')}
-                </Text>
-                <Text style={[styles.modalSubtitle, { color: colors.gray500, textAlign }]}>
-                  {selectedSaleForPay?.customerName} • {selectedSaleForPay?.invoiceNumber}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setPayModalVisible(false)}
-                style={styles.modalCloseBtn}
-              >
-                <Ionicons name="close" size={20} color={colors.gray500} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Remaining Balance Summary Banner */}
-            {selectedSaleForPay && (
-              <View
-                style={[
-                  styles.modalBanner,
-                  {
-                    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.1)' : '#FEF2F2',
-                    borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : '#FEE2E2',
-                  },
-                ]}
-              >
-                <View style={{ flexDirection, justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={[styles.modalBannerLabel, { color: '#EF4444', textAlign }]}>
-                    {t('installmentList.remainingDebt')}:
+            <Pressable
+              style={[
+                styles.modalCard,
+                {
+                  backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                  borderColor: isDark ? colors.gray200 : '#E2E8F0',
+                },
+              ]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              {/* Fixed Header */}
+              <View style={[styles.modalHeader, { flexDirection }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.modalTitle, { color: colors.black, textAlign, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {t('installmentList.paymentModalTitle')}
                   </Text>
-                  <Text style={[styles.modalBannerValue, { color: '#EF4444', fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {formatPrimary(selectedSaleForPay.remainingDebt)}
+                  <Text style={[styles.modalSubtitle, { color: colors.gray500, textAlign }]}>
+                    {selectedSaleForPay?.customerName} • {selectedSaleForPay?.invoiceNumber}
                   </Text>
                 </View>
-              </View>
-            )}
-
-            {/* Quick Amount Selector Pills */}
-            {selectedSaleForPay && (
-              <View style={[styles.quickAmountRow, { flexDirection }]}>
-                {/* 1 Month */}
                 <TouchableOpacity
-                  style={[
-                    styles.quickPill,
-                    {
-                      backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
-                      borderColor: isDark ? colors.gray300 : '#CBD5E1',
-                    },
-                  ]}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    const amtIQD = Math.min(selectedSaleForPay.installmentMonthlyAmount, selectedSaleForPay.remainingDebt);
-                    const inCurr = isUSD ? amtIQD / exchangeRate : amtIQD;
-                    setPayAmountInput(isUSD ? inCurr.toFixed(2) : String(Math.round(inCurr)));
-                  }}
+                  onPress={() => setPayModalVisible(false)}
+                  style={styles.modalCloseBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Text style={[styles.quickPillText, { color: colors.black }]}>
-                    {t('installmentList.payOneMonth')} ({formatPrimary(selectedSaleForPay.installmentMonthlyAmount)})
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Full Remaining */}
-                <TouchableOpacity
-                  style={[
-                    styles.quickPill,
-                    {
-                      backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
-                      borderColor: isDark ? colors.gray300 : '#CBD5E1',
-                    },
-                  ]}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    const inCurr = isUSD
-                      ? selectedSaleForPay.remainingDebt / exchangeRate
-                      : selectedSaleForPay.remainingDebt;
-                    setPayAmountInput(isUSD ? inCurr.toFixed(2) : String(Math.round(inCurr)));
-                  }}
-                >
-                  <Text style={[styles.quickPillText, { color: colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {t('installmentList.payFullRemaining')}
-                  </Text>
+                  <Ionicons name="close" size={20} color={colors.gray500} />
                 </TouchableOpacity>
               </View>
-            )}
 
-            {/* Amount Input */}
-            <View style={{ marginTop: 14 }}>
-              <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
-                {t('installmentList.paymentAmount')} ({isUSD ? 'USD' : 'IQD'}):
-              </Text>
-              <View
-                style={[
-                  styles.inputBox,
-                  {
-                    backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
-                    borderColor: isDark ? colors.gray300 : '#E2E8F0',
-                    flexDirection,
-                  },
-                ]}
+              {/* Scrollable Middle Body */}
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                bounces={false}
+                style={{ maxHeight: 380 }}
+                contentContainerStyle={{ paddingBottom: 6 }}
               >
-                <TextInput
-                  style={[
-                    styles.inputControl,
-                    {
-                      color: colors.black,
-                      textAlign,
-                      fontFamily: SETTINGS_KURDISH_FONT_BOLD,
-                    },
-                  ]}
-                  keyboardType="numeric"
-                  value={payAmountInput}
-                  onChangeText={setPayAmountInput}
-                  placeholder="0.00"
-                  placeholderTextColor={colors.gray400}
-                />
-                <Text style={[styles.inputCurrency, { color: colors.primary, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                  {isUSD ? 'USD' : 'IQD'}
-                </Text>
-              </View>
-
-              {/* Conversion preview */}
-              {parseFloat(payAmountInput) > 0 && (
-                <Text style={[styles.conversionHint, { color: colors.gray400, textAlign }]}>
-                  {isUSD
-                    ? `≈ ${fmtIQD(parseFloat(payAmountInput || '0') * exchangeRate)} IQD`
-                    : `≈ $${fmtUSD(parseFloat(payAmountInput || '0') / exchangeRate)}`}
-                </Text>
-              )}
-            </View>
-
-            {/* Payment Method Selector */}
-            <View style={{ marginTop: 14 }}>
-              <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
-                {t('installmentList.paymentMethod')}:
-              </Text>
-              <View style={[styles.methodRow, { flexDirection }]}>
-                <TouchableOpacity
-                  style={[
-                    styles.methodBtn,
-                    payMethod === 'cash'
-                      ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                      : {
-                          backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
-                          borderColor: isDark ? colors.gray300 : '#E2E8F0',
-                        },
-                  ]}
-                  onPress={() => setPayMethod('cash')}
-                >
-                  <Ionicons
-                    name="cash-outline"
-                    size={16}
-                    color={payMethod === 'cash' ? '#FFFFFF' : colors.black}
-                  />
-                  <Text
+                {/* Remaining Balance Summary Banner */}
+                {selectedSaleForPay && (
+                  <View
                     style={[
-                      styles.methodBtnText,
+                      styles.modalBanner,
                       {
-                        color: payMethod === 'cash' ? '#FFFFFF' : colors.black,
-                        fontFamily: payMethod === 'cash' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                        backgroundColor: isDark ? 'rgba(239, 68, 68, 0.1)' : '#FEF2F2',
+                        borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : '#FEE2E2',
                       },
                     ]}
                   >
-                    {t('installmentList.cash')}
-                  </Text>
-                </TouchableOpacity>
+                    <View style={{ flexDirection, justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={[styles.modalBannerLabel, { color: '#EF4444', textAlign }]}>
+                        {t('installmentList.remainingDebt')}:
+                      </Text>
+                      <Text style={[styles.modalBannerValue, { color: '#EF4444', fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                        {formatPrimary(selectedSaleForPay.remainingDebt)}
+                      </Text>
+                    </View>
+                  </View>
+                )}
 
-                <TouchableOpacity
-                  style={[
-                    styles.methodBtn,
-                    payMethod === 'fib'
-                      ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                      : {
-                          backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
-                          borderColor: isDark ? colors.gray300 : '#E2E8F0',
-                        },
-                  ]}
-                  onPress={() => setPayMethod('fib')}
-                >
-                  <Ionicons
-                    name="card-outline"
-                    size={16}
-                    color={payMethod === 'fib' ? '#FFFFFF' : colors.black}
-                  />
-                  <Text
-                    style={[
-                      styles.methodBtnText,
-                      {
-                        color: payMethod === 'fib' ? '#FFFFFF' : colors.black,
-                        fontFamily: payMethod === 'fib' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
-                      },
-                    ]}
-                  >
-                    {t('installmentList.fib')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Optional Note */}
-            <View style={{ marginTop: 14 }}>
-              <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
-                {t('installmentList.note')}:
-              </Text>
-              <TextInput
-                style={[
-                  styles.noteInput,
-                  {
-                    backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
-                    borderColor: isDark ? colors.gray300 : '#E2E8F0',
-                    color: colors.black,
-                    textAlign,
-                    fontFamily: SETTINGS_KURDISH_FONT,
-                  },
-                ]}
-                placeholder={t('installmentList.notePlaceholder')}
-                placeholderTextColor={colors.gray400}
-                value={payNote}
-                onChangeText={setPayNote}
-              />
-            </View>
-
-            {/* Paper Size for Payment Receipt (4 Formats) */}
-            <View style={{ marginTop: 14 }}>
-              <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
-                جۆری وەسڵی چاپکردن (٤ قەبارە):
-              </Text>
-              <View style={[styles.methodRow, { flexDirection, gap: 6 }]}>
-                {(['80mm', '58mm', '110mm', 'A4'] as DebtReceiptPaperSize[]).map((size) => {
-                  const isSelected = payReceiptPaperSize === size;
-                  return (
+                {/* Quick Amount Selector Pills */}
+                {selectedSaleForPay && (
+                  <View style={[styles.quickAmountRow, { flexDirection }]}>
+                    {/* 1 Month */}
                     <TouchableOpacity
-                      key={size}
+                      style={[
+                        styles.quickPill,
+                        {
+                          backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                          borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                        },
+                      ]}
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        const amtIQD = Math.min(selectedSaleForPay.installmentMonthlyAmount, selectedSaleForPay.remainingDebt);
+                        const inCurr = isUSD ? amtIQD / exchangeRate : amtIQD;
+                        setPayAmountInput(isUSD ? inCurr.toFixed(2) : String(Math.round(inCurr)));
+                      }}
+                    >
+                      <Text style={[styles.quickPillText, { color: colors.black }]}>
+                        {t('installmentList.payOneMonth')} ({formatPrimary(selectedSaleForPay.installmentMonthlyAmount)})
+                      </Text>
+                    </TouchableOpacity>
+
+                    {/* Full Remaining */}
+                    <TouchableOpacity
+                      style={[
+                        styles.quickPill,
+                        {
+                          backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                          borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                        },
+                      ]}
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        const inCurr = isUSD
+                          ? selectedSaleForPay.remainingDebt / exchangeRate
+                          : selectedSaleForPay.remainingDebt;
+                        setPayAmountInput(isUSD ? inCurr.toFixed(2) : String(Math.round(inCurr)));
+                      }}
+                    >
+                      <Text style={[styles.quickPillText, { color: colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                        {t('installmentList.payFullRemaining')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Amount Input */}
+                <View style={{ marginTop: 10 }}>
+                  <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
+                    {t('installmentList.paymentAmount')} ({isUSD ? 'USD' : 'IQD'}):
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputBox,
+                      {
+                        backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                        borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                        flexDirection,
+                      },
+                    ]}
+                  >
+                    <TextInput
+                      style={[
+                        styles.inputControl,
+                        {
+                          color: colors.black,
+                          textAlign,
+                          fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                        },
+                      ]}
+                      keyboardType="numeric"
+                      value={payAmountInput}
+                      onChangeText={setPayAmountInput}
+                      placeholder="0.00"
+                      placeholderTextColor={colors.gray400}
+                    />
+                    <Text style={[styles.inputCurrency, { color: colors.primary, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                      {isUSD ? 'USD' : 'IQD'}
+                    </Text>
+                  </View>
+
+                  {/* Conversion preview */}
+                  {parseFloat(payAmountInput) > 0 && (
+                    <Text style={[styles.conversionHint, { color: colors.gray400, textAlign }]}>
+                      {isUSD
+                        ? `≈ ${fmtIQD(parseFloat(payAmountInput || '0') * exchangeRate)} IQD`
+                        : `≈ $${fmtUSD(parseFloat(payAmountInput || '0') / exchangeRate)}`}
+                    </Text>
+                  )}
+                </View>
+
+                {/* Payment Method Selector */}
+                <View style={{ marginTop: 12 }}>
+                  <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
+                    {t('installmentList.paymentMethod')}:
+                  </Text>
+                  <View style={[styles.methodRow, { flexDirection }]}>
+                    <TouchableOpacity
                       style={[
                         styles.methodBtn,
-                        isSelected
-                          ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                        payMethod === 'cash'
+                          ? { backgroundColor: isDark ? colors.primary : '#1E293B', borderColor: isDark ? colors.primary : '#1E293B' }
                           : {
                               backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
                               borderColor: isDark ? colors.gray300 : '#E2E8F0',
                             },
                       ]}
-                      onPress={() => setPayReceiptPaperSize(size)}
+                      onPress={() => setPayMethod('cash')}
                     >
+                      <Ionicons
+                        name="cash-outline"
+                        size={16}
+                        color={payMethod === 'cash' ? '#FFFFFF' : colors.black}
+                      />
                       <Text
                         style={[
                           styles.methodBtnText,
                           {
-                            color: isSelected ? '#FFFFFF' : colors.black,
-                            fontFamily: isSelected ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                            color: payMethod === 'cash' ? '#FFFFFF' : colors.black,
+                            fontFamily: payMethod === 'cash' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
                           },
                         ]}
                       >
-                        {size === 'A4' ? 'A4' : size}
+                        {t('installmentList.cash')}
                       </Text>
                     </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
 
-            {/* Confirm Payment Action Button */}
-            <TouchableOpacity
-              style={[
-                styles.confirmPayBtn,
-                {
-                  backgroundColor: colors.primary,
-                  opacity: isSubmittingPayment ? 0.6 : 1,
-                },
-              ]}
-              onPress={handleConfirmPayment}
-              disabled={isSubmittingPayment}
-              activeOpacity={0.8}
-            >
-              {isSubmittingPayment ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="print" size={18} color="#FFFFFF" />
-                  <Text style={[styles.confirmPayBtnText, { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    تەواوکردن و چاپکردنی وەسڵ ({payReceiptPaperSize})
+                    <TouchableOpacity
+                      style={[
+                        styles.methodBtn,
+                        payMethod === 'fib'
+                          ? { backgroundColor: isDark ? colors.primary : '#1E293B', borderColor: isDark ? colors.primary : '#1E293B' }
+                          : {
+                              backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                              borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                            },
+                      ]}
+                      onPress={() => setPayMethod('fib')}
+                    >
+                      <Ionicons
+                        name="card-outline"
+                        size={16}
+                        color={payMethod === 'fib' ? '#FFFFFF' : colors.black}
+                      />
+                      <Text
+                        style={[
+                          styles.methodBtnText,
+                          {
+                            color: payMethod === 'fib' ? '#FFFFFF' : colors.black,
+                            fontFamily: payMethod === 'fib' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                          },
+                        ]}
+                      >
+                        {t('installmentList.fib')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Optional Note */}
+                <View style={{ marginTop: 12 }}>
+                  <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
+                    {t('installmentList.note')}:
                   </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </Pressable>
+                  <TextInput
+                    style={[
+                      styles.noteInput,
+                      {
+                        backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                        borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                        color: colors.black,
+                        textAlign,
+                        fontFamily: SETTINGS_KURDISH_FONT,
+                      },
+                    ]}
+                    placeholder={t('installmentList.notePlaceholder')}
+                    placeholderTextColor={colors.gray400}
+                    value={payNote}
+                    onChangeText={setPayNote}
+                  />
+                </View>
+
+                {/* Paper Size for Payment Receipt (4 Formats) */}
+                <View style={{ marginTop: 12 }}>
+                  <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
+                    جۆری وەسڵی چاپکردن (٤ قەبارە):
+                  </Text>
+                  <View style={[styles.methodRow, { flexDirection, gap: 6 }]}>
+                    {(['80mm', '58mm', '110mm', 'A4'] as DebtReceiptPaperSize[]).map((size) => {
+                      const isSelected = payReceiptPaperSize === size;
+                      return (
+                        <TouchableOpacity
+                          key={size}
+                          style={[
+                            styles.methodBtn,
+                            isSelected
+                              ? { backgroundColor: isDark ? colors.primary : '#1E293B', borderColor: isDark ? colors.primary : '#1E293B' }
+                              : {
+                                  backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                                  borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                                },
+                          ]}
+                          onPress={() => setPayReceiptPaperSize(size)}
+                        >
+                          <Text
+                            style={[
+                              styles.methodBtnText,
+                              {
+                                color: isSelected ? '#FFFFFF' : colors.black,
+                                fontFamily: isSelected ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                              },
+                            ]}
+                          >
+                            {size === 'A4' ? 'A4' : size}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* ── Fixed Footer Action Buttons: 1. Normal Complete | 2. Complete & Print ── */}
+              <View style={[styles.payActionsRow, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, marginTop: 14 }]}>
+                {/* 1. Normal Complete (Without Printing) */}
+                <TouchableOpacity
+                  style={[
+                    styles.normalPayBtn,
+                    {
+                      backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                      borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                      opacity: isSubmittingPayment ? 0.6 : 1,
+                    },
+                  ]}
+                  onPress={() => handleConfirmPayment(false)}
+                  disabled={isSubmittingPayment}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="checkmark-circle-outline" size={18} color={isDark ? '#FFFFFF' : '#0F172A'} />
+                  <Text
+                    style={[
+                      styles.normalPayBtnText,
+                      {
+                        color: isDark ? '#FFFFFF' : '#0F172A',
+                        fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    تەواوکردنی ئاسایی
+                  </Text>
+                </TouchableOpacity>
+
+                {/* 2. Complete & Print */}
+                <TouchableOpacity
+                  style={[
+                    styles.printPayBtn,
+                    {
+                      backgroundColor: isDark ? colors.primary : '#1E293B',
+                      opacity: isSubmittingPayment ? 0.6 : 1,
+                    },
+                  ]}
+                  onPress={() => handleConfirmPayment(true)}
+                  disabled={isSubmittingPayment}
+                  activeOpacity={0.8}
+                >
+                  {isSubmittingPayment ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="print-outline" size={17} color="#FFFFFF" />
+                      <Text
+                        style={[
+                          styles.printPayBtnText,
+                          {
+                            color: '#FFFFFF',
+                            fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        تەواوکردن و چاپ ({payReceiptPaperSize})
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
 
-      {/* ── Month-by-Month Schedule Modal ── */}
+      {/* ── Month-by-Month Schedule Modal (Centered) ── */}
       <Modal
         visible={scheduleModalVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
         onRequestClose={() => setScheduleModalVisible(false)}
       >
@@ -2381,19 +2437,26 @@ const styles = StyleSheet.create({
   actionBtnText: {
     fontSize: 12.5,
   },
-  // ── Modals ──
+  // ── Modals (Centered Dialog Style) ──
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
   },
   modalCard: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    width: '100%',
+    maxWidth: 440,
+    borderRadius: 22,
     borderWidth: 1,
-    borderBottomWidth: 0,
     padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 8,
   },
   modalHeader: {
     justifyContent: 'space-between',
@@ -2482,6 +2545,42 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
+    fontSize: 13,
+  },
+  payActionsRow: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  normalPayBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+  },
+  normalPayBtnText: {
+    fontSize: 13,
+  },
+  printPayBtn: {
+    flex: 1.35,
+    height: 44,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  printPayBtnText: {
     fontSize: 13,
   },
   confirmPayBtn: {
