@@ -106,6 +106,8 @@ export default function InstallmentsScreen() {
   // Payment Modal State
   const [payModalVisible, setPayModalVisible] = useState(false);
   const [selectedSaleForPay, setSelectedSaleForPay] = useState<InstallmentSaleRow | null>(null);
+  const [payMode, setPayMode] = useState<'monthly' | 'custom'>('monthly');
+  const [payCurrentTime, setPayCurrentTime] = useState<Date>(new Date());
   const [payAmountInput, setPayAmountInput] = useState('');
   const [payMethod, setPayMethod] = useState<'cash' | 'fib'>('cash');
   const [payNote, setPayNote] = useState('');
@@ -308,16 +310,34 @@ export default function InstallmentsScreen() {
     setQuery('');
   };
 
-  // Open Payment Modal
-  const openPayModal = (item: InstallmentSaleRow, presetAmount?: number) => {
+  // Real-time formatted date and time for custom payments
+  const formattedRealTime = useMemo(() => {
+    const d = payCurrentTime || new Date();
+    const dateStr = formatDate(d.toISOString());
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${dateStr} · ${hours}:${minutes}`;
+  }, [payCurrentTime]);
+
+  // Open Payment Modal (mode: 'monthly' for scheduled installment, 'custom' for other payment / settle all)
+  const openPayModal = (item: InstallmentSaleRow, mode: 'monthly' | 'custom' = 'monthly') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedSaleForPay(item);
-    const initialAmtIQD = presetAmount !== undefined ? presetAmount : item.installmentMonthlyAmount;
-    const clampedAmtIQD = Math.min(initialAmtIQD, item.remainingDebt);
-    const inCurrency = isUSD ? clampedAmtIQD / exchangeRate : clampedAmtIQD;
-    setPayAmountInput(inCurrency > 0 ? (isUSD ? inCurrency.toFixed(2) : String(Math.round(inCurrency))) : '');
+    setPayMode(mode);
+    setPayCurrentTime(new Date());
+
+    if (mode === 'monthly') {
+      const amtIQD = Math.min(item.installmentMonthlyAmount, item.remainingDebt);
+      const inCurrency = isUSD ? amtIQD / exchangeRate : amtIQD;
+      setPayAmountInput(inCurrency > 0 ? (isUSD ? inCurrency.toFixed(2) : String(Math.round(inCurrency))) : '');
+      setPayNote('');
+    } else {
+      // mode === 'custom' (دانەوەی تر: پاکتاوکردن یان هەر بڕێکی دڵخواز)
+      setPayAmountInput('');
+      setPayNote('');
+    }
+
     setPayMethod('cash');
-    setPayNote('');
     setPayModalVisible(true);
   };
 
@@ -339,13 +359,18 @@ export default function InstallmentsScreen() {
       ? selectedSaleForPay.remainingDebt
       : (isUSD ? Math.round(cleanAmount * exchangeRate) : cleanAmount);
 
+    const defaultNote = payMode === 'custom'
+      ? (isFullPayment ? 'سافکردنی تەواوی قەرز' : 'دانەوەی بڕی تر')
+      : undefined;
+    const finalNote = payNote.trim() || defaultNote;
+
     setIsSubmittingPayment(true);
     try {
       const receipt = await recordInstallmentPayment(
         selectedSaleForPay.saleId,
         payAmtIQD,
         payMethod,
-        payNote.trim() || undefined
+        finalNote
       );
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -706,7 +731,7 @@ export default function InstallmentsScreen() {
                   styles.actionBtnBlock,
                   { backgroundColor: isDark ? colors.primary : '#1E293B' },
                 ]}
-                onPress={() => openPayModal(item, item.installmentMonthlyAmount)}
+                onPress={() => openPayModal(item, 'monthly')}
                 activeOpacity={0.8}
               >
                 <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
@@ -722,7 +747,7 @@ export default function InstallmentsScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {/* Pay Custom Amount */}
+              {/* Pay Custom Amount (دانەوەی تر) */}
               <TouchableOpacity
                 style={[
                   styles.actionBtnBlock,
@@ -732,7 +757,7 @@ export default function InstallmentsScreen() {
                     borderWidth: 1,
                   },
                 ]}
-                onPress={() => openPayModal(item, 0)}
+                onPress={() => openPayModal(item, 'custom')}
                 activeOpacity={0.8}
               >
                 <Ionicons name="cash-outline" size={16} color={colors.black} />
@@ -1451,7 +1476,9 @@ export default function InstallmentsScreen() {
               <View style={[styles.modalHeader, { flexDirection }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.modalTitle, { color: colors.black, textAlign, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {t('installmentList.paymentModalTitle')}
+                    {payMode === 'custom'
+                      ? (isKuLanguage ? 'دانەوەی تر (سافکردن / بڕی دڵخواز)' : 'Other Payment / Settle')
+                      : t('installmentList.paymentModalTitle')}
                   </Text>
                   <Text style={[styles.modalSubtitle, { color: colors.gray500, textAlign }]}>
                     {selectedSaleForPay?.customerName} • {selectedSaleForPay?.invoiceNumber}
@@ -1473,6 +1500,30 @@ export default function InstallmentsScreen() {
                 style={{ maxHeight: 380 }}
                 contentContainerStyle={{ paddingBottom: 6 }}
               >
+                {/* Real-time Current Timestamp Indicator for دانەوەی تر */}
+                {payMode === 'custom' && (
+                  <View
+                    style={[
+                      styles.realTimeBadge,
+                      {
+                        backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                        borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                      },
+                    ]}
+                  >
+                    <Ionicons name="time-outline" size={16} color={colors.primary} />
+                    <Text
+                      style={[
+                        styles.realTimeBadgeText,
+                        { color: isDark ? '#FFFFFF' : '#334155', fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {isKuLanguage ? 'بەروار و کاتی پارەدان:' : 'Date & Time:'} {formattedRealTime}
+                    </Text>
+                  </View>
+                )}
+
                 {/* Remaining Balance Summary Banner */}
                 {selectedSaleForPay && (
                   <View
@@ -1497,50 +1548,103 @@ export default function InstallmentsScreen() {
 
                 {/* Quick Amount Selector Pills */}
                 {selectedSaleForPay && (
-                  <View style={[styles.quickAmountRow, { flexDirection }]}>
-                    {/* 1 Month */}
-                    <TouchableOpacity
-                      style={[
-                        styles.quickPill,
-                        {
-                          backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
-                          borderColor: isDark ? colors.gray300 : '#CBD5E1',
-                        },
-                      ]}
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        const amtIQD = Math.min(selectedSaleForPay.installmentMonthlyAmount, selectedSaleForPay.remainingDebt);
-                        const inCurr = isUSD ? amtIQD / exchangeRate : amtIQD;
-                        setPayAmountInput(isUSD ? inCurr.toFixed(2) : String(Math.round(inCurr)));
-                      }}
-                    >
-                      <Text style={[styles.quickPillText, { color: colors.black }]}>
-                        {t('installmentList.payOneMonth')} ({formatPrimary(selectedSaleForPay.installmentMonthlyAmount)})
-                      </Text>
-                    </TouchableOpacity>
+                  payMode === 'custom' ? (
+                    /* In دانەوەی تر: ONLY Real Settle All & Clear (NO مانگانە) */
+                    <View style={[styles.quickAmountRow, { flexDirection }]}>
+                      {/* Settle All (هەمووی ساف بکە) */}
+                      <TouchableOpacity
+                        style={[
+                          styles.quickPill,
+                          {
+                            backgroundColor: isDark ? '#7F1D1D22' : '#FEF2F2',
+                            borderColor: isDark ? '#EF444466' : '#FCA5A5',
+                            flex: 1.4,
+                          },
+                        ]}
+                        onPress={() => {
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                          const inCurr = isUSD
+                            ? selectedSaleForPay.remainingDebt / exchangeRate
+                            : selectedSaleForPay.remainingDebt;
+                          setPayAmountInput(isUSD ? inCurr.toFixed(2) : String(Math.round(inCurr)));
+                          if (!payNote) setPayNote('سافکردنی تەواوی قەرز');
+                        }}
+                      >
+                        <Ionicons name="flash-outline" size={15} color="#EF4444" style={{ marginHorizontal: 4 }} />
+                        <Text style={[styles.quickPillText, { color: '#DC2626', fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                          هەمووی ساف بکە ({formatPrimary(selectedSaleForPay.remainingDebt)})
+                        </Text>
+                      </TouchableOpacity>
 
-                    {/* Full Remaining */}
-                    <TouchableOpacity
-                      style={[
-                        styles.quickPill,
-                        {
-                          backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
-                          borderColor: isDark ? colors.gray300 : '#CBD5E1',
-                        },
-                      ]}
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        const inCurr = isUSD
-                          ? selectedSaleForPay.remainingDebt / exchangeRate
-                          : selectedSaleForPay.remainingDebt;
-                        setPayAmountInput(isUSD ? inCurr.toFixed(2) : String(Math.round(inCurr)));
-                      }}
-                    >
-                      <Text style={[styles.quickPillText, { color: colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                        {t('installmentList.payFullRemaining')}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                      {/* Clear input */}
+                      {payAmountInput.length > 0 && (
+                        <TouchableOpacity
+                          style={[
+                            styles.quickPill,
+                            {
+                              backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                              borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                              flex: 0.6,
+                            },
+                          ]}
+                          onPress={() => {
+                            Haptics.selectionAsync();
+                            setPayAmountInput('');
+                          }}
+                        >
+                          <Text style={[styles.quickPillText, { color: colors.gray600 }]}>
+                            سڕینەوە
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ) : (
+                    /* In دانەوەی مانگانە */
+                    <View style={[styles.quickAmountRow, { flexDirection }]}>
+                      {/* 1 Month */}
+                      <TouchableOpacity
+                        style={[
+                          styles.quickPill,
+                          {
+                            backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                            borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                          },
+                        ]}
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          const amtIQD = Math.min(selectedSaleForPay.installmentMonthlyAmount, selectedSaleForPay.remainingDebt);
+                          const inCurr = isUSD ? amtIQD / exchangeRate : amtIQD;
+                          setPayAmountInput(isUSD ? inCurr.toFixed(2) : String(Math.round(inCurr)));
+                        }}
+                      >
+                        <Text style={[styles.quickPillText, { color: colors.black }]}>
+                          {t('installmentList.payOneMonth')} ({formatPrimary(selectedSaleForPay.installmentMonthlyAmount)})
+                        </Text>
+                      </TouchableOpacity>
+
+                      {/* Full Remaining */}
+                      <TouchableOpacity
+                        style={[
+                          styles.quickPill,
+                          {
+                            backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                            borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                          },
+                        ]}
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          const inCurr = isUSD
+                            ? selectedSaleForPay.remainingDebt / exchangeRate
+                            : selectedSaleForPay.remainingDebt;
+                          setPayAmountInput(isUSD ? inCurr.toFixed(2) : String(Math.round(inCurr)));
+                        }}
+                      >
+                        <Text style={[styles.quickPillText, { color: colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                          {t('installmentList.payFullRemaining')}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )
                 )}
 
                 {/* Amount Input */}
@@ -2484,6 +2588,18 @@ const styles = StyleSheet.create({
   },
   modalBannerValue: {
     fontSize: 16,
+  },
+  realTimeBadge: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  realTimeBadgeText: {
+    fontSize: 12.5,
   },
   quickAmountRow: {
     gap: 8,
