@@ -35,15 +35,27 @@ export function BulkSyncModal({ visible, onClose }: Props) {
   React.useEffect(() => {
     if (visible) {
       // Force refresh subscription and store info on open so new activations reflect instantly
-      useOnlineStoreSubscriptionStore.getState().loadSubscription();
-      useOnlineStoreStore.getState().load();
-      setHideOutOfStock(useOnlineStoreStore.getState().storeInfoFields.hideOutOfStock ?? false);
+      (async () => {
+        try {
+          await Promise.all([
+            useOnlineStoreSubscriptionStore.getState().loadSubscription(),
+            useOnlineStoreStore.getState().load(),
+          ]);
+          setHideOutOfStock(useOnlineStoreStore.getState().storeInfoFields.hideOutOfStock ?? false);
+        } catch {
+          // non-critical
+        }
+      })();
     }
   }, [visible]);
 
   const handleToggleHideOutOfStock = async (val: boolean) => {
     setHideOutOfStock(val);
-    await saveStoreInfo({ hideOutOfStock: val });
+    try {
+      await saveStoreInfo({ hideOutOfStock: val });
+    } catch (err) {
+      console.warn('[BulkSyncModal] Failed to save hideOutOfStock:', err);
+    }
   };
 
   const runBulkToggle = async (enabled: boolean) => {
@@ -113,14 +125,9 @@ export function BulkSyncModal({ visible, onClose }: Props) {
           <SettingSwitch
             icon="eye-off-outline"
             label={t('inventory.bulkSync.hideOutOfStockLabel', 'شاردنەوەی بەرهەمی نەماو لە وێب ستۆر')}
-            sub={
-              !hasActiveSubscription
-                ? t('dashboard.onlineStore.subscriptionRequired')
-                : t('inventory.bulkSync.hideOutOfStockSub', 'ئەگەر بەرهەمێ بڕەکەی تەواو بوو (سفر بوو) لە وێب ستۆرەکە نیشان نادرێت تا دووبارە کڕینەوەی')
-            }
+            sub={t('inventory.bulkSync.hideOutOfStockSub', 'ئەگەر بەرهەمێ بڕەکەی تەواو بوو (سفر بوو) لە وێب ستۆرەکە نیشان نادرێت تا دووبارە کڕینەوەی')}
             value={hideOutOfStock}
             onToggle={handleToggleHideOutOfStock}
-            disabled={!hasActiveSubscription}
           />
 
           {progress && (
