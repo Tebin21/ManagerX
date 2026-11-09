@@ -46,12 +46,12 @@ interface PaperFormatOption {
 const PAPER_OPTIONS: PaperFormatOption[] = [
   {
     id: 'A4',
-    titleKu: 'پەڕەی فەرمی A4',
+    titleKu: 'پەڕەی فۆڕمی A4',
     titleEn: 'Standard A4 Sheet',
-    titleAr: 'ورق رسمي قياسي A4',
-    dimKu: '21 × 29.7 سم',
-    dimEn: '21 × 29.7 cm',
-    dimAr: '21 × 29.7 سم',
+    titleAr: 'ورق قياسي A4',
+    dimKu: '21 × 30 سم',
+    dimEn: '21 × 30 cm',
+    dimAr: '21 × 30 سم',
     descKu: 'چاپکەری ئۆفیس، خشتەی تەواو و لۆگۆ',
     descEn: 'Office printer, full table with logo',
     descAr: 'طابعة مكتبية، جدول كامل مع الشعار',
@@ -136,7 +136,7 @@ export function PrintFormatPickerModal({
 
   if (!visible) return null;
 
-  const modalWidth = isTablet ? 520 : Math.min(width * 0.92, 420);
+  const modalWidth = isTablet ? 520 : Math.min(width * 0.94, 430);
 
   return (
     <Modal
@@ -242,7 +242,9 @@ export function PrintFormatPickerModal({
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT },
               ]}
             >
-              {isKu
+              {isAr
+                ? 'يرجى اختيار أحد أحجام الورق لبدء الطباعة:'
+                : isKu
                 ? 'تکایە یەکێک لە قەبارەکانی کاغەز دیاری بکە بۆ دەستپێکردنی چاپ:'
                 : 'Please choose one of the paper formats to proceed with printing:'}
             </Text>
@@ -291,7 +293,7 @@ export function PrintFormatPickerModal({
 
                   {/* Texts */}
                   <View style={[styles.optTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
-                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <Text
                         style={[
                           styles.optTitle,
@@ -322,10 +324,10 @@ export function PrintFormatPickerModal({
                     </View>
 
                     <Text
-                      numberOfLines={1}
+                      numberOfLines={2}
                       style={[
                         styles.optDesc,
-                        { color: colors.gray400 },
+                        { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' },
                         isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                       ]}
                     >
@@ -498,6 +500,7 @@ const styles = StyleSheet.create({
   },
   optTextWrap: {
     flex: 1,
+    justifyContent: 'center',
   },
   optTitle: {
     fontSize: 13.5,
@@ -505,7 +508,8 @@ const styles = StyleSheet.create({
   },
   optDesc: {
     fontSize: 11,
-    marginTop: 2,
+    lineHeight: 15,
+    marginTop: 2.5,
   },
   badgeRecommended: {
     paddingHorizontal: 6,

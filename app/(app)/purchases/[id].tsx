@@ -22,6 +22,7 @@ import { usePurchaseStore } from '@/store/purchaseStore';
 import { useBusinessStore } from '@/store/businessStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useManagementStore } from '@/store/managementStore';
+import { useLanguageStore } from '@/store/languageStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { getPurchaseById, getPurchaseItemsByPurchaseId, getPurchaseDebtByPurchaseId, incrementPurchaseViewCount, incrementPurchasePrintCount } from '@/lib/sqlite';
 import { sharePurchaseInvoice, directPrintPurchaseInvoice } from '@/lib/generateInvoice';
@@ -69,6 +70,9 @@ export default function PurchaseDetailScreen() {
   const receiptCurrency: ReceiptCurrencyMode = currency === 'usd' || currency === 'both' ? currency : (baseCurrency === 'USD' ? 'usd' : 'iqd');
   const router   = useRouter();
   const { t } = useTranslation();
+  const lang = useLanguageStore(s => s.language);
+  const isKu = lang === 'ku';
+  const isAr = lang === 'ar';
   const { colors, isDark } = useAppTheme();
   const { isTablet, contentContainerStyle } = useResponsive();
   const { isRTL, flexDirection, alignEnd } = useRTL();
@@ -271,19 +275,19 @@ export default function PurchaseDetailScreen() {
       {/* Invoice Stats Bar */}
       <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 6, marginBottom: 8 }}>
         <Text style={{ fontSize: 12, color: colors.gray500 }}>
-          {isRTL ? 'ئاماری پسوڵە:' : 'Invoice Stats:'}
+          {isAr ? 'إحصائيات الفاتورة:' : isKu ? 'ئاماری پسوڵە:' : 'Invoice Stats:'}
         </Text>
         <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12, alignItems: 'center' }}>
           <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
             <Ionicons name="eye-outline" size={13} color={colors.gray500} />
             <Text style={{ fontSize: 12, color: colors.gray600 }}>
-              {isRTL ? `بینین: ${purchase.viewCount || 0} جار` : `Views: ${purchase.viewCount || 0}`}
+              {isAr ? `المشاهدات: ${purchase.viewCount || 0}` : isKu ? `بینین: ${purchase.viewCount || 0} جار` : `Views: ${purchase.viewCount || 0}`}
             </Text>
           </View>
           <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
             <Ionicons name="print-outline" size={13} color={colors.primary} />
             <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '700' }}>
-              {isRTL ? `چاپ: ${purchase.printCount || 0} جار` : `Prints: ${purchase.printCount || 0}`}
+              {isAr ? `الطباعة: ${purchase.printCount || 0}` : isKu ? `چاپ: ${purchase.printCount || 0} جار` : `Prints: ${purchase.printCount || 0}`}
             </Text>
           </View>
         </View>
@@ -406,7 +410,7 @@ export default function PurchaseDetailScreen() {
             >
               <Ionicons name="layers" size={14} color={colors.primary} />
               <Text style={[styles.viewInventoryBtnText, { color: isDark ? '#FDE047' : '#854D0E' }]}>
-                {isRTL ? 'بینینی وەجبەکانی ئەم بەرهەمە لە کۆگا' : 'View Product Batches in Inventory'}
+                {isAr ? 'عرض وجبات هذا المنتج في المخزن' : isKu ? 'بینینی وەجبەکانی ئەم بەرهەمە لە کۆگا' : 'View Product Batches in Inventory'}
               </Text>
               <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={14} color={colors.primary} />
             </TouchableOpacity>
@@ -533,10 +537,12 @@ export default function PurchaseDetailScreen() {
               </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={[styles.invoicesBannerTitle, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}>
-                  {isRTL ? 'چاپکردنی وەسڵ لە بەشی پسوڵەکان' : 'Print Invoice via Invoices Hub'}
+                  {isAr ? 'طباعة الوصل في قسم الفواتير' : isKu ? 'چاپکردنی وەسڵ لە بەشی پسوڵەکان' : 'Print Invoice via Invoices Hub'}
                 </Text>
                 <Text style={[styles.invoicesBannerSub, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
-                  {isRTL
+                  {isAr
+                    ? 'لطباعة أو عرض الوصل في جدول الفواتير، اضغط هنا.'
+                    : isKu
                     ? 'بۆ چاپکردن یان بینینی وەسڵەکە لە خشتەی پسوڵەکان، کلیک لێرە بکە.'
                     : 'To print or view this invoice in Invoices Hub, tap here.'}
                 </Text>
@@ -612,9 +618,9 @@ export default function PurchaseDetailScreen() {
         onConfirm={handleConfirmPrintFormat}
         isPrinting={isPrinting}
         initialPaperSize={useSettingsStore.getState().purchasePaperSizePreference || '80mm'}
-        title={isRTL ? 'قەبارەی چاپی وەسڵی کڕین' : 'Purchase Invoice Paper Size'}
+        title={isAr ? 'حجم طباعة وصل الشراء' : isKu ? 'قەبارەی چاپی وەسڵی کڕین' : 'Purchase Invoice Paper Size'}
         invoiceNumber={purchase.purchaseNumber}
-        partyName={purchase.supplierName || (isRTL ? 'کڕینی ڕاستەوخۆ' : 'Direct Supplier')}
+        partyName={purchase.supplierName || (isAr ? 'شراء مباشر' : isKu ? 'کڕینی ڕاستەوخۆ' : 'Direct Supplier')}
       />
     </View>
   );

@@ -517,29 +517,53 @@ export function buildThermalReceiptHTML(
   }
 
   // ── Financial Totals ──
-  const showUsdOnly = isUsd;
-  const showBoth = currencyMode === 'both';
+  const effectiveMode: ReceiptCurrencyMode = currencyMode || (isUsd ? 'usd' : 'iqd');
+  const showUsdOnly = effectiveMode === 'usd';
+  const showIqdOnly = effectiveMode === 'iqd';
+  const showBoth = effectiveMode === 'both';
 
   const totalUSD = fmtUSD(sale.grandTotal / rate);
   const totalIQD = fmtIQD(sale.grandTotal);
 
+  const usdLabel = ku(isAr ? 'المجموع الكلي (دولار)' : isKu ? 'کۆی گشتی (دۆلار)' : 'Grand Total (USD)');
+  const iqdLabel = ku(isAr ? 'المجموع الكلي (دينار)' : isKu ? 'کۆی گشتی (دینار)' : 'Grand Total (IQD)');
+  const iqdSubLabel = ku(isAr ? 'المجموع الكلي بالدينار:' : isKu ? 'کۆی گشتی بە دینار:' : 'Total in IQD:');
+  const usdSubLabel = ku(isAr ? 'المجموع الكلي بالدولار:' : isKu ? 'کۆی گشتی بە دۆلار:' : 'Total in USD:');
+
   let grandTotalHTML = '';
-  if (showUsdOnly) {
+  if (showUsdOnly || (isUsd && !showBoth && !showIqdOnly)) {
     grandTotalHTML = `
       <div class="grand-total-box">
-        <span class="grand-total-label">${ku(isAr ? 'المجموع الكلي' : isKu ? 'کۆی گشتی' : 'Grand Total')}</span>
-        <span class="grand-total-amount">$${totalUSD}</span>
+        <span class="grand-total-label">${usdLabel}</span>
+        <span class="grand-total-amount">$${totalUSD} USD</span>
       </div>
-      ${showBoth ? `<div class="grand-total-sub">${ku(isAr ? 'المجموع الكلي بالدينار:' : isKu ? 'کۆی گشتی بە دینار:' : 'Total in IQD:')} ${totalIQD}&nbsp;IQD</div>` : ''}
     `;
-  } else {
+  } else if (showIqdOnly || (!isUsd && !showBoth && !showUsdOnly)) {
     grandTotalHTML = `
       <div class="grand-total-box">
-        <span class="grand-total-label">${ku(isAr ? 'المجموع الكلي' : isKu ? 'کۆی گشتی' : 'Grand Total')}</span>
+        <span class="grand-total-label">${iqdLabel}</span>
         <span class="grand-total-amount">${totalIQD}&nbsp;IQD</span>
       </div>
-      ${showBoth ? `<div class="grand-total-sub">${ku(isAr ? 'المجموع الكلي بالدولار:' : isKu ? 'کۆی گشتی بە دۆلار:' : 'Total in USD:')} $${totalUSD}</div>` : ''}
     `;
+  } else {
+    // Both mode:
+    if (isUsd) {
+      grandTotalHTML = `
+        <div class="grand-total-box">
+          <span class="grand-total-label">${usdLabel}</span>
+          <span class="grand-total-amount">$${totalUSD} USD</span>
+        </div>
+        <div class="grand-total-sub">${iqdSubLabel} ${totalIQD}&nbsp;IQD</div>
+      `;
+    } else {
+      grandTotalHTML = `
+        <div class="grand-total-box">
+          <span class="grand-total-label">${iqdLabel}</span>
+          <span class="grand-total-amount">${totalIQD}&nbsp;IQD</span>
+        </div>
+        <div class="grand-total-sub">${usdSubLabel} $${totalUSD} USD</div>
+      `;
+    }
   }
 
   // Payment details
@@ -869,10 +893,61 @@ export function buildThermalPurchaseReceiptHTML(
     <div class="divider-dashed"></div>
 
     <div class="totals-section">
-      <div class="grand-total-row">
-        <span class="grand-total-label">${ku(isPurchaseAr ? 'إجمالي تكلفة الشراء:' : isPurchaseKu ? 'کۆی گشتی کڕین:' : 'Total Cost:')}</span>
-        <span class="grand-total-value">${fmtRow(purchase.totalIQD)}</span>
-      </div>
+      ${(() => {
+        const effectivePurchaseMode: ReceiptCurrencyMode = currencyMode || (isUsd ? 'usd' : 'iqd');
+        const showPurchaseUsdOnly = effectivePurchaseMode === 'usd';
+        const showPurchaseIqdOnly = effectivePurchaseMode === 'iqd';
+        const showPurchaseBoth = effectivePurchaseMode === 'both';
+
+        const totalUSD = fmtUSD(purchase.totalIQD / rate);
+        const totalIQD = fmtIQD(purchase.totalIQD);
+
+        const purchaseUsdLabel = ku(isPurchaseAr ? 'إجمالي تكلفة الشراء (دولار):' : isPurchaseKu ? 'کۆی گشتی کڕین (دۆلار):' : 'Total Cost (USD):');
+        const purchaseIqdLabel = ku(isPurchaseAr ? 'إجمالي تكلفة الشراء (دينار):' : isPurchaseKu ? 'کۆی گشتی کڕین (دینار):' : 'Total Cost (IQD):');
+        const purchaseIqdSubLabel = ku(isPurchaseAr ? 'المجموع الكلي بالدينار:' : isPurchaseKu ? 'کۆی گشتی بە دینار:' : 'Total in IQD:');
+        const purchaseUsdSubLabel = ku(isPurchaseAr ? 'المجموع الكلي بالدولار:' : isPurchaseKu ? 'کۆی گشتی بە دۆلار:' : 'Total in USD:');
+
+        if (showPurchaseUsdOnly || (isUsd && !showPurchaseBoth && !showPurchaseIqdOnly)) {
+          return `
+            <div class="grand-total-row">
+              <span class="grand-total-label">${purchaseUsdLabel}</span>
+              <span class="grand-total-value">$${totalUSD} USD</span>
+            </div>
+          `;
+        } else if (showPurchaseIqdOnly || (!isUsd && !showPurchaseBoth && !showPurchaseUsdOnly)) {
+          return `
+            <div class="grand-total-row">
+              <span class="grand-total-label">${purchaseIqdLabel}</span>
+              <span class="grand-total-value">${totalIQD}&nbsp;IQD</span>
+            </div>
+          `;
+        } else {
+          // Both mode
+          if (isUsd) {
+            return `
+              <div class="grand-total-row">
+                <span class="grand-total-label">${purchaseUsdLabel}</span>
+                <span class="grand-total-value">$${totalUSD} USD</span>
+              </div>
+              <div class="total-row" style="margin-top:2px;">
+                <span class="info-label">${purchaseIqdSubLabel}</span>
+                <span class="info-value">${totalIQD}&nbsp;IQD</span>
+              </div>
+            `;
+          } else {
+            return `
+              <div class="grand-total-row">
+                <span class="grand-total-label">${purchaseIqdLabel}</span>
+                <span class="grand-total-value">${totalIQD}&nbsp;IQD</span>
+              </div>
+              <div class="total-row" style="margin-top:2px;">
+                <span class="info-label">${purchaseUsdSubLabel}</span>
+                <span class="info-value">$${totalUSD} USD</span>
+              </div>
+            `;
+          }
+        }
+      })()}
       ${settings.showPaymentMethod ? `
       <div class="total-row" style="margin-top:4px;">
         <span class="info-label">${ku(isPurchaseAr ? 'حالة الدفع:' : isPurchaseKu ? 'دۆخی پارەدان:' : 'Payment:')}</span>

@@ -46,61 +46,72 @@ function buildGrandTotal(
   const totalUSD = fmtUSD(amountIQD / exchangeRate);
   const totalIQD = fmtIQD(amountIQD);
 
-  const showUsdOnly = !isUsdBase && mode === 'usd';
-  const showIqdOnly = !isUsdBase && mode === 'iqd';
-  const showBoth = !showUsdOnly && !showIqdOnly;
+  const effectiveMode: ReceiptCurrencyMode = mode || (isUsdBase ? 'usd' : 'iqd');
+  const showUsdOnly = effectiveMode === 'usd';
+  const showIqdOnly = effectiveMode === 'iqd';
+  const showBoth = effectiveMode === 'both';
 
   const currentLang = i18n.language || 'ku';
   const isAr = currentLang === 'ar';
   const isKu = currentLang === 'ku';
 
-  const usdLabel = ku(isAr ? 'المجموع الكلي (USD)' : isKu ? 'کۆی گشتی (USD)' : 'Grand Total (USD)');
-  const iqdLabel = ku(isAr ? 'المجموع الكلي (IQD)' : isKu ? 'کۆی گشتی (IQD)' : 'Grand Total (IQD)');
+  const usdLabel = ku(isAr ? 'المجموع الكلي (دولار)' : isKu ? 'کۆی گشتی (دۆلار)' : 'Grand Total (USD)');
+  const iqdLabel = ku(isAr ? 'المجموع الكلي (دينار)' : isKu ? 'کۆی گشتی (دینار)' : 'Grand Total (IQD)');
   const iqdSubLabel = ku(isAr ? 'المجموع بالدينار' : isKu ? 'کۆی گشتی بە دینار' : 'Total in IQD');
   const usdSubLabel = ku(isAr ? 'المجموع بالدولار' : isKu ? 'کۆی گشتی بە دۆلار' : 'Total in USD');
 
+  if (showUsdOnly || (isUsdBase && !showBoth && !showIqdOnly)) {
+    const totalBlock = `
+      <div class="total-block">
+        <div class="total-row primary">
+          <span class="total-label">${usdLabel}</span>
+          <span class="total-amount en-num" dir="ltr">$${totalUSD} USD</span>
+        </div>
+      </div>`;
+    return { totalBlock, usdCard: '' };
+  }
+
+  if (showIqdOnly || (!isUsdBase && !showBoth && !showUsdOnly)) {
+    const totalBlock = `
+      <div class="total-block">
+        <div class="total-row primary">
+          <span class="total-label">${iqdLabel}</span>
+          <span class="total-amount en-num" dir="ltr">${totalIQD}&nbsp;IQD</span>
+        </div>
+      </div>`;
+    return { totalBlock, usdCard: '' };
+  }
+
+  // showBoth is true:
   if (isUsdBase) {
     const totalBlock = `
       <div class="total-block">
         <div class="total-row primary">
           <span class="total-label">${usdLabel}</span>
-          <span class="total-amount en-num" dir="ltr">$${totalUSD}</span>
+          <span class="total-amount en-num" dir="ltr">$${totalUSD} USD</span>
         </div>
-        ${showBoth ? `
         <div class="total-divider"></div>
         <div class="total-row secondary">
           <span class="total-sub-label">${iqdSubLabel}</span>
           <span class="total-sub-amount en-num" dir="ltr">${totalIQD}&nbsp;IQD</span>
-        </div>` : ''}
+        </div>
       </div>`;
     return { totalBlock, usdCard: '' };
-  }
-
-  if (showUsdOnly) {
+  } else {
     const totalBlock = `
       <div class="total-block">
         <div class="total-row primary">
-          <span class="total-label">${usdLabel}</span>
-          <span class="total-amount en-num" dir="ltr">$${totalUSD}</span>
+          <span class="total-label">${iqdLabel}</span>
+          <span class="total-amount en-num" dir="ltr">${totalIQD}&nbsp;IQD</span>
+        </div>
+        <div class="total-divider"></div>
+        <div class="total-row secondary">
+          <span class="total-sub-label">${usdSubLabel}</span>
+          <span class="total-sub-amount en-num" dir="ltr">$${totalUSD} USD</span>
         </div>
       </div>`;
     return { totalBlock, usdCard: '' };
   }
-
-  const totalBlock = `
-    <div class="total-block">
-      <div class="total-row primary">
-        <span class="total-label">${iqdLabel}</span>
-        <span class="total-amount en-num" dir="ltr">${totalIQD}&nbsp;IQD</span>
-      </div>
-      ${showBoth ? `
-      <div class="total-divider"></div>
-      <div class="total-row secondary">
-        <span class="total-sub-label">${usdSubLabel}</span>
-        <span class="total-sub-amount en-num" dir="ltr">$${totalUSD}</span>
-      </div>` : ''}
-    </div>`;
-  return { totalBlock, usdCard: '' };
 }
 
 // ─── Sales Invoice CSS ────────────────────────────────────────────────────────
@@ -1286,6 +1297,64 @@ export function buildPurchaseInvoiceHTML(
   const remainingAmount = purchaseDebt?.remainingAmount ?? (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib' ? 0 : Math.max(0, purchase.totalIQD - paidAmount));
   const subtotalUSD = effectiveExchangeRate > 0 ? (purchase.totalIQD / effectiveExchangeRate) : 0;
 
+  const effectivePurchaseMode: ReceiptCurrencyMode = currencyMode || (isUsdBase ? 'usd' : 'iqd');
+  const showPurchaseUsdOnly = effectivePurchaseMode === 'usd';
+  const showPurchaseIqdOnly = effectivePurchaseMode === 'iqd';
+  const showPurchaseBoth = effectivePurchaseMode === 'both';
+
+  const purchaseUsdLabel = ku(isPurchaseAr ? 'إجمالي تكلفة الشراء (دولار)' : isPurchaseKu ? 'کۆی گشتی کڕین (دۆلار)' : 'Total Cost (USD)');
+  const purchaseIqdLabel = ku(isPurchaseAr ? 'إجمالي تكلفة الشراء (دينار)' : isPurchaseKu ? 'کۆی گشتی کڕین (دینار)' : 'Total Cost (IQD)');
+  const purchaseIqdSubLabel = ku(isPurchaseAr ? 'المجموع الكلي بالدينار' : isPurchaseKu ? 'کۆی گشتی بە دینار' : 'Total in IQD');
+  const purchaseUsdSubLabel = ku(isPurchaseAr ? 'المجموع الكلي بالدولار' : isPurchaseKu ? 'کۆی گشتی بە دۆلار' : 'Total in USD');
+
+  let purchaseTotalBlock = '';
+  if (showPurchaseUsdOnly || (isUsdBase && !showPurchaseBoth && !showPurchaseIqdOnly)) {
+    purchaseTotalBlock = `
+      <div class="total-block">
+        <div class="total-row">
+          <span class="total-label">${purchaseUsdLabel}</span>
+          <span class="total-amount en-num" dir="ltr">$${fmtUSD(subtotalUSD)} USD</span>
+        </div>
+      </div>`;
+  } else if (showPurchaseIqdOnly || (!isUsdBase && !showPurchaseBoth && !showPurchaseUsdOnly)) {
+    purchaseTotalBlock = `
+      <div class="total-block">
+        <div class="total-row">
+          <span class="total-label">${purchaseIqdLabel}</span>
+          <span class="total-amount en-num" dir="ltr">${fmtIQD(purchase.totalIQD)} IQD</span>
+        </div>
+      </div>`;
+  } else {
+    // Both mode:
+    if (isUsdBase) {
+      purchaseTotalBlock = `
+        <div class="total-block">
+          <div class="total-row">
+            <span class="total-label">${purchaseUsdLabel}</span>
+            <span class="total-amount en-num" dir="ltr">$${fmtUSD(subtotalUSD)} USD</span>
+          </div>
+          <div class="total-divider"></div>
+          <div class="total-row">
+            <span class="total-sub-label">${purchaseIqdSubLabel}</span>
+            <span class="total-sub-amount en-num" dir="ltr">${fmtIQD(purchase.totalIQD)} IQD</span>
+          </div>
+        </div>`;
+    } else {
+      purchaseTotalBlock = `
+        <div class="total-block">
+          <div class="total-row">
+            <span class="total-label">${purchaseIqdLabel}</span>
+            <span class="total-amount en-num" dir="ltr">${fmtIQD(purchase.totalIQD)} IQD</span>
+          </div>
+          <div class="total-divider"></div>
+          <div class="total-row">
+            <span class="total-sub-label">${purchaseUsdSubLabel}</span>
+            <span class="total-sub-amount en-num" dir="ltr">$${fmtUSD(subtotalUSD)} USD</span>
+          </div>
+        </div>`;
+    }
+  }
+
   const financialCard = `
     <div class="card">
       <div class="card-label">${ku(isPurchaseAr ? 'ملخص الشراء المالي' : isPurchaseKu ? 'پوختەی دارایی کڕین' : 'PURCHASE SUMMARY')}</div>
@@ -1293,17 +1362,7 @@ export function buildPurchaseInvoiceHTML(
         <span>${ku(isPurchaseAr ? 'إجمالي التكلفة:' : isPurchaseKu ? 'کۆی تێچوو:' : 'Subtotal:')}</span>
         <span class="fin-amount en-num" dir="ltr">${fmtRow(purchase.totalIQD)}</span>
       </div>
-      <div class="total-block">
-        <div class="total-row">
-          <span class="total-label">${ku(isPurchaseAr ? 'إجمالي تكلفة الشراء (IQD)' : isPurchaseKu ? 'کۆی گشتی کڕین' : 'Total Cost (IQD)')}</span>
-          <span class="total-amount en-num" dir="ltr">${fmtIQD(purchase.totalIQD)} IQD</span>
-        </div>
-        <div class="total-divider"></div>
-        <div class="total-row">
-          <span class="total-sub-label">${ku(isPurchaseAr ? 'المجموع الكلي بالدولار' : isPurchaseKu ? 'کۆی گشتی بە دۆلار' : 'Total in USD')}</span>
-          <span class="total-sub-amount en-num" dir="ltr">$${fmtUSD(subtotalUSD)} USD</span>
-        </div>
-      </div>
+      ${purchaseTotalBlock}
       ${purchaseSettings.showPaymentMethod ? `
       <div class="fin-row" style="margin-top:3px;">
         <span>${ku(isPurchaseAr ? 'طريقة السداد:' : isPurchaseKu ? 'شێوازی دران:' : 'Payment:')}</span>

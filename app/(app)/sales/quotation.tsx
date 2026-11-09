@@ -75,6 +75,7 @@ export default function SalesQuotationScreen() {
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const insets = useSafeAreaInsets();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isAr = useLanguageStore((s) => s.language === 'ar');
 
   const inventory = useInventoryStore();
   const business = useBusinessStore();
@@ -2596,9 +2597,9 @@ export default function SalesQuotationScreen() {
         onConfirm={handleConfirmPrintFormat}
         isPrinting={isGenerating}
         initialPaperSize={useSettingsStore.getState().quotationPaperSizePreference || '80mm'}
-        title={isKuLanguage ? 'قەبارەی چاپی وەسڵی عەرز' : 'Quotation Invoice Paper Size'}
+        title={isAr ? 'حجم طباعة عرض السعر' : isKuLanguage ? 'قەبارەی چاپی وەسڵی عەرز' : 'Quotation Invoice Paper Size'}
         invoiceNumber={quoteToPrint?.quotationNumber || generatedQuotation?.quotationNumber}
-        partyName={quoteToPrint?.customerName || generatedQuotation?.customerName || (isKuLanguage ? 'کڕیاری دیارینەکراو' : 'Customer')}
+        partyName={quoteToPrint?.customerName || generatedQuotation?.customerName || (isAr ? 'زبون عام' : isKuLanguage ? 'کڕیاری دیارینەکراو' : 'Customer')}
       />
     </View>
   );

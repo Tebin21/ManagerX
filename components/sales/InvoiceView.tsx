@@ -55,7 +55,9 @@ export function InvoiceView({ sale, compact = false, currencyMode }: Props) {
   const tableScrollRef = useRef<ScrollView>(null);
 
   const baseCurrency = useSettingsStore(s => s.baseCurrency) || 'IQD';
-  const isUSD = currencyMode ? currencyMode === 'usd' : baseCurrency === 'USD';
+  const effectiveMode: ReceiptCurrencyMode = currencyMode || (baseCurrency === 'USD' ? 'usd' : 'iqd');
+  const isUSD = effectiveMode === 'usd' || (effectiveMode === 'both' && baseCurrency === 'USD');
+  const isBoth = effectiveMode === 'both';
 
   const items = sale.items ?? [];
   const status = getPaymentStatus(sale);
@@ -81,17 +83,17 @@ export function InvoiceView({ sale, compact = false, currencyMode }: Props) {
 
   const fmtMoney = (val: number) => {
     if (isUSD) {
-      return `$${fmtUSD(val / exchangeRate)}`;
+      return `$${fmtUSD(val / exchangeRate)} USD`;
     }
-    return fmtIQD(val);
+    return `${fmtIQD(val)} IQD`;
   };
 
   const fmtDiscount = (val: number) => {
     if (val <= 0) return '—';
     if (isUSD) {
-      return `−$${fmtUSD(val / exchangeRate)}`;
+      return `−$${fmtUSD(val / exchangeRate)} USD`;
     }
-    return `−${fmtIQD(val)}`;
+    return `−${fmtIQD(val)} IQD`;
   };
 
   // Kurdish section titles read heavier in RudawRegular than the same weight does in
@@ -287,9 +289,27 @@ export function InvoiceView({ sale, compact = false, currencyMode }: Props) {
           </View>
         )}
         <View style={[styles.grandRow, { flexDirection, borderTopColor: colors.gray200 }]}>
-          <Text style={[styles.grandLabel, { color: colors.black, textAlign, writingDirection }]}>{t('invoicePreview.grandTotal')}</Text>
-          <Text style={[styles.grandValue, { color: colors.black, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtMoney(sale.grandTotal)}</Text>
+          <Text style={[styles.grandLabel, { color: colors.black, textAlign, writingDirection }]}>
+            {isUSD
+              ? (isAr ? 'المجموع الكلي (دولار)' : isKuLanguage ? 'کۆی گشتی (دۆلار)' : 'Grand Total (USD)')
+              : (isAr ? 'المجموع الكلي (دينار)' : isKuLanguage ? 'کۆی گشتی (دینار)' : 'Grand Total (IQD)')}
+          </Text>
+          <Text style={[styles.grandValue, { color: colors.black, textAlign: valueAlign, writingDirection: 'ltr' }]}>
+            {isUSD ? `$${fmtUSD(sale.grandTotal / exchangeRate)} USD` : `${fmtIQD(sale.grandTotal)} IQD`}
+          </Text>
         </View>
+        {isBoth && (
+          <View style={[styles.totalRow, { flexDirection, marginTop: -4, paddingBottom: 6 }]}>
+            <Text style={[styles.totalLabel, { color: colors.gray500, fontSize: 12, textAlign, writingDirection }]}>
+              {isUSD
+                ? (isAr ? 'المجموع بالدينار' : isKuLanguage ? 'کۆی گشتی بە دینار' : 'Total in IQD')
+                : (isAr ? 'المجموع بالدولار' : isKuLanguage ? 'کۆی گشتی بە دۆلار' : 'Total in USD')}
+            </Text>
+            <Text style={[styles.totalValue, { color: colors.primary, fontSize: 13, fontWeight: '700', textAlign: valueAlign, writingDirection: 'ltr' }]}>
+              {isUSD ? `${fmtIQD(sale.grandTotal)} IQD` : `$${fmtUSD(sale.grandTotal / exchangeRate)} USD`}
+            </Text>
+          </View>
+        )}
         {sale.paymentMethod === 'debt' && (
           <>
             {sale.paidAmount > 0 && (
