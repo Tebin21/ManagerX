@@ -36,7 +36,7 @@ function ProductGridCardImpl({ product, onPress, isLowStock: isLowStockProp }: P
   const threshold = product.lowStockThreshold ?? 3;
   const isLowStockLocal = product.isActive && product.quantity > 0 && product.quantity <= threshold;
   const isLowStock = isLowStockProp ?? isLowStockLocal;
-  const isSold = !product.isActive || (product.idMode === 'unique' && product.quantity === 0);
+  const isSold = !product.isActive || product.quantity <= 0;
 
   const categoryName = i18n.t(`purchases.categories.${product.category}`, {
     defaultValue: product.category,

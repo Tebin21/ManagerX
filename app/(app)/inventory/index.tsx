@@ -112,7 +112,7 @@ export default function InventoryScreen() {
   const isAr = currentLang === 'ar';
   const isKuOrAr = isKuLanguage || isAr;
 
-  const params = useLocalSearchParams<{ tab?: string }>();
+  const params = useLocalSearchParams<{ tab?: string; filter?: StockStatusFilter }>();
 
   // Navigation Tab: 'report' MUST ALWAYS BE DEFAULT on open as requested unless tab param specified!
   const [activeNavTab, setActiveNavTab] = useState<InventoryNavTab>(params.tab === 'products' ? 'products' : 'report');
@@ -126,7 +126,10 @@ export default function InventoryScreen() {
       } else {
         setActiveNavTab('report');
       }
-    }, [params.tab, loadInventory, loadManagedCategories])
+      if (params.filter) {
+        setStockStatusFilter(params.filter);
+      }
+    }, [params.tab, params.filter, loadInventory, loadManagedCategories])
   );
 
   const activeTabTextColor = useMemo(() => {
@@ -285,7 +288,7 @@ export default function InventoryScreen() {
 
   const handleOutOfStockReport = useCallback(() => {
     setReportModalVisible(false);
-    const outOfStockProducts = products.filter((p) => p.isActive && p.quantity === 0);
+    const outOfStockProducts = products.filter((p) => !p.isActive || p.quantity <= 0);
     if (outOfStockProducts.length === 0) {
       Alert.alert(t('inventory.noOutOfStockProducts'), t('inventory.noOutOfStockProductsDetail'));
       return;
@@ -513,13 +516,13 @@ export default function InventoryScreen() {
 
     // 3. Stock Status Filter
     if (stockStatusFilter === 'inStock') {
-      list = list.filter((p) => p.quantity > 0);
+      list = list.filter((p) => p.isActive && p.quantity > 0);
     } else if (stockStatusFilter === 'lowStock') {
       list = list.filter((p) =>
         computeProductLowStock(p, globalLowStockEnabled, globalLowStockThreshold)
       );
     } else if (stockStatusFilter === 'outOfStock') {
-      list = list.filter((p) => p.isActive && p.quantity === 0);
+      list = list.filter((p) => !p.isActive || p.quantity <= 0);
     } else if (stockStatusFilter === 'paid') {
       list = list.filter((p) => p.paymentStatus === 'paid');
     } else if (stockStatusFilter === 'debt') {

@@ -114,7 +114,7 @@ export function InventoryReportView({
   }, [filteredProducts, globalLowStockEnabled, globalLowStockThreshold]);
 
   const outOfStockProducts = useMemo(() => {
-    return filteredProducts.filter((p) => p.isActive && p.quantity === 0);
+    return filteredProducts.filter((p) => !p.isActive || p.quantity <= 0);
   }, [filteredProducts]);
 
   const suppliersCount = useMemo(() => {

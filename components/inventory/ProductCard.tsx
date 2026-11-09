@@ -35,7 +35,7 @@ function ProductCardImpl({ product, onPress, isLowStock: isLowStockProp }: Props
   const threshold = product.lowStockThreshold ?? 3;
   const isLowStockLocal = product.isActive && product.quantity > 0 && product.quantity <= threshold;
   const isLowStock = isLowStockProp ?? isLowStockLocal;
-  const isSold = !product.isActive || (product.idMode === 'unique' && product.quantity === 0);
+  const isSold = !product.isActive || product.quantity <= 0;
 
   // Translate category name via purchases.categories map with fallback
   const categoryName = i18n.t(`purchases.categories.${product.category}`, {
@@ -234,9 +234,13 @@ function getStyles(colors: AppColors, isDark: boolean, isTablet: boolean, isTabl
       paddingHorizontal: isTabletLandscape ? 14 : isTablet ? 12 : 10,
       paddingVertical: isTabletLandscape ? 7 : isTablet ? 6 : 4,
     },
-    qtyBadgeSold: { backgroundColor: colors.gray100 },
+    qtyBadgeSold: {
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.12)',
+      borderWidth: 1,
+      borderColor: colors.error,
+    },
     qtyText:   { fontSize: isTabletLandscape ? 20 : isTablet ? 18 : 16, fontWeight: '800' },
-    qtyTextSold: { color: colors.gray500, fontSize: isTabletLandscape ? 16 : isTablet ? 15 : 13, fontWeight: '600' },
+    qtyTextSold: { color: colors.error, fontSize: isTabletLandscape ? 16 : isTablet ? 15 : 13, fontWeight: '700' },
     qtyUnit:  { fontSize: isTabletLandscape ? 14 : isTablet ? 13 : 11, fontWeight: '500' },
 
     priceRow: {

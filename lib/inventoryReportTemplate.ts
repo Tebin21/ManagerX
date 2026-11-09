@@ -73,7 +73,7 @@ export function buildInventoryReportHTML(
     : '';
 
   const rows = products.map((p) => {
-    const isSold = !p.isActive || (p.idMode === 'unique' && p.quantity === 0);
+    const isSold = !p.isActive || p.quantity <= 0;
     const isLow  = p.isActive && p.quantity <= 3 && !isSold;
     const value  = fmtMoney(p.purchasePrice * p.quantity);
 

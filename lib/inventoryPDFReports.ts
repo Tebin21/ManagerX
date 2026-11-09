@@ -435,7 +435,7 @@ export function buildFullInventoryReportHTML(
   };
 
   const rows = products.map((p) => {
-    const isSold = !p.isActive || (p.idMode === 'unique' && p.quantity === 0);
+    const isSold = !p.isActive || p.quantity <= 0;
     const isLow  = !isSold && lowStockIds.has(p.id);
     const totalVal = fmtMoney(p.purchasePrice * p.quantity);
 
@@ -753,7 +753,7 @@ export function buildCategoryReportHTML(
 
   const rows = products.map((p) => {
     const val = fmtMoney(p.purchasePrice * p.quantity);
-    const isSold = !p.isActive || (p.idMode === 'unique' && p.quantity === 0);
+    const isSold = !p.isActive || p.quantity <= 0;
     return `
       <tr>
         <td style="width:26%;font-weight:${isKurdish ? 400 : 600};text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-word;overflow-wrap:break-word;">${escHtml(p.name)}</td>

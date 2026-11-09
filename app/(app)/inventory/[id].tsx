@@ -157,7 +157,7 @@ export default function InventoryDetailScreen() {
   }
 
   const isLowStock = computeProductLowStock(product, globalLowStockEnabled, globalLowStockThreshold);
-  const isSold = !product.isActive || (product.idMode === 'unique' && product.quantity === 0);
+  const isSold = !product.isActive || product.quantity <= 0;
   const totalValue = product.purchasePrice * product.quantity;
   const profitPerUnit = product.sellingPrice - product.purchasePrice;
   const profitMargin = product.purchasePrice > 0 ? ((profitPerUnit / product.purchasePrice) * 100).toFixed(1) : null;

@@ -6009,7 +6009,7 @@ export async function getInventoryReportSummary(): Promise<InventoryReportSummar
       COALESCE(SUM(CASE WHEN is_active=1 THEN quantity END), 0)                        AS totalStockUnits,
       COALESCE(SUM(CASE WHEN is_active=1 THEN purchase_price * quantity END), 0)       AS stockValueCost,
       COALESCE(SUM(CASE WHEN is_active=1 THEN selling_price * quantity END), 0)        AS stockValueSell,
-      COUNT(CASE WHEN is_active=1 AND quantity=0 THEN 1 END)                           AS outOfStockCount,
+      COUNT(CASE WHEN is_active=0 OR quantity<=0 THEN 1 END)                           AS outOfStockCount,
       COUNT(CASE WHEN is_active=1 AND quantity BETWEEN 1 AND 3 THEN 1 END)             AS lowStockCount
     FROM products
   `);
