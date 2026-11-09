@@ -21,6 +21,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useAuthStore } from '@/store/authStore';
 import { useLanguageStore } from '@/store/languageStore';
 import { useManagementStore } from '@/store/managementStore';
+import { isAdminEmail } from '@/lib/adminNotificationService';
 import {
   setEmployeeStatus,
 } from '@/lib/management/managementService';
@@ -55,8 +56,10 @@ export default function ManagementScreen() {
   const [connectingDrive, setConnectingDrive] = useState(false);
 
   useEffect(() => {
-    // Hard security boundary: Employees and unauthorized accounts can NEVER enter management
-    if (isEmployee || !user?.email) {
+    const isAdmin = isAdminEmail(user?.email);
+    const hasEmployees = managedEmployees.length > 0;
+    // Hard security boundary: Employees and normal accounts without employees can NEVER enter management
+    if (isEmployee || !user?.email || (!hasEmployees && !isAdmin)) {
       router.replace('/(app)/dashboard' as never);
       return;
     }

@@ -17,6 +17,7 @@ import { useModuleStore } from '@/store/moduleStore';
 import { useManagementStore } from '@/store/managementStore';
 import { useAuthStore } from '@/store/authStore';
 import { getGoogleDriveConfig } from '@/lib/googleDriveBackup';
+import { isAdminEmail } from '@/lib/adminNotificationService';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -33,12 +34,16 @@ export default function DashboardScreen() {
     user.id === 'dev_user_1';
   // Strict tenant scoping: mobile app strictly shows staff managed by this user
   const displayEmployees = managedEmployees;
+  const isAdmin = isAdminEmail(user?.email);
+  const hasEmployees = Boolean(managedEmployees && managedEmployees.length > 0);
 
-  // Management banner is visible for store managers / owners (not employees, not demo)
+  // Management banner is strictly visible ONLY for store owners/managers who actually have employees assigned to them,
+  // or super admins. Normal accounts without assigned employees will NEVER see it.
   const showManagementBanner =
     !isEmployee &&
     !isDemoAccount &&
-    Boolean(user?.email);
+    Boolean(user?.email) &&
+    (hasEmployees || isAdmin);
 
   const [isDriveConnected, setIsDriveConnected] = React.useState(false);
 

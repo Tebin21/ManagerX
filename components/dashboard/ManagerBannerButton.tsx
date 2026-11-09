@@ -11,6 +11,8 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { useManagementStore } from '@/store/managementStore';
+import { useAuthStore } from '@/store/authStore';
+import { isAdminEmail } from '@/lib/adminNotificationService';
 import type { EmployeeAccount } from '@/lib/management/types';
 
 interface ManagerBannerButtonProps {
@@ -24,9 +26,19 @@ export function ManagerBannerButton({
 }: ManagerBannerButtonProps) {
   const router = useRouter();
   const isEmployee = useManagementStore((s) => s.isEmployee);
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = isAdminEmail(user?.email);
+
+  const count = employees?.length || 0;
+  const hasEmployees = count > 0;
 
   // Hard safety guard: Employees must NEVER see management controls
   if (isEmployee) {
+    return null;
+  }
+
+  // Normal accounts without employees must NEVER see the management banner
+  if (!hasEmployees && !isAdmin) {
     return null;
   }
 
@@ -37,8 +49,6 @@ export function ManagerBannerButton({
   const isKu = currentLang === 'ku';
   const isAr = currentLang === 'ar';
 
-  const count = employees?.length || 0;
-  const hasEmployees = count > 0;
   const firstEmp = hasEmployees ? employees[0] : null;
   const isSuspended = firstEmp ? firstEmp.status === 'suspended' : false;
 
