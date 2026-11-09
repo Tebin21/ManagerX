@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 
 import { BexDreLogoButton } from '@/components/dashboard/BexDreLogoButton';
 import { BusinessHeader } from '@/components/dashboard/BusinessHeader';
+import { DashboardQuickMenu } from '@/components/dashboard/DashboardQuickMenu';
 import { ModuleGrid } from '@/components/dashboard/ModuleGrid';
 
 import { OnlineStoreCard } from '@/components/dashboard/OnlineStoreCard';
@@ -97,23 +98,27 @@ export default function DashboardScreen() {
           >
             <BexDreLogoButton />
 
-            <TouchableOpacity
-              onPress={() => router.push('/(app)/settings' as never)}
-              activeOpacity={0.7}
-              style={[
-                styles.settingsBtn,
-                {
-                  backgroundColor: colors.softBlue,
-                  borderColor: colors.primary + '1F',
-                  width: isTabletLandscape ? 60 : isTablet ? 52 : 44,
-                  height: isTabletLandscape ? 60 : isTablet ? 52 : 44,
-                  borderRadius: isTabletLandscape ? 20 : isTablet ? 16 : 14,
-                },
-              ]}
-              hitSlop={8}
-            >
-              <Ionicons name="settings-outline" size={isTabletLandscape ? 32 : isTablet ? 28 : 22} color={colors.primary} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <DashboardQuickMenu />
+
+              <TouchableOpacity
+                onPress={() => router.push('/(app)/settings' as never)}
+                activeOpacity={0.7}
+                style={[
+                  styles.settingsBtn,
+                  {
+                    backgroundColor: colors.softBlue,
+                    borderColor: colors.primary + '1F',
+                    width: isTabletLandscape ? 60 : isTablet ? 52 : 44,
+                    height: isTabletLandscape ? 60 : isTablet ? 52 : 44,
+                    borderRadius: isTabletLandscape ? 20 : isTablet ? 16 : 14,
+                  },
+                ]}
+                hitSlop={8}
+              >
+                <Ionicons name="settings-outline" size={isTabletLandscape ? 32 : isTablet ? 28 : 22} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* 3. Full-width Management Button (strictly hidden for demo/test accounts, employees, normal users) */}

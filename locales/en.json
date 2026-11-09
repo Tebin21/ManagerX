@@ -296,6 +296,25 @@
     }
   },
   "dashboard": {
+    "quickMenu": {
+      "toggleTheme": "Toggle Dark/Light Mode",
+      "dollarRate": "Dollar Exchange Rate",
+      "modalTitle": "Update Dollar Rate",
+      "modalSub": "Quickly change the system USD exchange rate",
+      "oldRate": "Old Rate",
+      "newRate": "New Rate",
+      "currentRate": "Current Rate",
+      "diff": "Difference",
+      "inputLabel": "New $100 rate (in IQD):",
+      "saveBtn": "Save New Rate",
+      "cancelBtn": "Close",
+      "rateUpdated": "Dollar rate updated successfully",
+      "invalidRate": "Please enter a valid rate",
+      "noPermission": "You do not have permission to change the exchange rate",
+      "increase": "Increase",
+      "decrease": "Decrease",
+      "noChange": "No change"
+    },
     "modules":           "Modules",
     "purchases":         "Purchases",
     "sales":             "Sales",
