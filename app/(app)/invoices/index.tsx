@@ -2154,9 +2154,21 @@ export default function InvoicesHubScreen() {
                 ]}
               >
                 {[
-                  { key: 'all' as const, label: isAr ? `الكل (${filteredInstallmentSalesByPeriod.length + filteredInstallmentPaymentsByPeriod.length})` : isKu ? `هەمووی (${filteredInstallmentSalesByPeriod.length + filteredInstallmentPaymentsByPeriod.length})` : `All` },
-                  { key: 'sales' as const, label: isAr ? `مبيعات الأقساط (${filteredInstallmentSalesByPeriod.length})` : isKu ? `فرۆشتنی قیست (${filteredInstallmentSalesByPeriod.length})` : `Sales` },
-                  { key: 'payments' as const, label: isAr ? `إيصالات التسديد (${filteredInstallmentPaymentsByPeriod.length})` : isKu ? `وەسڵی دانەوە (${filteredInstallmentPaymentsByPeriod.length})` : `Payments` },
+                  {
+                    key: 'all' as const,
+                    title: isAr ? 'الكل' : isKu ? 'هەمووی' : 'All',
+                    count: filteredInstallmentSalesByPeriod.length + filteredInstallmentPaymentsByPeriod.length,
+                  },
+                  {
+                    key: 'sales' as const,
+                    title: isAr ? 'مبيعات الأقساط' : isKu ? 'فرۆشتنی قیست' : 'Sales',
+                    count: filteredInstallmentSalesByPeriod.length,
+                  },
+                  {
+                    key: 'payments' as const,
+                    title: isAr ? 'إيصالات التسديد' : isKu ? 'وەسڵی دانەوە' : 'Payments',
+                    count: filteredInstallmentPaymentsByPeriod.length,
+                  },
                 ].map((flt) => {
                   const isActive = installmentTypeFilter === flt.key;
                   return (
@@ -2169,6 +2181,9 @@ export default function InvoicesHubScreen() {
                       style={[
                         styles.installmentSubPill,
                         {
+                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                          alignItems: 'center',
+                          gap: 5,
                           backgroundColor: isActive ? (isDark ? colors.primary : '#1E293B') : (isDark ? colors.gray200 : '#F1F5F9'),
                           borderColor: isActive ? (isDark ? colors.primary : '#1E293B') : (isDark ? colors.gray300 : '#CBD5E1'),
                         },
@@ -2183,8 +2198,22 @@ export default function InvoicesHubScreen() {
                           },
                         ]}
                       >
-                        {flt.label}
+                        {flt.title}
                       </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text
+                          style={[
+                            styles.installmentSubPillText,
+                            {
+                              color: isActive ? 'rgba(255,255,255,0.85)' : (isDark ? colors.gray400 : '#64748B'),
+                              fontWeight: '700',
+                              writingDirection: 'ltr',
+                            },
+                          ]}
+                        >
+                          ({flt.count})
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}

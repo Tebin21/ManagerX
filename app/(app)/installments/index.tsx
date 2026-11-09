@@ -196,10 +196,10 @@ export default function InstallmentsScreen() {
   }, [periodFilteredInstallments]);
 
   // Status Filter Pills for Customers Tab (matching media_1794138477479_e9550980.png)
-  const statusPills: { key: StatusFilterType; label: string }[] = useMemo(() => [
-    { key: 'all', label: `${t('installmentList.all')} (${customersSummary.total})` },
-    { key: 'active', label: `${t('installmentList.active')} (${customersSummary.active})` },
-    { key: 'settled', label: `${t('installmentList.settled')} (${customersSummary.settled})` },
+  const statusPills: { key: StatusFilterType; label: string; count?: number }[] = useMemo(() => [
+    { key: 'all', label: t('installmentList.all'), count: customersSummary.total },
+    { key: 'active', label: t('installmentList.active'), count: customersSummary.active },
+    { key: 'settled', label: t('installmentList.settled'), count: customersSummary.settled },
     { key: 'shortTerm', label: t('installmentList.shortTerm') },
     { key: 'longTerm', label: t('installmentList.longTerm') },
   ], [t, customersSummary]);
@@ -1137,6 +1137,9 @@ export default function InstallmentsScreen() {
                         ? (isDark ? colors.primary : '#1E293B')
                         : (isDark ? colors.gray100 : colors.white),
                       borderColor: active ? (isDark ? colors.primary : '#1E293B') : colors.gray200,
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      gap: 4,
                     },
                   ]}
                   onPress={() => {
@@ -1158,6 +1161,21 @@ export default function InstallmentsScreen() {
                   >
                     {item.label}
                   </Text>
+                  {typeof item.count === 'number' && (
+                    <Text
+                      style={[
+                        styles.periodPillText,
+                        {
+                          color: active ? 'rgba(255,255,255,0.85)' : colors.gray400,
+                          fontSize: isTablet ? 12 : 11,
+                          fontWeight: '700',
+                          writingDirection: 'ltr',
+                        },
+                      ]}
+                    >
+                      ({item.count})
+                    </Text>
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -1572,14 +1590,17 @@ export default function InstallmentsScreen() {
                           if (!payNote) setPayNote(isArLanguage ? 'تسوية كامل الدين' : isKuLanguage ? 'سافکردنی تەواوی قەرز' : 'Full debt settlement');
                         }}
                       >
-                        <Ionicons name="flash-outline" size={15} color="#EF4444" style={{ marginHorizontal: 4 }} />
-                        <Text style={[styles.quickPillText, { color: '#DC2626', fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                          {isArLanguage
-                            ? `تسوية كامل المبلغ (${formatPrimary(selectedSaleForPay.remainingDebt)})`
-                            : isKuLanguage
-                            ? `هەمووی ساف بکە (${formatPrimary(selectedSaleForPay.remainingDebt)})`
-                            : `Settle all (${formatPrimary(selectedSaleForPay.remainingDebt)})`}
-                        </Text>
+                        <Ionicons name="flash-outline" size={15} color="#EF4444" style={{ marginHorizontal: 3 }} />
+                        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                          <Text style={[styles.quickPillText, { color: '#DC2626', fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                            {isArLanguage ? 'تسوية كامل المبلغ' : isKuLanguage ? 'هەمووی ساف بکە' : 'Settle all'}
+                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={[styles.quickPillText, { color: '#DC2626', fontWeight: '800', writingDirection: 'ltr' }]}>
+                              ({formatPrimary(selectedSaleForPay.remainingDebt)})
+                            </Text>
+                          </View>
+                        </View>
                       </TouchableOpacity>
 
                       {/* Clear input */}
@@ -1623,9 +1644,16 @@ export default function InstallmentsScreen() {
                           setPayAmountInput(isUSD ? inCurr.toFixed(2) : String(Math.round(inCurr)));
                         }}
                       >
-                        <Text style={[styles.quickPillText, { color: colors.black }]}>
-                          {t('installmentList.payOneMonth')} ({formatPrimary(selectedSaleForPay.installmentMonthlyAmount)})
-                        </Text>
+                        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                          <Text style={[styles.quickPillText, { color: colors.black, fontFamily: (isKuLanguage || isArLanguage) ? SETTINGS_KURDISH_FONT_BOLD : undefined }]}>
+                            {t('installmentList.payOneMonth')}
+                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={[styles.quickPillText, { color: colors.gray600, fontWeight: '700', writingDirection: 'ltr' }]}>
+                              ({formatPrimary(selectedSaleForPay.installmentMonthlyAmount)})
+                            </Text>
+                          </View>
+                        </View>
                       </TouchableOpacity>
 
                       {/* Full Remaining */}
@@ -1655,9 +1683,14 @@ export default function InstallmentsScreen() {
 
                 {/* Amount Input */}
                 <View style={{ marginTop: 10 }}>
-                  <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
-                    {t('installmentList.paymentAmount')} ({isUSD ? 'USD' : 'IQD'}):
-                  </Text>
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                    <Text style={[styles.inputLabel, { color: colors.gray500, marginBottom: 0 }]}>
+                      {t('installmentList.paymentAmount')}
+                    </Text>
+                    <Text style={[styles.inputLabel, { color: colors.gray500, marginBottom: 0, writingDirection: 'ltr' }]}>
+                      ({isUSD ? 'USD' : 'IQD'}):
+                    </Text>
+                  </View>
                   <View
                     style={[
                       styles.inputBox,
@@ -1791,9 +1824,14 @@ export default function InstallmentsScreen() {
 
                 {/* Paper Size for Payment Receipt (4 Formats) */}
                 <View style={{ marginTop: 10 }}>
-                  <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
-                    {isArLanguage ? 'نوع إيصال الطباعة (٤ أحجام):' : isKuLanguage ? 'جۆری وەسڵی چاپکردن (٤ قەبارە):' : 'Receipt Print Size (4 sizes):'}
-                  </Text>
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                    <Text style={[styles.inputLabel, { color: colors.gray500, marginBottom: 0 }]}>
+                      {isArLanguage ? 'نوع إيصال الطباعة:' : isKuLanguage ? 'جۆری وەسڵی چاپکردن:' : 'Receipt Print Size:'}
+                    </Text>
+                    <Text style={[styles.inputLabel, { color: colors.gray400, fontSize: 11, marginBottom: 0 }]}>
+                      ({isArLanguage ? '٤ أحجام' : isKuLanguage ? '٤ قەبارە' : '4 sizes'})
+                    </Text>
+                  </View>
                   <View style={[styles.methodRow, { flexDirection, gap: 6 }]}>
                     {(['80mm', '58mm', '110mm', 'A4'] as DebtReceiptPaperSize[]).map((size) => {
                       const isSelected = payReceiptPaperSize === size;
@@ -1877,18 +1915,32 @@ export default function InstallmentsScreen() {
                     ) : (
                       <>
                         <Ionicons name="print-outline" size={17} color="#FFFFFF" />
-                        <Text
-                          style={[
-                            styles.printPayBtnText,
-                            {
-                              color: '#FFFFFF',
-                              fontFamily: SETTINGS_KURDISH_FONT_BOLD,
-                            },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {isArLanguage ? `إكمال وطباعة (${payReceiptPaperSize})` : isKuLanguage ? `تەواوکردن و چاپ (${payReceiptPaperSize})` : `Complete & Print (${payReceiptPaperSize})`}
-                        </Text>
+                        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, flexShrink: 1 }}>
+                          <Text
+                            style={[
+                              styles.printPayBtnText,
+                              {
+                                color: '#FFFFFF',
+                                fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                              },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {isArLanguage ? 'إكمال وطباعة' : isKuLanguage ? 'تەواوکردن و چاپ' : 'Complete & Print'}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.printPayBtnText,
+                              {
+                                color: 'rgba(255,255,255,0.85)',
+                                fontWeight: '700',
+                                writingDirection: 'ltr',
+                              },
+                            ]}
+                          >
+                            ({payReceiptPaperSize})
+                          </Text>
+                        </View>
                       </>
                     )}
                   </TouchableOpacity>
@@ -2133,19 +2185,23 @@ export default function InstallmentsScreen() {
                         </View>
                       </View>
 
-                      <Text
-                        style={[
-                          styles.receiptTableRowSubtitle,
-                          { color: colors.gray500, textAlign },
-                          (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT },
-                        ]}
-                      >
-                        {isArLanguage
-                          ? `فاتورة البيع الكاملة (${selectedReceiptSale.itemsCount || 0} مواد) • ${formatDate(selectedReceiptSale.saleDate)}`
-                          : isKuLanguage
-                          ? `پسوولەی گشتی فرۆشتن (${selectedReceiptSale.itemsCount || 0} کاڵا) • ${formatDate(selectedReceiptSale.saleDate)}`
-                          : `Sales invoice (${selectedReceiptSale.itemsCount || 0} items) • ${formatDate(selectedReceiptSale.saleDate)}`}
-                      </Text>
+                      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap', marginTop: 2 }}>
+                        <Text
+                          style={[
+                            styles.receiptTableRowSubtitle,
+                            { color: colors.gray500 },
+                            (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT },
+                          ]}
+                        >
+                          {isArLanguage ? 'فاتورة البيع الكاملة' : isKuLanguage ? 'پسوولەی گشتی فرۆشتن' : 'Sales invoice'}
+                        </Text>
+                        <Text style={[styles.receiptTableRowSubtitle, { color: colors.gray400 }]}>
+                          • {selectedReceiptSale.itemsCount || 0} {isArLanguage ? 'مواد' : isKuLanguage ? 'کاڵا' : 'items'} •
+                        </Text>
+                        <Text style={[styles.receiptTableRowSubtitle, { color: colors.gray500, writingDirection: 'ltr' }]}>
+                          {formatDate(selectedReceiptSale.saleDate)}
+                        </Text>
+                      </View>
                     </View>
 
                     <View
@@ -2222,19 +2278,25 @@ export default function InstallmentsScreen() {
                           </View>
                         </View>
 
-                        <Text
-                          style={[
-                            styles.receiptTableRowSubtitle,
-                            { color: colors.gray500, textAlign },
-                            (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT },
-                          ]}
-                        >
-                          {isArLanguage
-                            ? `إيصال تسديد رسمي • تاريخ: ${selectedReceiptSale.latestPaymentDate ? formatDate(selectedReceiptSale.latestPaymentDate) : '-'}`
-                            : isKuLanguage
-                            ? `وەسڵی فەرمی پارەدان • بەروار: ${selectedReceiptSale.latestPaymentDate ? formatDate(selectedReceiptSale.latestPaymentDate) : '-'}`
-                            : `Official receipt • Date: ${selectedReceiptSale.latestPaymentDate ? formatDate(selectedReceiptSale.latestPaymentDate) : '-'}`}
-                        </Text>
+                        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap', marginTop: 2 }}>
+                          <Text
+                            style={[
+                              styles.receiptTableRowSubtitle,
+                              { color: colors.gray500 },
+                              (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT },
+                            ]}
+                          >
+                            {isArLanguage ? 'إيصال تسديد رسمي' : isKuLanguage ? 'وەسڵی فەرمی پارەدان' : 'Official receipt'}
+                          </Text>
+                          {selectedReceiptSale.latestPaymentDate ? (
+                            <>
+                              <Text style={[styles.receiptTableRowSubtitle, { color: colors.gray400 }]}>•</Text>
+                              <Text style={[styles.receiptTableRowSubtitle, { color: colors.gray500, writingDirection: 'ltr' }]}>
+                                {formatDate(selectedReceiptSale.latestPaymentDate)}
+                              </Text>
+                            </>
+                          ) : null}
+                        </View>
                       </View>
 
                       <View

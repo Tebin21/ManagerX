@@ -3061,19 +3061,38 @@ export default function ReceiptCustomizationScreen() {
             disabled={isPrintingTest}
           >
             <Ionicons name="print-outline" size={isTablet ? 24 : 20} color="#FFFFFF" />
-            <Text
-              style={[
-                styles.testPrintBtnText,
-                isTablet && { fontSize: 17 },
-                isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              ]}
-            >
-              {isPrintingTest
-                ? (isAr ? 'جارٍ الطباعة...' : isKurdish ? 'چاپ دەکرێت...' : 'Printing...')
-                : isKurdish
-                  ? `چاپی تاقیکاری (${activePaperSize})`
-                  : `Test Print (${activePaperSize})`}
-            </Text>
+            {isPrintingTest ? (
+              <Text
+                style={[
+                  styles.testPrintBtnText,
+                  isTablet && { fontSize: 17 },
+                  isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {isAr ? 'جارٍ الطباعة...' : isKurdish ? 'چاپ دەکرێت...' : 'Printing...'}
+              </Text>
+            ) : (
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+                <Text
+                  style={[
+                    styles.testPrintBtnText,
+                    isTablet && { fontSize: 17 },
+                    isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isAr ? 'طباعة تجريبية' : isKurdish ? 'چاپی تاقیکاری' : 'Test Print'}
+                </Text>
+                <Text
+                  style={[
+                    styles.testPrintBtnText,
+                    isTablet && { fontSize: 17 },
+                    { writingDirection: 'ltr' },
+                  ]}
+                >
+                  ({activePaperSize})
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity

@@ -33,6 +33,7 @@ interface PaperFormatOption {
   titleKu: string;
   titleEn: string;
   titleAr: string;
+  sizeLabel?: string;
   dimKu: string;
   dimEn: string;
   dimAr: string;
@@ -46,9 +47,10 @@ interface PaperFormatOption {
 const PAPER_OPTIONS: PaperFormatOption[] = [
   {
     id: 'A4',
-    titleKu: 'پەڕەی فۆڕمی A4',
-    titleEn: 'Standard A4 Sheet',
-    titleAr: 'ورق قياسي A4',
+    titleKu: 'پەڕەی فۆڕمی',
+    titleEn: 'Standard Sheet',
+    titleAr: 'ورق قياسي',
+    sizeLabel: 'A4',
     dimKu: '21 × 30 سم',
     dimEn: '21 × 30 cm',
     dimAr: '21 × 30 سم',
@@ -59,9 +61,10 @@ const PAPER_OPTIONS: PaperFormatOption[] = [
   },
   {
     id: '110mm',
-    titleKu: 'تێرمالی پان (110mm)',
-    titleEn: 'Wide Thermal (110mm)',
-    titleAr: 'حراري عريض (110mm)',
+    titleKu: 'تێرمالی پان',
+    titleEn: 'Wide Thermal',
+    titleAr: 'حراري عريض',
+    sizeLabel: '110mm',
     dimKu: '11.0 سم',
     dimEn: '11.0 cm',
     dimAr: '11.0 سم',
@@ -72,9 +75,10 @@ const PAPER_OPTIONS: PaperFormatOption[] = [
   },
   {
     id: '80mm',
-    titleKu: 'ستاندارد (80mm)',
-    titleEn: 'Standard POS (80mm)',
-    titleAr: 'قياسي كاشير (80mm)',
+    titleKu: 'ستاندارد',
+    titleEn: 'Standard POS',
+    titleAr: 'قياسي كاشير',
+    sizeLabel: '80mm',
     dimKu: '8.0 سم',
     dimEn: '8.0 cm',
     dimAr: '8.0 سم',
@@ -86,9 +90,10 @@ const PAPER_OPTIONS: PaperFormatOption[] = [
   },
   {
     id: '58mm',
-    titleKu: 'وەسڵی بچووک (58mm)',
-    titleEn: 'Compact POS (58mm)',
-    titleAr: 'إيصال صغير (58mm)',
+    titleKu: 'وەسڵی بچووک',
+    titleEn: 'Compact POS',
+    titleAr: 'إيصال صغير',
+    sizeLabel: '58mm',
     dimKu: '5.8 سم',
     dimEn: '5.8 cm',
     dimAr: '5.8 سم',
@@ -303,6 +308,23 @@ export function PrintFormatPickerModal({
                       >
                         {isAr ? opt.titleAr : isKu ? opt.titleKu : opt.titleEn}
                       </Text>
+                      {opt.sizeLabel && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text
+                            style={[
+                              styles.optTitle,
+                              {
+                                color: colors.black,
+                                fontWeight: '700',
+                                writingDirection: 'ltr',
+                              },
+                              isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                            ]}
+                          >
+                            ({opt.sizeLabel})
+                          </Text>
+                        </View>
+                      )}
                       {opt.isRecommended && (
                         <View
                           style={[
@@ -323,16 +345,27 @@ export function PrintFormatPickerModal({
                       )}
                     </View>
 
-                    <Text
-                      numberOfLines={2}
-                      style={[
-                        styles.optDesc,
-                        { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' },
-                        isKu && { fontFamily: SETTINGS_KURDISH_FONT },
-                      ]}
-                    >
-                      {isAr ? opt.descAr : isKu ? opt.descKu : opt.descEn} • ({isAr ? opt.dimAr : isKu ? opt.dimKu : opt.dimEn})
-                    </Text>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+                      <Text
+                        style={[
+                          styles.optDesc,
+                          { color: colors.gray400 },
+                          isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+                        ]}
+                      >
+                        {isAr ? opt.descAr : isKu ? opt.descKu : opt.descEn}
+                      </Text>
+                      <Text style={[styles.optDesc, { color: colors.gray400 }]}>•</Text>
+                      <Text
+                        style={[
+                          styles.optDesc,
+                          { color: colors.gray400, writingDirection: isRTL ? 'rtl' : 'ltr' },
+                          isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+                        ]}
+                      >
+                        ({isAr ? opt.dimAr : isKu ? opt.dimKu : opt.dimEn})
+                      </Text>
+                    </View>
                   </View>
 
                   {/* Radio Indicator */}

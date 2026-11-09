@@ -236,7 +236,7 @@ function getBmStyles(colors: AppColors, isTablet: boolean = false) {
 
 // ─── Stat Chip Row ─────────────────────────────────────────────────────────────
 
-function StatChipsRow({ chips }: { chips: { value: React.ReactNode; label: string; color?: string }[] }) {
+function StatChipsRow({ chips }: { chips: { value: React.ReactNode; label: React.ReactNode; color?: string }[] }) {
   const { colors } = useAppTheme();
   const { isTablet } = useResponsive();
   const scStyles = useMemo(() => getScStyles(colors, isTablet), [colors, isTablet]);
@@ -253,7 +253,11 @@ function StatChipsRow({ chips }: { chips: { value: React.ReactNode; label: strin
           {typeof c.value === 'string' || typeof c.value === 'number' ? (
             <Text style={[scStyles.value, scStyles.ltrTabular, c.color ? { color: c.color } : null]}>{c.value}</Text>
           ) : c.value}
-          <Text style={scStyles.label}>{c.label}</Text>
+          {typeof c.label === 'string' ? (
+            <Text style={scStyles.label}>{c.label}</Text>
+          ) : (
+            c.label
+          )}
         </View>
       ))}
     </View>
@@ -638,6 +642,7 @@ function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: ()
   const { flexDirection } = useRTL();
   const scrollIntoView = useKeyboardAwareFocus();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isArLanguage = useLanguageStore((s) => s.language === 'ar');
   const [period, setPeriod]       = useState<ExportPeriod>('today');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo]   = useState('');
@@ -837,6 +842,7 @@ export default function ReportsScreen() {
     setDateRange, reload,
   } = useReportStore();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isArLanguage = useLanguageStore((s) => s.language === 'ar');
 
   const baseCurrency = useSettingsStore((s) => s.baseCurrency);
   const isCapitalEnabled = useCapitalStore((s) => s.isEnabled);
@@ -972,7 +978,17 @@ export default function ReportsScreen() {
           <StatChipsRow chips={[
             { value: fmtIQD(salesData?.totalItemsSold ?? 0), label: t('reports.totalSoldProducts') },
             { value: String(salesData?.totalSales ?? 0),  label: t('reports.totalInvoices') },
-            { value: <CompactAmount value={salesData?.avgOrderValue ?? 0} showCurrency={false} style={scStyles.value} />, label: `${t('reports.avgOrderValue')} (${baseCurrency === 'USD' ? 'USD' : 'IQD'})` },
+            {
+              value: <CompactAmount value={salesData?.avgOrderValue ?? 0} showCurrency={false} style={scStyles.value} />,
+              label: (
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 3 }}>
+                  <Text style={scStyles.label}>{t('reports.avgOrderValue')}</Text>
+                  <Text style={[scStyles.label, { writingDirection: 'ltr', color: colors.gray400 }]}>
+                    ({baseCurrency === 'USD' ? 'USD' : 'IQD'})
+                  </Text>
+                </View>
+              ),
+            },
           ]} />
 
           {revenue > 0 && (
@@ -1059,11 +1075,44 @@ export default function ReportsScreen() {
             </View>
           )}
           {purchaseData?.topSupplier && (
-            <View style={[styles.topRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <Ionicons name="star" size={12} color={colors.warning} />
-              <Text style={[styles.topText, { textAlign }]}>
-                {t('reports.topSupplierLabel')}: {purchaseData.topSupplier} (<CompactAmount value={purchaseData.topSupplierCost} style={styles.topText} />)
+            <View
+              style={[
+                styles.topRow,
+                {
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 6,
+                },
+              ]}
+            >
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 5 }}>
+                <Ionicons name="star" size={13} color={colors.warning} />
+                <Text style={styles.topLabel}>
+                  {t('reports.topSupplierLabel')}:
+                </Text>
+              </View>
+              <Text style={styles.topSupplierName} numberOfLines={1}>
+                {purchaseData.topSupplier}
               </Text>
+              <View
+                style={[
+                  styles.topAmountPill,
+                  {
+                    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF3C7',
+                    borderColor: isDark ? 'rgba(212, 175, 55, 0.3)' : '#FDE68A',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  },
+                ]}
+              >
+                <Text style={styles.topParen}>(</Text>
+                <CompactAmount
+                  value={purchaseData.topSupplierCost}
+                  style={styles.topAmountVal}
+                />
+                <Text style={styles.topParen}>)</Text>
+              </View>
             </View>
           )}
         </PremiumCard>
@@ -1109,7 +1158,7 @@ export default function ReportsScreen() {
           {(debtData?.salesDebtOriginal ?? 0) > 0 && (
             <View style={{ marginTop: 10 }}>
               <View style={[styles.catHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <Text style={[styles.catLabel, { textAlign }]}>{t('reports.grossMargin')} (Collection Rate)</Text>
+                <Text style={[styles.catLabel, { textAlign }]}>{t('debt.collectionRate')}</Text>
                 <Text style={[styles.catValue, { textAlign: isRTL ? 'left' : 'right' }]}>{(debtData?.collectionRate ?? 0).toFixed(0)}%</Text>
               </View>
               <ProgressBar value={debtData?.salesDebtCollected ?? 0} total={debtData?.salesDebtOriginal ?? 1} color={colors.success} />
@@ -1123,30 +1172,30 @@ export default function ReportsScreen() {
   const renderInstallmentOverview = (isGridCol = false) => (
     <View style={isGridCol ? styles.gridCol : undefined}>
       <SectionHeader
-        title={isKuLanguage ? 'شیکاری و ڕاپۆرتی قیستەکان' : 'Installments Analytics'}
+        title={isArLanguage ? 'تحليلات وتقارير الأقساط' : isKuLanguage ? 'شیکاری و ڕاپۆرتی قیستەکان' : 'Installments Analytics'}
         icon="calendar-number"
-        action={isKuLanguage ? 'قیستەکان' : 'Installments'}
+        action={isArLanguage ? 'الأقساط' : isKuLanguage ? 'قیستەکان' : 'Installments'}
         route="/(app)/installments"
         compact={isGridCol}
       />
       <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 150 }}>
         <PremiumCard style={isGridCol ? styles.gridCard : styles.card}>
           <BigMetricRow
-            label={isKuLanguage ? 'کۆی فرۆشتنی بەقیست' : 'Total Installment Sales'}
+            label={isArLanguage ? 'إجمالي مبيعات الأقساط' : isKuLanguage ? 'کۆی فرۆشتنی بەقیست' : 'Total Installment Sales'}
             amount={installmentData?.totalInstallmentSales ?? 0}
             color="#6366F1"
             icon="calendar-number-outline"
             isGrid={isGridCol}
           />
           <BigMetricRow
-            label={isKuLanguage ? 'پارەی وەرگیراو (پێشەکی + قیستەکان)' : 'Collected (Down Payment + Dues)'}
+            label={isArLanguage ? 'المحصل (المقدمة + الأقساط)' : isKuLanguage ? 'پارەی وەرگیراو (پێشەکی + قیستەکان)' : 'Collected (Down Payment + Dues)'}
             amount={installmentData?.totalCollected ?? 0}
             color="#10B981"
             icon="checkmark-circle-outline"
             isGrid={isGridCol}
           />
           <BigMetricRow
-            label={isKuLanguage ? 'قەرزی ماوەی قیستەکان' : 'Remaining Installment Debt'}
+            label={isArLanguage ? 'المتبقي من الأقساط' : isKuLanguage ? 'قەرزی ماوەی قیستەکان' : 'Remaining Installment Debt'}
             amount={installmentData?.totalRemaining ?? 0}
             color="#EA580C"
             icon="hourglass-outline"
@@ -1156,17 +1205,17 @@ export default function ReportsScreen() {
             chips={[
               {
                 value: `${installmentData?.collectionRate ?? 0}%`,
-                label: isKuLanguage ? 'ڕێژەی وەرگرتن' : 'Collection Rate',
+                label: isArLanguage ? 'نسبة التحصيل' : isKuLanguage ? 'ڕێژەی وەرگرتن' : 'Collection Rate',
                 color: '#10B981',
               },
               {
                 value: String(installmentData?.activeAccountsCount ?? 0),
-                label: isKuLanguage ? 'قیستی چالاک' : 'Active Accounts',
+                label: isArLanguage ? 'أقساط نشطة' : isKuLanguage ? 'قیستی چالاک' : 'Active Accounts',
                 color: '#6366F1',
               },
               {
                 value: String(installmentData?.settledAccountsCount ?? 0),
-                label: isKuLanguage ? 'تەواوبوو' : 'Settled',
+                label: isArLanguage ? 'مكتمل' : isKuLanguage ? 'تەواوبوو' : 'Settled',
                 color: '#64748B',
               },
             ]}
@@ -1550,8 +1599,43 @@ function getStyles(colors: AppColors, isTablet: boolean = false) {
 
     // ── Top supplier highlight ─────────────────────────────────────────────────
     topRow: {
-      flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10,
-      paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.gray100,
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginTop: 10,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.gray100,
+    },
+    topLabel: {
+      fontSize: isTablet ? 14 : 12,
+      color: colors.gray500,
+      fontWeight: '600',
+    },
+    topSupplierName: {
+      fontSize: isTablet ? 14 : 12.5,
+      fontWeight: '700',
+      color: colors.black,
+    },
+    topAmountPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 7,
+      paddingVertical: 2.5,
+      borderRadius: 7,
+      borderWidth: 1,
+    },
+    topAmountVal: {
+      fontSize: isTablet ? 13 : 11.5,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    topParen: {
+      fontSize: isTablet ? 13 : 11.5,
+      fontWeight: '700',
+      color: colors.primary,
+      marginHorizontal: 1,
     },
     topText: { fontSize: isTablet ? 14 : 12, color: colors.gray500, fontWeight: '600', flex: 1 },
 
