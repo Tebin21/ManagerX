@@ -40,7 +40,10 @@ export function ProductSearchResult({
 }: Props) {
   const { colors, isDark } = useAppTheme();
   const { isTablet, isTabletLandscape } = useResponsive();
-  const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const language = useLanguageStore((s) => s.language);
+  const isKurdish = language === 'ku';
+  const isAr = language === 'ar';
+  const soldLabel = isAr ? 'نفد' : isKurdish ? 'نەماوە' : 'Sold';
   const styles = useMemo(() => getStyles(colors, isTablet, isTabletLandscape, isDark), [colors, isTablet, isTabletLandscape, isDark]);
   const soldTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
   const { isRTL, textAlign, flexDirection } = useRTL();
@@ -180,7 +183,7 @@ export function ProductSearchResult({
                 numberOfLines={1}
               >
                 {isUniqueAndSold
-                  ? 'Sold'
+                  ? soldLabel
                   : `${product.quantity} ${product.unit}`}
               </Text>
             </View>
@@ -428,7 +431,7 @@ export function ProductSearchResult({
           <Text style={styles.dot}>·</Text>
           {isUniqueAndSold ? (
             <View style={[styles.soldBadge, { backgroundColor: soldTint.bg }]}>
-              <Text style={[styles.soldText, { color: soldTint.text }]}>Sold</Text>
+              <Text style={[styles.soldText, { color: soldTint.text }]}>{soldLabel}</Text>
             </View>
           ) : (
             <Text style={[

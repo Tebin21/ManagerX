@@ -543,7 +543,7 @@ export default function DashboardViewScreen() {
                 value={safeStats.depletedBatchesCount}
                 icon="checkmark-done-circle"
                 color="#64748B"
-                subtitle={isAr ? 'نفدت' : isKurdish ? 'فرۆشراو' : 'Sold Out'}
+                subtitle={isAr ? 'نفدت' : isKurdish ? 'نەماوە' : 'Sold Out'}
                 delay={330}
                 isLocked={lockStockAlerts}
               />
