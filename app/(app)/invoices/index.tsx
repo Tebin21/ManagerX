@@ -1935,9 +1935,19 @@ export default function InvoicesHubScreen() {
                             <Text style={[styles.partyPhone, { color: colors.gray500, fontSize: isTablet ? 12.5 : 11.5 }]}>{item.supplierPhone}</Text>
                           </View>
                         )}
-                        <Text numberOfLines={1} style={[styles.subProductName, { color: colors.gray400, textAlign, fontSize: isTablet ? 13 : 11.5 }]}>
-                          {item.productName} {item.quantity > 1 ? `(${item.quantity} ${isAr ? 'قطع' : isKu ? 'دانە' : 'pcs'})` : ''}
-                        </Text>
+                        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: isRTL ? 'flex-end' : 'flex-start', gap: 4 }}>
+                          <Text numberOfLines={1} style={[styles.subProductName, { color: colors.gray400, fontSize: isTablet ? 13 : 11.5, flexShrink: 1 }]}>
+                            {item.productName}
+                          </Text>
+                          {item.quantity > 1 && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <Text style={{ color: colors.gray400, fontSize: isTablet ? 13 : 11.5, fontWeight: '700' }}>(</Text>
+                              <Text style={{ color: colors.gray400, fontSize: isTablet ? 13 : 11.5, fontWeight: '700' }}>{item.quantity}</Text>
+                              <Text style={{ color: colors.gray400, fontSize: isTablet ? 13 : 11.5 }}>{` ${isAr ? 'قطع' : isKu ? 'دانە' : 'pcs'}`}</Text>
+                              <Text style={{ color: colors.gray400, fontSize: isTablet ? 13 : 11.5, fontWeight: '700' }}>)</Text>
+                            </View>
+                          )}
+                        </View>
                       </View>
 
                       {/* Print and View Counts Indicator */}

@@ -816,17 +816,23 @@ export default function InstallmentsScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="receipt-outline" size={15} color={colors.primary} />
-              <Text
-                style={[
-                  styles.actionBtnText,
-                  { color: colors.black },
-                  (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                ]}
-                numberOfLines={1}
-              >
-                {isArLanguage ? 'الوصل' : isKuLanguage ? 'وەسڵ' : 'Receipt'}
-                {` (${1 + (item.paymentsCount || 0)})`}
-              </Text>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 2 }}>
+                <Text
+                  style={[
+                    styles.actionBtnText,
+                    { color: colors.black },
+                    (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {isArLanguage ? 'الوصل' : isKuLanguage ? 'وەسڵ' : 'Receipt'}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={[styles.actionBtnText, { color: colors.black }]}> (</Text>
+                  <Text style={[styles.actionBtnText, { color: colors.black, fontWeight: '700' }]}>{1 + (item.paymentsCount || 0)}</Text>
+                  <Text style={[styles.actionBtnText, { color: colors.black }]}>)</Text>
+                </View>
+              </View>
             </TouchableOpacity>
           </View>
         </View>

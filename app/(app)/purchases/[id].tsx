@@ -422,7 +422,14 @@ export default function PurchaseDetailScreen() {
       {purchaseItems.length > 1 && (
         <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 80 }}>
           <PremiumCard style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.itemsCount')} ({purchaseItems.length})</Text>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: isRTL ? 'flex-end' : 'flex-start', gap: 3, marginBottom: 4 }}>
+              <Text style={[styles.sectionTitle, { color: colors.gray500, marginBottom: 0 }]}>{t('purchases.itemsCount')}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={[styles.sectionTitle, { color: colors.gray500, marginBottom: 0 }]}>(</Text>
+                <Text style={[styles.sectionTitle, { color: colors.gray500, marginBottom: 0 }]}>{purchaseItems.length}</Text>
+                <Text style={[styles.sectionTitle, { color: colors.gray500, marginBottom: 0 }]}>)</Text>
+              </View>
+            </View>
             {purchaseItems.map((item) => (
               <View key={item.id} style={[styles.itemRow, { borderBottomColor: colors.gray100, flexDirection }]}>
                 <View style={styles.itemLeft}>
@@ -459,9 +466,20 @@ export default function PurchaseDetailScreen() {
       {hasIds && (
         <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 140 }}>
           <PremiumCard style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
-              {purchase.idType === 'shared' ? t('purchases.sharedIdTitle') : `${t('purchases.itemIdsTitle')} (${purchase.itemIds.length})`}
-            </Text>
+            {purchase.idType === 'shared' ? (
+              <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
+                {t('purchases.sharedIdTitle')}
+              </Text>
+            ) : (
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: isRTL ? 'flex-end' : 'flex-start', gap: 3, marginBottom: 4 }}>
+                <Text style={[styles.sectionTitle, { color: colors.gray500, marginBottom: 0 }]}>{t('purchases.itemIdsTitle')}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={[styles.sectionTitle, { color: colors.gray500, marginBottom: 0 }]}>(</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.gray500, marginBottom: 0 }]}>{purchase.itemIds.length}</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.gray500, marginBottom: 0 }]}>)</Text>
+                </View>
+              </View>
+            )}
             {purchase.idType === 'shared' ? (
               <View style={[styles.sharedIdBox, { backgroundColor: colors.softBlue }]}>
                 <IdText style={[styles.sharedIdText, { color: colors.primary, textAlign: isRTL ? 'right' : 'left' }]}>{purchase.itemIds[0] || '—'}</IdText>

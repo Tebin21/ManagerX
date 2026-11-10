@@ -418,10 +418,21 @@ export default function PurchaseDebtDetailScreen() {
                 <View style={[styles.itemMetaRow, { flexDirection, justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }]}>
                   <View style={[styles.itemBatchBadge, { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF9C3', borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : '#FDE047' }]}>
                     <Ionicons name="layers" size={11} color={colors.primary} />
-                    <Text style={[styles.itemBatchBadgeText, { color: isDark ? '#FDE047' : '#854D0E' }]}>
-                      {isArLanguage ? `وجبة ${debt.batchNumber || 1}` : isKuLanguage ? `وەجبەی ${debt.batchNumber || 1}` : `Batch #${debt.batchNumber || 1}`}
-                      {debt.totalBatches && debt.totalBatches > 1 ? ` (${isArLanguage ? `من إجمالي ${debt.totalBatches}` : isKuLanguage ? `لە کۆی ${debt.totalBatches}` : `of ${debt.totalBatches}`})` : ''}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={[styles.itemBatchBadgeText, { color: isDark ? '#FDE047' : '#854D0E' }]}>
+                        {isArLanguage ? `وجبة ${debt.batchNumber || 1}` : isKuLanguage ? `وەجبەی ${debt.batchNumber || 1}` : `Batch #${debt.batchNumber || 1}`}
+                      </Text>
+                      {debt.totalBatches && debt.totalBatches > 1 ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginStart: 3 }}>
+                          <Text style={[styles.itemBatchBadgeText, { color: isDark ? '#FDE047' : '#854D0E' }]}>(</Text>
+                          <Text style={[styles.itemBatchBadgeText, { color: isDark ? '#FDE047' : '#854D0E' }]}>
+                            {isArLanguage ? 'من إجمالي ' : isKuLanguage ? 'لە کۆی ' : 'of '}
+                          </Text>
+                          <Text style={[styles.itemBatchBadgeText, { color: isDark ? '#FDE047' : '#854D0E' }]}>{debt.totalBatches}</Text>
+                          <Text style={[styles.itemBatchBadgeText, { color: isDark ? '#FDE047' : '#854D0E' }]}>)</Text>
+                        </View>
+                      ) : null}
+                    </View>
                   </View>
                   {purchase.itemIds.length > 0 ? (
                     <Text style={[styles.itemId, { textAlign: 'right' }]}>{t('invoicePdf.itemIdLabel')}: <IdText size="small" style={styles.itemId}>{purchase.itemIds.join(', ')}</IdText></Text>

@@ -799,9 +799,14 @@ export default function SupplierDetailScreen() {
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 80 }}
             style={[styles.section, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}
           >
-            <Text style={sectionTitleStyle}>
-              {t('suppliers.activeDebts')} ({activeDebts.length})
-            </Text>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: isRTL ? 'flex-end' : 'flex-start', gap: 3, marginBottom: 12 }}>
+              <Text style={[styles.sectionTitle, { color: colors.gray400, marginBottom: 0 }]}>{t('suppliers.activeDebts')}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={[styles.sectionTitle, { color: colors.gray400, marginBottom: 0 }]}>(</Text>
+                <Text style={[styles.sectionTitle, { color: colors.gray400, marginBottom: 0 }]}>{activeDebts.length}</Text>
+                <Text style={[styles.sectionTitle, { color: colors.gray400, marginBottom: 0 }]}>)</Text>
+              </View>
+            </View>
             {activeDebts.map((debt) => (
               <ActiveDebtCard key={debt.id} debt={debt} onPay={handlePay} />
             ))}
@@ -839,9 +844,14 @@ export default function SupplierDetailScreen() {
           transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 120 }}
           style={[styles.section, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}
         >
-          <Text style={sectionTitleStyle}>
-            {t('suppliers.purchaseHistory')} ({purchases.length})
-          </Text>
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: isRTL ? 'flex-end' : 'flex-start', gap: 3, marginBottom: 12 }}>
+            <Text style={[styles.sectionTitle, { color: colors.gray400, marginBottom: 0 }]}>{t('suppliers.purchaseHistory')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={[styles.sectionTitle, { color: colors.gray400, marginBottom: 0 }]}>(</Text>
+              <Text style={[styles.sectionTitle, { color: colors.gray400, marginBottom: 0 }]}>{purchases.length}</Text>
+              <Text style={[styles.sectionTitle, { color: colors.gray400, marginBottom: 0 }]}>)</Text>
+            </View>
+          </View>
           {loading ? (
             <ActivityIndicator color={colors.primary} style={{ paddingVertical: 16 }} />
           ) : purchases.length === 0 ? (

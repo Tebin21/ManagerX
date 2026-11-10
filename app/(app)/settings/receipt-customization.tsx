@@ -2048,15 +2048,18 @@ export default function ReceiptCustomizationScreen() {
                     )}
 
                   {activeTab === 'quotation' && quotationSettings.showValidUntil && (
-                    <View style={[styles.receiptMetaRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
-                      <Text style={[styles.receiptLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
-                        <Text style={isKuOrAr ? { fontFamily: SETTINGS_KURDISH_FONT } : {}}>
-                          {isAr ? 'صلاحية العرض: ' : isKurdish ? 'بڕوابەپێکراو تا: ' : 'Valid Until: '}
-                        </Text>
-                        <Text style={[styles.receiptValue, { fontWeight: '700' }]}>
-                          {`${mockQuotation.validityDays} ${isAr ? 'أيام' : isKurdish ? 'ڕۆژ' : 'Days'} (${mockQuotation.validUntil})`}
-                        </Text>
+                    <View style={[styles.receiptMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: isRTL ? 'flex-end' : 'flex-start', gap: 4 }]}>
+                      <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        {isAr ? 'صلاحية العرض:' : isKurdish ? 'بڕوابەپێکراو تا:' : 'Valid Until:'}
                       </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={[styles.receiptValue, { fontWeight: '700' }]}>
+                          {`${mockQuotation.validityDays} ${isAr ? 'أيام' : isKurdish ? 'ڕۆژ' : 'Days'} `}
+                        </Text>
+                        <Text style={[styles.receiptValue, { fontWeight: '700' }]}>(</Text>
+                        <Text style={[styles.receiptValue, { fontWeight: '700' }]}>{mockQuotation.validUntil}</Text>
+                        <Text style={[styles.receiptValue, { fontWeight: '700' }]}>)</Text>
+                      </View>
                     </View>
                   )}
 

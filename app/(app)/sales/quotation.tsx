@@ -2377,9 +2377,12 @@ export default function SalesQuotationScreen() {
                   <Text style={{ fontSize: isTablet ? 14.5 : 12.5, fontWeight: '800', color: isDark ? '#FFFFFF' : colors.black, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
                     {isKuLanguage ? 'لیستی کاڵا پێشنیارکراوەکان' : 'Quoted Items'}
                   </Text>
-                  <Text style={{ fontSize: isTablet ? 13 : 11, color: isDark ? '#94A3B8' : colors.gray400 }}>
-                    ({isKuLanguage ? `کاڵا ${q.items.length}` : `${q.items.length} items`})
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: isTablet ? 13 : 11, color: isDark ? '#94A3B8' : colors.gray400 }}>(</Text>
+                    <Text style={{ fontSize: isTablet ? 13 : 11, color: isDark ? '#94A3B8' : colors.gray400, fontWeight: '600' }}>{q.items.length}</Text>
+                    <Text style={{ fontSize: isTablet ? 13 : 11, color: isDark ? '#94A3B8' : colors.gray400 }}>{isKuLanguage ? ' کاڵا' : ' items'}</Text>
+                    <Text style={{ fontSize: isTablet ? 13 : 11, color: isDark ? '#94A3B8' : colors.gray400 }}>)</Text>
+                  </View>
                 </View>
                 <Text style={{ fontSize: isTablet ? 13 : 11, color: isDark ? '#94A3B8' : colors.gray400, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
                   {isKuLanguage ? 'کۆی نرخ' : 'Total'}
@@ -2529,9 +2532,17 @@ export default function SalesQuotationScreen() {
                 }}
               >
                 <Ionicons name="checkmark-circle" size={isTablet ? 18 : 16} color={isDark ? '#4ADE80' : '#15803D'} />
-                <Text style={{ fontSize: isTablet ? 13.5 : 12, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D' }}>
-                  {isKuLanguage ? `وەسڵەکە چاپکراوە (${q.printCount} جار)` : `Quotation printed (${q.printCount} times)`}
-                </Text>
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
+                  <Text style={{ fontSize: isTablet ? 13.5 : 12, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D' }}>
+                    {isKuLanguage ? 'وەسڵەکە چاپکراوە' : 'Quotation printed'}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: isTablet ? 13.5 : 12, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D' }}>(</Text>
+                    <Text style={{ fontSize: isTablet ? 13.5 : 12, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D' }}>{q.printCount}</Text>
+                    <Text style={{ fontSize: isTablet ? 13.5 : 12, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D' }}>{isKuLanguage ? ' جار' : ' times'}</Text>
+                    <Text style={{ fontSize: isTablet ? 13.5 : 12, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D' }}>)</Text>
+                  </View>
+                </View>
               </View>
             ) : null}
 

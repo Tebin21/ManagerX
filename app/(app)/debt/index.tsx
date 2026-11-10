@@ -328,18 +328,37 @@ function PurchaseDebtCardImpl({
             <View style={[styles.cardBatchIconBadge, { backgroundColor: colors.error + '20' }]}>
               <Ionicons name="layers" size={12} color={colors.error} />
             </View>
-            <Text
-              style={[
-                styles.cardBatchText,
-                { color: isDark ? '#FCA5A5' : '#991B1B', textAlign: isRTL ? 'right' : 'left' },
-                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-              ]}
-              numberOfLines={1}
-            >
-              {debt.productName} • {isAr ? `الوجبة ${debt.batchNumber || 1}` : isKuLanguage ? `وەجبەی ${debt.batchNumber || 1}` : `Batch #${debt.batchNumber || 1}`}
-              {debt.batchQuantity ? ` (${debt.batchQuantity} ${isAr ? 'قطعة' : isKuLanguage ? 'دانە' : 'pcs'})` : ''}
-              {debt.totalBatches && debt.totalBatches > 1 ? ` · ${isAr ? `من إجمالي ${debt.totalBatches} وجبات` : isKuLanguage ? `لە کۆی ${debt.totalBatches} وەجبە` : `of ${debt.totalBatches}`}` : ''}
-            </Text>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', flexWrap: 'wrap', gap: 3 }}>
+              <Text
+                style={[
+                  styles.cardBatchText,
+                  { color: isDark ? '#FCA5A5' : '#991B1B' },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                ]}
+                numberOfLines={1}
+              >
+                {debt.productName} • {isAr ? `الوجبة ${debt.batchNumber || 1}` : isKuLanguage ? `وەجبەی ${debt.batchNumber || 1}` : `Batch #${debt.batchNumber || 1}`}
+              </Text>
+              {debt.batchQuantity ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ color: isDark ? '#FCA5A5' : '#991B1B', fontSize: 11.5, fontWeight: '700' }}>(</Text>
+                  <Text style={{ color: isDark ? '#FCA5A5' : '#991B1B', fontSize: 11.5, fontWeight: '700' }}>{debt.batchQuantity}</Text>
+                  <Text style={{ color: isDark ? '#FCA5A5' : '#991B1B', fontSize: 11.5 }}>{` ${isAr ? 'قطعة' : isKuLanguage ? 'دانە' : 'pcs'}`}</Text>
+                  <Text style={{ color: isDark ? '#FCA5A5' : '#991B1B', fontSize: 11.5, fontWeight: '700' }}>)</Text>
+                </View>
+              ) : null}
+              {debt.totalBatches && debt.totalBatches > 1 ? (
+                <Text
+                  style={[
+                    styles.cardBatchText,
+                    { color: isDark ? '#FCA5A5' : '#991B1B' },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                >
+                  {` · ${isAr ? `من إجمالي ${debt.totalBatches} وجبات` : isKuLanguage ? `لە کۆی ${debt.totalBatches} وەجبە` : `of ${debt.totalBatches}`}`}
+                </Text>
+              ) : null}
+            </View>
           </View>
         ) : null}
 

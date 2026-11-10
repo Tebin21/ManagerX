@@ -392,7 +392,14 @@ export default function CustomerProfileScreen() {
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 120 }}
             style={[styles.section, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}
           >
-            <Text style={sectionTitleStyle}>{t('customers.purchaseHistory')} ({sales.length})</Text>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: isRTL ? 'flex-end' : 'flex-start', gap: 3, marginBottom: 12 }}>
+              <Text style={[styles.sectionTitle, { color: colors.gray400, marginBottom: 0 }]}>{t('customers.purchaseHistory')}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={[styles.sectionTitle, { color: colors.gray400, marginBottom: 0 }]}>(</Text>
+                <Text style={[styles.sectionTitle, { color: colors.gray400, marginBottom: 0 }]}>{sales.length}</Text>
+                <Text style={[styles.sectionTitle, { color: colors.gray400, marginBottom: 0 }]}>)</Text>
+              </View>
+            </View>
             {sales.length === 0 ? (
               <Text style={[styles.noData, { color: colors.gray400 }]}>{t('customers.noHistory')}</Text>
             ) : (

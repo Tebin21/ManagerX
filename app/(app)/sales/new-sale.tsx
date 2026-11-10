@@ -1746,11 +1746,22 @@ export default function NewSaleScreen() {
                 <Text style={[{ fontSize: 13, color: isDark ? '#F8FAFC' : '#1E293B', textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                   {t('sales.monthlyInstallment', 'قیستی مانگانە')}:
                 </Text>
-                <Text style={[{ fontSize: 11, color: colors.gray400, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                  {hasDifferentLastInstallment
-                    ? `(${durationMonths - 1} ${isAr ? 'أشهر بـ' : isKuLanguage ? 'مانگ بە' : 'mo @'} ${isUSD ? '$' + fmtUSD(baseMonthlyAmount) : fmtIQD(baseMonthlyAmount)} + ${isAr ? 'الأخير' : isKuLanguage ? 'کۆتایی' : 'last'} ${isUSD ? '$' + fmtUSD(lastInstallmentAmount) : fmtIQD(lastInstallmentAmount)})`
-                    : `(${durationMonths} ${isAr ? 'أقساط متساوية' : isKuLanguage ? 'قیستی یەکسان' : 'equal payments'})`}
-                </Text>
+                {hasDifferentLastInstallment ? (
+                  <Text style={[{ fontSize: 11, color: colors.gray400, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {`(${durationMonths - 1} ${isAr ? 'أشهر بـ' : isKuLanguage ? 'مانگ بە' : 'mo @'} ${isUSD ? '$' + fmtUSD(baseMonthlyAmount) : fmtIQD(baseMonthlyAmount)} + ${isAr ? 'الأخير' : isKuLanguage ? 'کۆتایی' : 'last'} ${isUSD ? '$' + fmtUSD(lastInstallmentAmount) : fmtIQD(lastInstallmentAmount)})`}
+                  </Text>
+                ) : (
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: isRTL ? 'flex-end' : 'flex-start' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 11, color: colors.gray400 }}>(</Text>
+                      <Text style={{ fontSize: 11, color: colors.gray400, fontWeight: '700' }}>{durationMonths}</Text>
+                      <Text style={[{ fontSize: 11, color: colors.gray400 }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        {` ${isAr ? 'أقساط متساوية' : isKuLanguage ? 'قیستی یەکسان' : 'equal payments'}`}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: colors.gray400 }}>)</Text>
+                    </View>
+                  </View>
+                )}
               </View>
               <View style={{ alignItems: alignEnd }}>
                 <Text style={[styles.monthlyInstallmentValue, { color: '#D4AF37' }]}>
