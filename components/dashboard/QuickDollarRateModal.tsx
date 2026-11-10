@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,12 +29,17 @@ interface QuickDollarRateModalProps {
   onClose: () => void;
 }
 
-const MARKET_PRESETS = ['149000', '150000', '151000', '152000', '153000', '154000'];
+/** Pure number formatter that strictly uses commas, immune to Arabic dot-grouping bugs */
+const formatComma = (val: number | string): string => {
+  const str = String(val).replace(/[^0-9]/g, '');
+  if (!str) return '';
+  return str.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+};
 
 export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalProps) {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const { isRTL, textAlign, flexDirection } = useRTL();
+  const { isRTL, textAlign } = useRTL();
   const { width: windowWidth } = useWindowDimensions();
   const isTablet = windowWidth >= 768;
 
@@ -54,13 +58,11 @@ export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalP
     : true;
 
   const [input, setInput] = useState<string>('');
-  const [isSaving, setIsSaving] = useState(false);
 
   // Sync initial value when modal opens
   useEffect(() => {
     if (visible) {
       setInput(String(Math.round((exchangeRate || 1500) * 100)));
-      setIsSaving(false);
     }
   }, [visible, exchangeRate]);
 
@@ -79,12 +81,8 @@ export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalP
     };
   }, [input, exchangeRate]);
 
-  const handlePresetPress = (preset: string) => {
-    Haptics.selectionAsync();
-    setInput(preset);
-  };
-
-  const handleSave = async () => {
+  // Instant save & close without blocking
+  const handleSave = () => {
     if (!canChangeExchangeRate) {
       Alert.alert(t('common.error'), t('dashboard.quickMenu.noPermission'));
       return;
@@ -95,20 +93,13 @@ export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalP
       return;
     }
 
-    if (calculatedRate === exchangeRate) {
-      onClose();
-      return;
-    }
+    // Immediately close modal and trigger haptic feedback ("لەگەڵ دەستنان بە دوگمەی تۆماردکردن یەکسەر پەیجەکە داخرێتەوە")
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onClose();
 
-    setIsSaving(true);
-    try {
-      await setExchangeRate(calculatedRate);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onClose();
-    } catch {
-      Alert.alert(t('common.error'), t('common.tryAgain'));
-    } finally {
-      setIsSaving(false);
+    // Persist new rate in background
+    if (calculatedRate !== exchangeRate) {
+      setExchangeRate(calculatedRate).catch(() => {});
     }
   };
 
@@ -214,13 +205,13 @@ export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalP
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                   <Text style={[styles.colRateText, { color: colors.gray600, writingDirection: 'ltr' }]}>
-                    {Math.round(exchangeRate * 100).toLocaleString('en-US')}
+                    {formatComma(Math.round(exchangeRate * 100))}
                   </Text>
                   <Text style={[styles.colCurrencyText, { color: colors.gray500 }]}>IQD</Text>
                 </View>
 
                 <Text style={[styles.colSubRateText, { color: colors.gray400, writingDirection: 'ltr' }]}>
-                  100$ = {Math.round(exchangeRate * 100).toLocaleString('en-US')}
+                  100$ = {formatComma(Math.round(exchangeRate * 100))}
                 </Text>
               </View>
 
@@ -260,13 +251,13 @@ export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalP
                       },
                     ]}
                   >
-                    {isValid ? Math.round(calculatedRate * 100).toLocaleString('en-US') : '---'}
+                    {isValid ? formatComma(Math.round(calculatedRate * 100)) : '---'}
                   </Text>
                   <Text style={[styles.colCurrencyText, { color: isValid ? (isDark ? '#FDE047' : colors.primary) : colors.gray400 }]}>IQD</Text>
                 </View>
 
                 <Text style={[styles.colSubRateText, { color: colors.gray400, writingDirection: 'ltr' }]}>
-                  {isValid ? `100$ = ${Math.round(calculatedRate * 100).toLocaleString('en-US')}` : '---'}
+                  {isValid ? `100$ = ${formatComma(Math.round(calculatedRate * 100))}` : '---'}
                 </Text>
               </View>
             </View>
@@ -315,23 +306,34 @@ export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalP
                     },
                   ]}
                 >
-                  {diff > 0 ? `+${diff.toLocaleString('en-US')}` : `${diff.toLocaleString('en-US')}`} IQD
+                  {diff > 0 ? `+${formatComma(diff)}` : `${formatComma(diff)}`} IQD
                 </Text>
               </View>
             </View>
           </View>
 
-          {/* 3. Input Section */}
-          <View style={{ marginTop: 14 }}>
-            <Text
-              style={[
-                styles.inputLabel,
-                { color: colors.gray500, textAlign },
-                isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              ]}
-            >
-              {isAr ? 'سعر الـ 100$ الجديد (بالدينار):' : isKu ? 'نرخی نوێی 100$ (بە دینار):' : 'New $100 Rate (in IQD):'}
-            </Text>
+          {/* 3. Responsive Clean Input Section */}
+          <View style={{ marginTop: 16 }}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <Text
+                style={[
+                  styles.inputLabel,
+                  { color: colors.black, marginBottom: 0 },
+                  isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {isAr ? 'سعر الـ 100$ الجديد' : isKu ? 'نرخی نوێی 100$' : 'New 100$ Rate'}
+              </Text>
+              <Text
+                style={[
+                  styles.inputSubLabel,
+                  { color: colors.gray400 },
+                  isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT },
+                ]}
+              >
+                ({isAr ? 'بالدينار' : isKu ? 'بە دینار' : 'IQD'}):
+              </Text>
+            </View>
 
             <View
               style={[
@@ -344,8 +346,27 @@ export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalP
                 },
               ]}
             >
-              <View style={[styles.inputPrefixBadge, { backgroundColor: isDark ? colors.gray300 : '#E2E8F0' }]}>
-                <Text style={[styles.inputPrefixText, { color: colors.black }]}>100$ =</Text>
+              {/* 100$ Badge */}
+              <View
+                style={[
+                  styles.inputBadge,
+                  {
+                    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.18)' : '#FEF3C7',
+                    borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : '#FDE68A',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.inputBadgeText,
+                    {
+                      color: isDark ? '#FDE047' : '#B45309',
+                      writingDirection: 'ltr',
+                    },
+                  ]}
+                >
+                  100$ =
+                </Text>
               </View>
 
               <TextInput
@@ -354,63 +375,42 @@ export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalP
                   {
                     color: colors.black,
                     textAlign: 'center',
-                    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
                   },
                 ]}
                 keyboardType="numeric"
-                value={cleanNumber ? cleanNumber.toLocaleString('en-US') : ''}
+                value={cleanNumber ? formatComma(cleanNumber) : ''}
                 onChangeText={(val) => setInput(val.replace(/[^0-9]/g, ''))}
                 placeholder="150,000"
                 placeholderTextColor={colors.gray400}
                 selectTextOnFocus
               />
 
-              <View style={[styles.inputSuffixBadge, { backgroundColor: isDark ? colors.gray300 : '#E2E8F0' }]}>
-                <Text style={[styles.inputSuffixText, { color: colors.gray600 }]}>IQD</Text>
+              {/* IQD Badge */}
+              <View
+                style={[
+                  styles.inputBadge,
+                  {
+                    backgroundColor: isDark ? colors.gray300 : '#E2E8F0',
+                    borderColor: isDark ? colors.gray300 : '#CBD5E1',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.inputBadgeText,
+                    {
+                      color: colors.gray600,
+                      writingDirection: 'ltr',
+                    },
+                  ]}
+                >
+                  IQD
+                </Text>
               </View>
             </View>
           </View>
 
-          {/* 4. Quick Presets Row */}
-          <View style={styles.presetsWrapper}>
-            <View style={[styles.presetsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              {MARKET_PRESETS.map((preset) => {
-                const isSelected = cleanNumber === parseInt(preset, 10);
-                const displayLabel = `${(parseInt(preset, 10) / 1000).toFixed(0)}k`;
-                return (
-                  <TouchableOpacity
-                    key={preset}
-                    activeOpacity={0.75}
-                    onPress={() => handlePresetPress(preset)}
-                    style={[
-                      styles.presetChip,
-                      {
-                        backgroundColor: isSelected
-                          ? (isDark ? colors.primary : '#1E293B')
-                          : (isDark ? colors.gray200 : '#F1F5F9'),
-                        borderColor: isSelected ? colors.primary : (isDark ? colors.gray300 : '#CBD5E1'),
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.presetChipText,
-                        {
-                          color: isSelected ? '#FFFFFF' : colors.black,
-                          fontWeight: isSelected ? '700' : '600',
-                          writingDirection: 'ltr',
-                        },
-                      ]}
-                    >
-                      {displayLabel}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* 5. Action Buttons (Save & Cancel) */}
+          {/* 4. Action Buttons (Save & Cancel) */}
           <View style={[styles.actionsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <TouchableOpacity
               style={[
@@ -422,7 +422,6 @@ export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalP
               ]}
               onPress={onClose}
               activeOpacity={0.75}
-              disabled={isSaving}
             >
               <Text
                 style={[
@@ -440,29 +439,25 @@ export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalP
                 styles.saveBtn,
                 {
                   backgroundColor: colors.primary,
-                  opacity: isSaving || !isValid ? 0.6 : 1,
+                  opacity: !isValid ? 0.6 : 1,
                 },
               ]}
               onPress={handleSave}
               activeOpacity={0.8}
-              disabled={isSaving || !isValid}
+              disabled={!isValid}
             >
-              {isSaving ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
-                  <Text
-                    style={[
-                      styles.saveBtnText,
-                      { color: '#FFFFFF' },
-                      isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {t('dashboard.quickMenu.saveBtn')}
-                  </Text>
-                </View>
-              )}
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                <Text
+                  style={[
+                    styles.saveBtnText,
+                    { color: '#FFFFFF' },
+                    isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {t('dashboard.quickMenu.saveBtn')}
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -588,62 +583,39 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   inputLabel: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    marginBottom: 6,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  inputSubLabel: {
+    fontSize: 11.5,
   },
   inputWrapper: {
-    height: 48,
+    height: 52,
     borderRadius: 14,
-    borderWidth: 1,
-    overflow: 'hidden',
+    borderWidth: 1.2,
+    paddingHorizontal: 6,
   },
-  inputPrefixBadge: {
-    paddingHorizontal: 12,
-    height: '100%',
+  inputBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  inputPrefixText: {
+  inputBadgeText: {
     fontSize: 13,
     fontWeight: '700',
   },
   inputField: {
     flex: 1,
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: '800',
     paddingHorizontal: 8,
     height: '100%',
   },
-  inputSuffixBadge: {
-    paddingHorizontal: 12,
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  inputSuffixText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  presetsWrapper: {
-    marginTop: 10,
-  },
-  presetsRow: {
-    flexWrap: 'wrap',
-    gap: 6,
-    justifyContent: 'center',
-  },
-  presetChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 9,
-    borderWidth: 1,
-  },
-  presetChipText: {
-    fontSize: 12,
-  },
   actionsRow: {
-    marginTop: 16,
+    marginTop: 18,
     gap: 10,
   },
   cancelBtn: {
