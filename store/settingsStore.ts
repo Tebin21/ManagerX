@@ -118,7 +118,7 @@ export const DEFAULT_SALES_RECEIPT_SETTINGS: SalesReceiptSettings = {
   showQty: true,
   showItemPrice: true,
   showDiscount: true,
-  showItemBarcode: false,
+  showItemBarcode: true,
   showPaymentMethod: true,
   showPaidAmount: true,
   showRemainingDebt: true,
@@ -141,7 +141,7 @@ export const DEFAULT_PURCHASE_RECEIPT_SETTINGS: PurchaseReceiptSettings = {
   showQty: true,
   showBuyPrice: true,
   showDiscount: true,
-  showItemBarcode: false,
+  showItemBarcode: true,
   showPaymentMethod: true,
   showPaidAmount: true,
   showRemainingDebt: true,
@@ -647,6 +647,35 @@ export const useSettingsStore = create<SettingsState>()(
       if (!raw || !JSON.parse(raw)?.state?.hasOwnProperty('salesHistoryGridLayout')) {
         useSettingsStore.setState({ salesHistoryGridLayout: salesMode === 'grid' });
       }
+    }
+
+    // Default item ID / barcode button to ON across all modules for all users
+    const itemBarcodeMigrated = await AsyncStorage.getItem('@froshiar_item_id_default_on_v1');
+    if (!itemBarcodeMigrated) {
+      const state = useSettingsStore.getState();
+      useSettingsStore.setState({
+        salesReceiptSettings: {
+          ...state.salesReceiptSettings,
+          showItemBarcode: true,
+        },
+        thermalReceiptSettings: {
+          ...state.thermalReceiptSettings,
+          showItemBarcode: true,
+        },
+        purchaseReceiptSettings: {
+          ...state.purchaseReceiptSettings,
+          showItemBarcode: true,
+        },
+        quotationReceiptSettings: {
+          ...state.quotationReceiptSettings,
+          showItemBarcode: true,
+        },
+        inventoryReceiptSettings: {
+          ...state.inventoryReceiptSettings,
+          showItemId: true,
+        },
+      });
+      await AsyncStorage.setItem('@froshiar_item_id_default_on_v1', 'true');
     }
   } catch { /* non-critical migration */ }
 })();
