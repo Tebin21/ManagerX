@@ -1887,20 +1887,59 @@ export default function NewPurchaseScreen() {
 
       {idType === 'custom' && (
         <View style={styles.customIdsContainer}>
-          <View style={[styles.customIdsHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={styles.customIdsHeader}>
+            {/* Row 1: Title + Responsive Kurdish Parenthesis Badge */}
             <View style={[styles.customIdsHeaderTitleWrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <Ionicons name="barcode" size={17} color={colors.primary} />
-              <Text
-                numberOfLines={1}
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+                <Ionicons name="barcode" size={18} color={colors.primary} />
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.customIdsHeaderTitle,
+                    { color: colors.primary },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isArLanguage ? 'معرف خاص لكل قطعة' : isKuLanguage ? 'ئایدیی تایبەت بۆ هەر ئایتەمێک' : 'Custom Item IDs'}
+                </Text>
+              </View>
+
+              {/* Responsive Parenthesis Badge: ( 7 دانە ) with perfect Kurdish RTL order */}
+              <View
                 style={[
-                  styles.customIdsHeaderTitle,
-                  { color: colors.primary },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  styles.qtyPillBadge,
+                  {
+                    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.16)' : '#FEF3C7',
+                    borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : '#FDE68A',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 3,
+                  },
                 ]}
               >
-                {isArLanguage ? `معرف خاص لكل قطعة (${qtyNum} قطع)` : isKuLanguage ? `ئایدیی تایبەت بۆ هەر ئایتەمێک (${qtyNum} دانە)` : `Custom Item IDs (${qtyNum})`}
-              </Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#FDE047' : '#B45309' }}>)</Text>
+                <Text
+                  style={[
+                    styles.qtyPillText,
+                    { color: isDark ? '#FDE047' : '#B45309' },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isArLanguage ? 'قطع' : isKuLanguage ? 'دانە' : 'items'}
+                </Text>
+                <Text
+                  style={[
+                    styles.qtyPillText,
+                    { color: isDark ? '#FDE047' : '#B45309', fontWeight: '800' },
+                  ]}
+                >
+                  {qtyNum}
+                </Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#FDE047' : '#B45309' }}>(</Text>
+              </View>
             </View>
+
+            {/* Row 2: Responsive Action Buttons (Auto All & Add Item) */}
             <View style={[styles.customIdsHeaderActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <TouchableOpacity
                 onPress={handleGenerateAllCustomIds}
@@ -1919,7 +1958,7 @@ export default function NewPurchaseScreen() {
                   <ActivityIndicator size="small" color={isDark ? '#FBBF24' : '#B45309'} />
                 ) : (
                   <>
-                    <Ionicons name="sparkles" size={13} color={isDark ? '#FBBF24' : '#B45309'} />
+                    <Ionicons name="sparkles" size={14} color={isDark ? '#FBBF24' : '#B45309'} />
                     <Text
                       style={[
                         styles.autoAllBtnText,
@@ -1946,7 +1985,7 @@ export default function NewPurchaseScreen() {
                 ]}
                 activeOpacity={0.7}
               >
-                <Ionicons name="add" size={15} color={colors.primary} />
+                <Ionicons name="add" size={16} color={colors.primary} />
                 <Text
                   style={[
                     styles.addSlotBtnText,
@@ -3569,55 +3608,67 @@ const styles = StyleSheet.create({
   },
   customIdBadgeText: { fontSize: 11, fontWeight: '700' },
   customIdsHeader: {
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    rowGap: 8,
-    columnGap: 8,
-    marginBottom: 10,
+    width: '100%',
+    marginBottom: 12,
     marginTop: 6,
+    gap: 8,
   },
   customIdsHeaderTitleWrap: {
+    width: '100%',
     alignItems: 'center',
-    gap: 6,
-    flexShrink: 1,
+    justifyContent: 'space-between',
+    gap: 8,
   },
   customIdsHeaderTitle: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '700',
   },
-  customIdsHeaderActions: {
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  autoAllBtn: {
+  qtyPillBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1.2,
-    gap: 4,
     flexShrink: 0,
   },
+  qtyPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    includeFontPadding: false,
+  },
+  customIdsHeaderActions: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 8,
+  },
+  autoAllBtn: {
+    flex: 1,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRadius: 9,
+    borderWidth: 1.2,
+    gap: 5,
+  },
   autoAllBtnText: {
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '700',
     includeFontPadding: false,
   },
   addSlotBtn: {
+    flex: 1,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    borderRadius: 9,
     borderWidth: 1.2,
-    gap: 4,
-    flexShrink: 0,
+    gap: 5,
   },
   addSlotBtnText: {
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '700',
     includeFontPadding: false,
   },
