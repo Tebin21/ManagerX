@@ -46,6 +46,7 @@ import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { shareQuotationInvoice, directPrintQuotationInvoice } from '@/lib/generateInvoice';
+import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 import type { CheckoutMode } from '@/components/shared/CheckoutActionGrid';
 import { PrintFormatPickerModal } from '@/components/shared/PrintFormatPickerModal';
 import {
@@ -613,7 +614,7 @@ export default function SalesQuotationScreen() {
     setFormatPickerVisible(true);
   };
 
-  const handleConfirmPrintFormat = async (paperSize: ReceiptPaperSize) => {
+  const handleConfirmPrintFormat = async (paperSize: ReceiptPaperSize, selectedCurrencyMode?: ReceiptCurrencyMode) => {
     const q = quoteToPrint || generatedQuotation;
     if (!q) return;
     const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
@@ -634,7 +635,7 @@ export default function SalesQuotationScreen() {
           address: business.address,
           logoUri: business.logoUri,
         },
-        q.currencyMode || currencyMode || 'both',
+        selectedCurrencyMode || q.currencyMode || currencyMode || 'both',
         paperSize
       );
       // Increment print count in store immediately
@@ -2608,6 +2609,7 @@ export default function SalesQuotationScreen() {
         onConfirm={handleConfirmPrintFormat}
         isPrinting={isGenerating}
         initialPaperSize={useSettingsStore.getState().quotationPaperSizePreference || '80mm'}
+        initialCurrencyMode={quoteToPrint?.currencyMode || currencyMode || 'both'}
         title={isAr ? 'حجم طباعة عرض السعر' : isKuLanguage ? 'قەبارەی چاپی وەسڵی عەرز' : 'Quotation Invoice Paper Size'}
         invoiceNumber={quoteToPrint?.quotationNumber || generatedQuotation?.quotationNumber}
         partyName={quoteToPrint?.customerName || generatedQuotation?.customerName || (isAr ? 'زبون عام' : isKuLanguage ? 'کڕیاری دیارینەکراو' : 'Customer')}

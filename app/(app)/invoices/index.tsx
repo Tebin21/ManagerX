@@ -859,7 +859,7 @@ export default function InvoicesHubScreen() {
     setFormatPickerVisible(true);
   }, []);
 
-  const executePrintPurchase = async (purchase: Purchase, paperSize: ReceiptPaperSize) => {
+  const executePrintPurchase = async (purchase: Purchase, paperSize: ReceiptPaperSize, currencyMode?: ReceiptCurrencyMode) => {
     const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
     const printCheck = await checkInvoicePrintLimit();
     if (!printCheck.allowed) {
@@ -910,7 +910,7 @@ export default function InvoicesHubScreen() {
       }
       const debt = purchaseDebtsMap[purchase.id] || (await getPurchaseDebtByPurchaseId(purchase.id));
 
-      const receiptCurrency: ReceiptCurrencyMode = isUSD ? 'usd' : 'iqd';
+      const receiptCurrency: ReceiptCurrencyMode = currencyMode || (isUSD ? 'usd' : 'iqd');
       await directPrintPurchaseInvoice(
         purchase,
         items,
@@ -961,7 +961,7 @@ export default function InvoicesHubScreen() {
     }
   }, []);
 
-  const executePrintSale = async (sale: Sale, paperSize: ReceiptPaperSize) => {
+  const executePrintSale = async (sale: Sale, paperSize: ReceiptPaperSize, currencyMode?: ReceiptCurrencyMode) => {
     const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
     const printCheck = await checkInvoicePrintLimit();
     if (!printCheck.allowed) {
@@ -994,7 +994,7 @@ export default function InvoicesHubScreen() {
 
     try {
       const fullSale = sale.items && sale.items.length > 0 ? sale : (await getSaleById(sale.id)) ?? sale;
-      const receiptCurrency: ReceiptCurrencyMode = isUSD ? 'usd' : 'iqd';
+      const receiptCurrency: ReceiptCurrencyMode = currencyMode || (isUSD ? 'usd' : 'iqd');
 
       await directPrintInvoice(
         fullSale,
@@ -1028,7 +1028,7 @@ export default function InvoicesHubScreen() {
     setQuotationModalVisible(true);
   }, []);
 
-  const executePrintQuotation = async (q: Quotation, paperSize: ReceiptPaperSize) => {
+  const executePrintQuotation = async (q: Quotation, paperSize: ReceiptPaperSize, currencyMode?: ReceiptCurrencyMode) => {
     const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
     const printCheck = await checkInvoicePrintLimit();
     if (!printCheck.allowed) {
@@ -1053,6 +1053,8 @@ export default function InvoicesHubScreen() {
     setSelectedQuotation(updatedQuotation);
 
     try {
+      const receiptCurrency: ReceiptCurrencyMode =
+        currencyMode || q.currencyMode || useQuotationStore.getState().currencyMode || 'both';
       await directPrintQuotationInvoice(
         updatedQuotation,
         {
@@ -1061,7 +1063,7 @@ export default function InvoicesHubScreen() {
           address: business.address,
           logoUri: business.logoUri,
         },
-        q.currencyMode || useQuotationStore.getState().currencyMode || 'both',
+        receiptCurrency,
         paperSize
       );
     } catch (err) {
@@ -1076,20 +1078,20 @@ export default function InvoicesHubScreen() {
     requestPrintQuotation(q);
   }, [requestPrintQuotation]);
 
-  const handleConfirmPrintFormat = async (paperSize: ReceiptPaperSize) => {
+  const handleConfirmPrintFormat = async (paperSize: ReceiptPaperSize, currencyMode: ReceiptCurrencyMode) => {
     if (!formatPickerTarget || isFormatPickerPrinting) return;
     setIsFormatPickerPrinting(true);
     const returnTarget = returnToModalAfterPicker;
     try {
       if (formatPickerTarget.type === 'purchase') {
         useSettingsStore.getState().setPurchasePaperSizePreference(paperSize);
-        await executePrintPurchase(formatPickerTarget.purchase, paperSize);
+        await executePrintPurchase(formatPickerTarget.purchase, paperSize, currencyMode);
       } else if (formatPickerTarget.type === 'sale') {
         useSettingsStore.getState().setSalesPaperSizePreference(paperSize);
-        await executePrintSale(formatPickerTarget.sale, paperSize);
+        await executePrintSale(formatPickerTarget.sale, paperSize, currencyMode);
       } else if (formatPickerTarget.type === 'quotation') {
         useSettingsStore.getState().setQuotationPaperSizePreference(paperSize);
-        await executePrintQuotation(formatPickerTarget.quotation, paperSize);
+        await executePrintQuotation(formatPickerTarget.quotation, paperSize, currencyMode);
       }
     } catch (err) {
       console.error('[InvoicesHub] handleConfirmPrintFormat error:', err);
@@ -4028,6 +4030,11 @@ export default function InvoicesHubScreen() {
             : formatPickerTarget?.type === 'purchase'
             ? useSettingsStore.getState().purchasePaperSizePreference || '80mm'
             : '80mm'
+        }
+        initialCurrencyMode={
+          formatPickerTarget?.type === 'quotation'
+            ? (formatPickerTarget.quotation.currencyMode || 'both')
+            : (isUSD ? 'usd' : 'iqd')
         }
         title={
           formatPickerTarget?.type === 'sale'

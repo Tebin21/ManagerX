@@ -6,25 +6,30 @@ import {
   Modal,
   useWindowDimensions,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import type { ReceiptPaperSize } from '@/store/settingsStore';
+import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 
 export interface PrintFormatPickerModalProps {
   visible: boolean;
   onClose: () => void;
-  onConfirm: (paperSize: ReceiptPaperSize) => void | Promise<void>;
+  onConfirm: (paperSize: ReceiptPaperSize, currencyMode: ReceiptCurrencyMode) => void | Promise<void>;
   title?: string;
   invoiceNumber?: string;
   partyName?: string;
   initialPaperSize?: ReceiptPaperSize;
+  initialCurrencyMode?: ReceiptCurrencyMode;
   isPrinting?: boolean;
 }
 
@@ -104,6 +109,18 @@ const PAPER_OPTIONS: PaperFormatOption[] = [
   },
 ];
 
+const CURRENCY_MODES: {
+  id: ReceiptCurrencyMode;
+  labelKu: string;
+  labelAr: string;
+  labelEn: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { id: 'iqd', labelKu: 'تەنها دینار', labelAr: 'دينار فقط', labelEn: 'IQD Only', icon: 'cash-outline' },
+  { id: 'usd', labelKu: 'تەنها دۆلار', labelAr: 'دولار فقط', labelEn: 'USD Only', icon: 'logo-usd' },
+  { id: 'both', labelKu: 'دینار + دۆلار', labelAr: 'دينار + دولار', labelEn: 'Both', icon: 'swap-horizontal' },
+];
+
 export function PrintFormatPickerModal({
   visible,
   onClose,
@@ -112,23 +129,36 @@ export function PrintFormatPickerModal({
   invoiceNumber,
   partyName,
   initialPaperSize = '80mm',
+  initialCurrencyMode,
   isPrinting = false,
 }: PrintFormatPickerModalProps) {
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const isTablet = width >= 768;
   const lang = useLanguageStore((s) => s.language);
   const isKu = lang === 'ku';
   const isAr = lang === 'ar';
+  const baseCurrency = useSettingsStore((s) => s.baseCurrency) || 'IQD';
+  const isUSD = baseCurrency === 'USD';
 
   const [selectedSize, setSelectedSize] = useState<ReceiptPaperSize>(initialPaperSize);
+  const [selectedCurrencyMode, setSelectedCurrencyMode] = useState<ReceiptCurrencyMode>(
+    initialCurrencyMode || (isUSD ? 'usd' : 'iqd')
+  );
 
   useEffect(() => {
     if (visible && initialPaperSize) {
       setSelectedSize(initialPaperSize);
     }
-  }, [visible, initialPaperSize]);
+    if (visible) {
+      if (initialCurrencyMode) {
+        setSelectedCurrencyMode(initialCurrencyMode);
+      } else {
+        setSelectedCurrencyMode(isUSD ? 'usd' : 'iqd');
+      }
+    }
+  }, [visible, initialPaperSize, initialCurrencyMode, isUSD]);
 
   const handleSelect = (size: ReceiptPaperSize) => {
     setSelectedSize(size);
@@ -136,7 +166,7 @@ export function PrintFormatPickerModal({
 
   const handlePrintPress = () => {
     if (isPrinting) return;
-    onConfirm(selectedSize);
+    onConfirm(selectedSize, selectedCurrencyMode);
   };
 
   if (!visible) return null;
@@ -238,7 +268,13 @@ export function PrintFormatPickerModal({
             </TouchableOpacity>
           </View>
 
-          {/* ── Subtitle Instruction ── */}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            contentContainerStyle={{ paddingBottom: 6 }}
+            style={{ maxHeight: Math.min(height * 0.72, 540) }}
+          >
+            {/* ── Subtitle Instruction ── */}
           <View style={[styles.instructionBox, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC' }]}>
             <Text
               style={[
@@ -385,7 +421,92 @@ export function PrintFormatPickerModal({
             })}
           </View>
 
-          {/* ── Dialog Bottom Actions ── */}
+          {/* ── Currency Display for Grand Total (تەنها دینار، تەنها دۆلار، دینار + دۆلار) ── */}
+          <View
+            style={[
+              styles.currencySection,
+              {
+                borderTopColor: isDark ? colors.gray200 : '#F1F5F9',
+                backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : '#FAFAFA',
+              },
+            ]}
+          >
+            <View style={[styles.currencyHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Ionicons name="cash-outline" size={15} color={colors.primary} />
+              <Text
+                style={[
+                  styles.currencySectionLabel,
+                  { color: isDark ? colors.gray300 : colors.gray700, textAlign },
+                  isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {isAr
+                  ? 'العملة المعروضة للإجمالي بالوصل:'
+                  : isKu
+                  ? 'دراوی پیشاندراو بۆ کۆی گشتی:'
+                  : 'Invoice Currency for Grand Total:'}
+              </Text>
+            </View>
+
+            <View style={[styles.currencyPillsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              {CURRENCY_MODES.map((mode) => {
+                const isSelected = selectedCurrencyMode === mode.id;
+                const label = isAr ? mode.labelAr : isKu ? mode.labelKu : mode.labelEn;
+                return (
+                  <TouchableOpacity
+                    key={mode.id}
+                    activeOpacity={0.75}
+                    onPress={() => {
+                      try {
+                        Haptics.selectionAsync().catch(() => {});
+                      } catch {}
+                      setSelectedCurrencyMode(mode.id);
+                    }}
+                    disabled={isPrinting}
+                    style={[
+                      styles.currencyPill,
+                      {
+                        backgroundColor: isSelected
+                          ? (isDark ? 'rgba(212, 175, 55, 0.22)' : '#FEF3C7')
+                          : (isDark ? colors.gray200 : '#FFFFFF'),
+                        borderColor: isSelected ? colors.primary : (isDark ? colors.gray300 : '#E2E8F0'),
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={mode.icon}
+                      size={14}
+                      color={isSelected ? (isDark ? colors.primary : '#B45309') : colors.gray400}
+                    />
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.currencyPillText,
+                        {
+                          color: isSelected
+                            ? (isDark ? colors.primary : '#92400E')
+                            : (isDark ? colors.gray300 : colors.gray600),
+                        },
+                        isKu && { fontFamily: isSelected ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                    {isSelected && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={13}
+                        color={isDark ? colors.primary : '#B45309'}
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* ── Dialog Bottom Actions ── */}
           <View
             style={[
               styles.footer,
@@ -597,6 +718,39 @@ const styles = StyleSheet.create({
   cancelBtnText: {
     fontSize: 13.5,
     fontWeight: '700',
+  },
+  currencySection: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 12,
+    borderTopWidth: 1,
+  },
+  currencyHeaderRow: {
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  currencySectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  currencyPillsRow: {
+    gap: 6,
+  },
+  currencyPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 9,
+    paddingHorizontal: 4,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  currencyPillText: {
+    fontSize: 11.5,
+    fontWeight: '600',
   },
 });
 
