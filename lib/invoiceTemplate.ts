@@ -1426,7 +1426,7 @@ export function buildPurchaseInvoiceHTML(
     : isPurchaseKu
     ? 'سەرجەم کاڵاکان بەپێی فاکتوورەی فەرمی دابینکەر وەرگیراون و داخڵی سیستەمی کۆگا کراون.'
     : 'Goods received according to supplier official invoice and registered in warehouse.';
-  const aboutPolicyText = (purchase.aboutPolicy ?? useSettingsStore.getState().invoiceAboutPolicy ?? '').trim() || defaultPolicy;
+  const aboutPolicyText = (purchase.aboutPolicy ?? '').trim() || defaultPolicy;
   const aboutPolicySection = purchaseSettings.showAboutPolicy !== false ? `
   <div class="policy-card">
     <div class="policy-label">${ku(isPurchaseAr ? 'سياسة الشراء والاستلام' : isPurchaseKu ? 'سیاسەتی وەرگرتن و کڕین' : 'PROCUREMENT POLICY')}</div>
