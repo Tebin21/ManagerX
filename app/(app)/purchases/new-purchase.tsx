@@ -1904,7 +1904,7 @@ export default function NewPurchaseScreen() {
                 </Text>
               </View>
 
-              {/* Responsive Parenthesis Badge: ( 7 دانە ) with perfect Kurdish RTL order */}
+              {/* Responsive Parenthesis Badge: ( 7 دانە ) with correct visual order */}
               <View
                 style={[
                   styles.qtyPillBadge,
@@ -1917,7 +1917,7 @@ export default function NewPurchaseScreen() {
                   },
                 ]}
               >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#FDE047' : '#B45309' }}>)</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#FDE047' : '#B45309' }}>(</Text>
                 <Text
                   style={[
                     styles.qtyPillText,
@@ -1935,7 +1935,7 @@ export default function NewPurchaseScreen() {
                 >
                   {qtyNum}
                 </Text>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#FDE047' : '#B45309' }}>(</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#FDE047' : '#B45309' }}>)</Text>
               </View>
             </View>
 
