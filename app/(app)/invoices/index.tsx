@@ -89,6 +89,27 @@ import type { ReceiptPaperSize } from '@/store/settingsStore';
 
 type TabKey = 'reports' | 'purchases' | 'sales' | 'installments' | 'quotations' | 'debts';
 
+export interface GroupedInstallmentPaymentPlan {
+  groupKey: string;
+  saleId?: number;
+  debtId?: number | null;
+  partyName: string;
+  partyPhone?: string | null;
+  partyAddress?: string | null;
+  referenceNumber?: string | null;
+  saleInvoiceNumber?: string | null;
+  latestInvoiceNumber: string;
+  payments: DebtPaymentReceiptData[];
+  paymentsCount: number;
+  totalPaid: number;
+  remainingDebt: number;
+  grandTotal: number;
+  latestPaymentDate: string;
+  matchedSale?: InstallmentSaleRow;
+  printCount: number;
+  viewCount: number;
+}
+
 export default function InvoicesHubScreen() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -105,7 +126,7 @@ export default function InvoicesHubScreen() {
   const isUSD = baseCurrency === 'USD';
   const business = useBusinessStore();
 
-  const params = useLocalSearchParams<{ tab?: TabKey; id?: string; saleId?: string; purchaseId?: string; quotationId?: string; debtPaymentId?: string; printTarget?: string }>();
+  const params = useLocalSearchParams<{ tab?: TabKey; id?: string; saleId?: string; purchaseId?: string; quotationId?: string; debtPaymentId?: string; printTarget?: string; filter?: string; history?: string }>();
   const { quotations, deleteQuotation } = useQuotationStore();
 
   // ─── Active Tab State ───
@@ -115,6 +136,12 @@ export default function InvoicesHubScreen() {
     }
     return 'reports';
   });
+
+  useEffect(() => {
+    if (params.tab && (['reports', 'purchases', 'sales', 'installments', 'quotations', 'debts'] as TabKey[]).includes(params.tab)) {
+      setActiveTab(params.tab);
+    }
+  }, [params.tab]);
   const tabScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -268,6 +295,12 @@ export default function InvoicesHubScreen() {
   const [debtSearch, setDebtSearch] = useState('');
   const [installmentSearch, setInstallmentSearch] = useState('');
   const [installmentTypeFilter, setInstallmentTypeFilter] = useState<'all' | 'sales' | 'payments'>('all');
+
+  useEffect(() => {
+    if (params.filter && ['all', 'sales', 'payments'].includes(params.filter)) {
+      setInstallmentTypeFilter(params.filter as 'all' | 'sales' | 'payments');
+    }
+  }, [params.filter]);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
 
@@ -327,6 +360,10 @@ export default function InvoicesHubScreen() {
 
   const [selectedDebtReceipt, setSelectedDebtReceipt] = useState<DebtPaymentReceiptData | null>(null);
   const [debtReceiptModalVisible, setDebtReceiptModalVisible] = useState(false);
+
+  // Grouped Installment Payments History Modal State ("مێژووی وەسڵەکانی دانەوە")
+  const [selectedInstallmentGroup, setSelectedInstallmentGroup] = useState<GroupedInstallmentPaymentPlan | null>(null);
+  const [installmentHistoryModalVisible, setInstallmentHistoryModalVisible] = useState(false);
 
   // ─── 4-Format Print Picker Modal State (Sales, Purchases, Quotations) ───
   const [formatPickerVisible, setFormatPickerVisible] = useState(false);
@@ -423,6 +460,80 @@ export default function InvoicesHubScreen() {
           (d.note && (d.note.includes('قیست') || d.note.includes('قسط') || d.note.toLowerCase().includes('installment'))))
     );
   }, [filteredDebtsByPeriod, installmentSales]);
+
+  // Group installment payments by parent sale / debt ("یەک قیست دەبێتە یەک بەتن")
+  const groupedInstallmentPayments = useMemo(() => {
+    const map = new Map<string, GroupedInstallmentPaymentPlan>();
+
+    filteredInstallmentPaymentsByPeriod.forEach((d) => {
+      const matched = installmentSales.find(
+        (s) => (d.saleId && s.saleId === d.saleId) || (d.debtId && s.debtId === d.debtId)
+      );
+
+      const key = d.saleId ? `sale-${d.saleId}` : d.debtId ? `debt-${d.debtId}` : `party-${d.partyName}`;
+
+      const existing = map.get(key);
+      if (existing) {
+        existing.payments.push(d);
+        existing.paymentsCount = existing.payments.length;
+        existing.totalPaid += d.amount || 0;
+        existing.printCount += d.printCount || 0;
+        existing.viewCount += d.viewCount || 0;
+        if (new Date(d.createdAt).getTime() > new Date(existing.latestPaymentDate).getTime()) {
+          existing.latestPaymentDate = d.createdAt;
+          existing.latestInvoiceNumber = d.paymentNumber;
+          existing.remainingDebt = d.remainingAfter;
+          if (d.referenceNumber) existing.referenceNumber = d.referenceNumber;
+        }
+      } else {
+        map.set(key, {
+          groupKey: key,
+          saleId: d.saleId || matched?.saleId,
+          debtId: d.debtId || matched?.debtId,
+          partyName: d.partyName || matched?.customerName || '',
+          partyPhone: d.partyPhone || matched?.customerPhone,
+          partyAddress: d.partyAddress || matched?.customerAddress,
+          referenceNumber: d.referenceNumber || matched?.invoiceNumber,
+          saleInvoiceNumber: matched?.invoiceNumber,
+          latestInvoiceNumber: d.paymentNumber,
+          payments: [d],
+          paymentsCount: 1,
+          totalPaid: d.amount || 0,
+          remainingDebt: d.remainingAfter,
+          grandTotal: matched?.grandTotal || d.originalAmount || (d.amount + d.remainingAfter),
+          latestPaymentDate: d.createdAt,
+          matchedSale: matched,
+          printCount: d.printCount || 0,
+          viewCount: d.viewCount || 0,
+        });
+      }
+    });
+
+    map.forEach((g) => {
+      g.payments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    });
+
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.latestPaymentDate).getTime() - new Date(a.latestPaymentDate).getTime()
+    );
+  }, [filteredInstallmentPaymentsByPeriod, installmentSales]);
+
+  useEffect(() => {
+    if (params.history && groupedInstallmentPayments.length > 0) {
+      const target =
+        groupedInstallmentPayments.find(
+          (g) =>
+            g.groupKey === params.history ||
+            g.latestInvoiceNumber === params.history ||
+            `${g.saleId}` === params.history ||
+            `${g.debtId}` === params.history
+        ) || groupedInstallmentPayments[0];
+      if (target) {
+        setSelectedInstallmentGroup(target);
+        setInstallmentHistoryModalVisible(true);
+      }
+    }
+  }, [params.history, groupedInstallmentPayments]);
 
   // ─── Formatter Helper ───
   const formatMoney = useCallback((amountIQD: number) => {
@@ -598,57 +709,88 @@ export default function InvoicesHubScreen() {
   const searchedInstallmentItems = useMemo(() => {
     const q = toEnglishDigits(installmentSearch.trim().toLowerCase());
 
-    const saleItems = (installmentTypeFilter === 'payments' ? [] : filteredInstallmentSalesByPeriod).map((s) => ({
-      kind: 'sale' as const,
-      id: `inst-sale-${s.saleId}`,
-      saleId: s.saleId,
-      invoiceNumber: s.invoiceNumber,
-      partyName: s.customerName,
-      partyPhone: s.customerPhone,
-      date: s.saleDate,
-      grandTotal: s.grandTotal,
-      paidAmount: s.paidAmount,
-      remainingDebt: s.remainingDebt,
-      installmentMonths: s.installmentMonths,
-      installmentMonthlyAmount: s.installmentMonthlyAmount,
-      productsSummary: s.productsSummary,
-      printCount: s.printCount || 0,
-      status: s.debtStatus,
+    const saleItems = (installmentTypeFilter === 'payments' ? [] : filteredInstallmentSalesByPeriod).map((s) => {
+      const matchedGroup = groupedInstallmentPayments.find(
+        (g) => (s.saleId && g.saleId === s.saleId) || (s.debtId && g.debtId === s.debtId)
+      );
+      return {
+        kind: 'sale' as const,
+        id: `inst-sale-${s.saleId}`,
+        saleId: s.saleId,
+        debtId: s.debtId,
+        invoiceNumber: s.invoiceNumber,
+        partyName: s.customerName,
+        partyPhone: s.customerPhone,
+        date: s.saleDate,
+        grandTotal: s.grandTotal,
+        paidAmount: s.paidAmount,
+        remainingDebt: s.remainingDebt,
+        installmentMonths: s.installmentMonths,
+        installmentMonthlyAmount: s.installmentMonthlyAmount,
+        productsSummary: s.productsSummary,
+        printCount: s.printCount || 0,
+        viewCount: (s as any).viewCount || 0,
+        status: s.debtStatus,
+        paymentsCount: matchedGroup?.paymentsCount || 0,
+        matchedGroup,
+      };
+    });
+
+    const paymentGroupItems = (installmentTypeFilter === 'sales' ? [] : groupedInstallmentPayments).map((g) => ({
+      kind: 'paymentGroup' as const,
+      id: `inst-group-${g.groupKey}`,
+      groupKey: g.groupKey,
+      saleId: g.saleId,
+      debtId: g.debtId,
+      invoiceNumber: g.latestInvoiceNumber,
+      refNumber: g.referenceNumber,
+      saleInvoiceNumber: g.saleInvoiceNumber,
+      partyName: g.partyName,
+      partyPhone: g.partyPhone,
+      date: g.latestPaymentDate,
+      grandTotal: g.grandTotal,
+      paidAmount: g.totalPaid,
+      remainingDebt: g.remainingDebt,
+      installmentMonths: g.matchedSale?.installmentMonths || 0,
+      installmentMonthlyAmount: g.matchedSale?.installmentMonthlyAmount || 0,
+      productsSummary: isAr
+        ? `${g.paymentsCount} إيصالات تسديد مسجلة لهذا القسط`
+        : isKu
+        ? `${g.paymentsCount} وەسڵی دانەوە بۆ ئەم قیستە تۆمارکراوە`
+        : `${g.paymentsCount} repayment receipts for this installment`,
+      printCount: g.printCount || 0,
+      viewCount: g.viewCount || 0,
+      status: g.remainingDebt <= 0 ? 'settled' : 'active',
+      groupData: g,
     }));
 
-    const paymentItems = (installmentTypeFilter === 'sales' ? [] : filteredInstallmentPaymentsByPeriod).map((d) => ({
-      kind: 'payment' as const,
-      id: `inst-pay-${d.id}`,
-      paymentId: d.id,
-      invoiceNumber: d.paymentNumber,
-      refNumber: d.referenceNumber,
-      partyName: d.partyName,
-      partyPhone: d.partyPhone,
-      date: d.createdAt,
-      grandTotal: d.originalAmount || (d.amount + d.remainingAfter),
-      paidAmount: d.amount,
-      remainingDebt: d.remainingAfter,
-      installmentMonths: 0,
-      installmentMonthlyAmount: 0,
-      productsSummary: d.note || (isAr ? 'تسديد قسط' : isKu ? 'دانەوەی قیست' : 'Installment Payment'),
-      printCount: d.printCount || 0,
-      status: d.remainingAfter <= 0 ? 'settled' : 'active',
-      receiptData: d,
-    }));
-
-    const combined = [...saleItems, ...paymentItems].sort(
+    const combined = [...saleItems, ...paymentGroupItems].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
 
     if (!q) return combined;
-    return combined.filter(
-      (item) =>
+    return combined.filter((item) => {
+      const matchBasic =
         (item.invoiceNumber || '').toLowerCase().includes(q) ||
         (item.partyName || '').toLowerCase().includes(q) ||
         toEnglishDigits(item.partyPhone || '').includes(q) ||
-        (item.productsSummary || '').toLowerCase().includes(q)
-    );
-  }, [filteredInstallmentSalesByPeriod, filteredInstallmentPaymentsByPeriod, installmentTypeFilter, installmentSearch, isKu]);
+        (item.productsSummary || '').toLowerCase().includes(q);
+      if (matchBasic) return true;
+
+      if (item.kind === 'paymentGroup') {
+        return (
+          (item.saleInvoiceNumber || '').toLowerCase().includes(q) ||
+          item.groupData.payments.some(
+            (p) =>
+              (p.paymentNumber || '').toLowerCase().includes(q) ||
+              toEnglishDigits(p.partyPhone || '').includes(q) ||
+              (p.note || '').toLowerCase().includes(q)
+          )
+        );
+      }
+      return false;
+    });
+  }, [filteredInstallmentSalesByPeriod, groupedInstallmentPayments, installmentTypeFilter, installmentSearch, isKu, isAr]);
 
   // ─── Purchase Actions ───
   const handleOpenPurchaseDetails = useCallback(async (purchase: Purchase) => {
@@ -1001,6 +1143,14 @@ export default function InvoicesHubScreen() {
     setDebtReceipts((prev) =>
       prev.map((r) => (r.id === receipt.id ? { ...r, viewCount: nextViewCount } : r))
     );
+  }, []);
+
+  const handleOpenInstallmentGroupHistory = useCallback((group: GroupedInstallmentPaymentPlan) => {
+    try {
+      Haptics.selectionAsync().catch(() => {});
+    } catch {}
+    setSelectedInstallmentGroup(group);
+    setInstallmentHistoryModalVisible(true);
   }, []);
 
   const handleDirectPrintDebtReceipt = useCallback(async (receipt: DebtPaymentReceiptData) => {
@@ -1483,7 +1633,7 @@ export default function InvoicesHubScreen() {
                 key: 'installments' as TabKey,
                 label: isAr ? 'الأقساط' : isKu ? (isTablet ? 'وەسڵی قیست' : 'قیست') : 'Installments',
                 icon: 'calendar-number-outline' as const,
-                count: filteredInstallmentSalesByPeriod.length + filteredInstallmentPaymentsByPeriod.length,
+                count: filteredInstallmentSalesByPeriod.length + groupedInstallmentPayments.length,
               },
               {
                 key: 'quotations' as TabKey,
@@ -2167,7 +2317,7 @@ export default function InvoicesHubScreen() {
                   {
                     key: 'all' as const,
                     title: isAr ? 'الكل' : isKu ? 'هەمووی' : 'All',
-                    count: filteredInstallmentSalesByPeriod.length + filteredInstallmentPaymentsByPeriod.length,
+                    count: filteredInstallmentSalesByPeriod.length + groupedInstallmentPayments.length,
                   },
                   {
                     key: 'sales' as const,
@@ -2177,7 +2327,7 @@ export default function InvoicesHubScreen() {
                   {
                     key: 'payments' as const,
                     title: isAr ? 'إيصالات التسديد' : isKu ? 'وەسڵی دانەوە' : 'Payments',
-                    count: filteredInstallmentPaymentsByPeriod.length,
+                    count: groupedInstallmentPayments.length,
                   },
                 ].map((flt) => {
                   const isActive = installmentTypeFilter === flt.key;
@@ -2260,7 +2410,10 @@ export default function InvoicesHubScreen() {
                 }
                 renderItem={({ item }) => {
                   const isSale = item.kind === 'sale';
-                  const badgeLabel = isSale ? (isAr ? 'بيع بالأقساط' : isKu ? 'فرۆشتنی قیست' : 'Installment Sale') : (isAr ? 'تسديد قسط' : isKu ? 'دانەوەی قیست' : 'Installment Payment');
+                  const isPaymentGroup = item.kind === 'paymentGroup';
+                  const badgeLabel = isSale
+                    ? (isAr ? 'بيع بالأقساط' : isKu ? 'فرۆشتنی قیست' : 'Installment Sale')
+                    : (isAr ? 'وەسڵی دانەوە' : isKu ? 'وەسڵی دانەوە' : 'Installment Payment');
                   const badgeColor = isSale ? '#6366F1' : '#10B981';
 
                   const onOpen = () => {
@@ -2268,8 +2421,8 @@ export default function InvoicesHubScreen() {
                       const matchedSale = sales.find((s) => s.id === item.saleId);
                       if (matchedSale) handleOpenSaleDetails(matchedSale);
                       else getSaleById(item.saleId!).then((s) => s && handleOpenSaleDetails(s));
-                    } else if (item.receiptData) {
-                      handleOpenDebtReceipt(item.receiptData);
+                    } else if (isPaymentGroup) {
+                      handleOpenInstallmentGroupHistory(item.groupData);
                     }
                   };
 
@@ -2284,8 +2437,12 @@ export default function InvoicesHubScreen() {
                       setInstallmentSales((prev) =>
                         prev.map((s) => (s.saleId === item.saleId ? { ...s, printCount: (s.printCount || 0) + 1 } : s))
                       );
-                    } else if (item.receiptData) {
-                      handleDirectPrintDebtReceipt(item.receiptData);
+                    } else if (isPaymentGroup && item.groupData.payments.length > 0) {
+                      if (item.groupData.payments.length === 1) {
+                        handleDirectPrintDebtReceipt(item.groupData.payments[0]);
+                      } else {
+                        handleOpenInstallmentGroupHistory(item.groupData);
+                      }
                     }
                   };
 
@@ -2375,6 +2532,28 @@ export default function InvoicesHubScreen() {
                               </Text>
                             </View>
                           )}
+                          {isPaymentGroup && (
+                            <View
+                              style={[
+                                styles.statusBadge,
+                                isMobileGrid && { paddingHorizontal: 6, paddingVertical: 2.5 },
+                                { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#D1FAE5' },
+                              ]}
+                            >
+                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Text
+                                  style={[
+                                    styles.statusBadgeText,
+                                    isMobileGrid && { fontSize: 10.5 },
+                                    { color: '#059669', fontWeight: '800' },
+                                    isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                                  ]}
+                                >
+                                  {item.groupData.paymentsCount} {isAr ? 'إيصال' : isKu ? 'وەسڵ' : 'receipts'}
+                                </Text>
+                              </View>
+                            </View>
+                          )}
                         </View>
                       </View>
 
@@ -2416,9 +2595,9 @@ export default function InvoicesHubScreen() {
                       <View style={[styles.installmentAmountRow, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', marginTop: 4 }]}>
                         <View>
                           <Text style={{ fontSize: 10.5, color: colors.gray400, textAlign }}>
-                            {isSale ? (isAr ? 'الإجمالي' : isKu ? 'کۆی گشتی' : 'Total') : (isAr ? 'المدفوع' : isKu ? 'بڕی دراو' : 'Paid')}
+                            {isSale ? (isAr ? 'الإجمالي' : isKu ? 'کۆی گشتی' : 'Total') : (isAr ? 'المدفوع (الكلي)' : isKu ? 'کۆی دراو' : 'Paid')}
                           </Text>
-                          <Text style={{ fontSize: 13, color: colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
+                          <Text style={{ fontSize: 13, color: isPaymentGroup ? '#10B981' : colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
                             {formatMoney(isSale ? item.grandTotal : item.paidAmount)}
                           </Text>
                         </View>
@@ -2434,9 +2613,75 @@ export default function InvoicesHubScreen() {
                         )}
                       </View>
 
+                      {/* Quick History Button for Payment Group */}
+                      {isPaymentGroup && (
+                        <TouchableOpacity
+                          activeOpacity={0.8}
+                          onPress={() => handleOpenInstallmentGroupHistory(item.groupData)}
+                          style={{
+                            flexDirection: isRTL ? 'row-reverse' : 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 5,
+                            backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
+                            borderColor: isDark ? 'rgba(16, 185, 129, 0.35)' : '#A7F3D0',
+                            borderWidth: 1,
+                            borderRadius: 8,
+                            paddingVertical: 6,
+                            paddingHorizontal: 8,
+                            marginTop: 6,
+                          }}
+                        >
+                          <Ionicons name="receipt-outline" size={13} color="#059669" />
+                          <Text
+                            style={{
+                              fontSize: 11.5,
+                              color: isDark ? '#34D399' : '#059669',
+                              fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                            }}
+                          >
+                            {isAr ? `سجل الإيصالات • ${item.groupData.paymentsCount} إيصال` : isKu ? `مێژووی وەسڵەکان • ${item.groupData.paymentsCount} وەسڵ` : `Receipts History • ${item.groupData.paymentsCount}`}
+                          </Text>
+                          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={12} color={isDark ? '#34D399' : '#059669'} />
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Quick History Button for Sale with Payments */}
+                      {isSale && item.paymentsCount > 0 && item.matchedGroup && (
+                        <TouchableOpacity
+                          activeOpacity={0.8}
+                          onPress={() => handleOpenInstallmentGroupHistory(item.matchedGroup!)}
+                          style={{
+                            flexDirection: isRTL ? 'row-reverse' : 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 5,
+                            backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
+                            borderColor: isDark ? 'rgba(16, 185, 129, 0.35)' : '#A7F3D0',
+                            borderWidth: 1,
+                            borderRadius: 8,
+                            paddingVertical: 6,
+                            paddingHorizontal: 8,
+                            marginTop: 6,
+                          }}
+                        >
+                          <Ionicons name="receipt-outline" size={13} color="#059669" />
+                          <Text
+                            style={{
+                              fontSize: 11.5,
+                              color: isDark ? '#34D399' : '#059669',
+                              fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                            }}
+                          >
+                            {isAr ? `سجل التسديد • ${item.paymentsCount} إيصال` : isKu ? `وەسڵەکانی دانەوە • ${item.paymentsCount} وەسڵ` : `Payments • ${item.paymentsCount}`}
+                          </Text>
+                          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={12} color={isDark ? '#34D399' : '#059669'} />
+                        </TouchableOpacity>
+                      )}
+
                       {/* Print and View Counts Indicator */}
                       {renderCountBadges(
-                        0,
+                        item.viewCount || 0,
                         item.printCount || 0,
                         onOpen,
                         onPrint
@@ -3413,6 +3658,355 @@ export default function InvoicesHubScreen() {
         }}
       />
 
+      {/* ── Installment Receipts History Modal ("مێژووی وەسڵەکانی دانەوە") ── */}
+      <Modal
+        visible={installmentHistoryModalVisible}
+        transparent
+        animationType="fade"
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
+        onRequestClose={() => setInstallmentHistoryModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setInstallmentHistoryModalVisible(false)}
+        >
+          <Pressable
+            style={[
+              styles.receiptTableModalCard,
+              {
+                backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                borderColor: isDark ? colors.gray200 : '#E2E8F0',
+                maxHeight: Math.min(height * 0.9, 780),
+                width: isTablet ? Math.min(width - 64, 620) : Math.min(width - 24, 460),
+              },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <View style={[styles.receiptModalHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                <View
+                  style={[
+                    styles.receiptModalHeaderIconWrap,
+                    {
+                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
+                      borderColor: isDark ? 'rgba(16, 185, 129, 0.35)' : '#A7F3D0',
+                    },
+                  ]}
+                >
+                  <Ionicons name="receipt" size={22} color="#10B981" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.receiptModalTitle,
+                      { color: colors.black, textAlign },
+                      (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
+                    {isAr ? 'سجل إيصالات تسديد القسط' : isKu ? 'مێژووی وەسڵەکانی دانەوەی قیست' : 'Installment Receipts History'}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.receiptModalSubtitle,
+                      { color: colors.gray500, textAlign },
+                      (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT },
+                    ]}
+                  >
+                    {isAr
+                      ? `الزبون: ${selectedInstallmentGroup?.partyName} • ${selectedInstallmentGroup?.paymentsCount} إيصال`
+                      : isKu
+                      ? `کڕیار: ${selectedInstallmentGroup?.partyName} • ${selectedInstallmentGroup?.paymentsCount} وەسڵ`
+                      : `Customer: ${selectedInstallmentGroup?.partyName} • ${selectedInstallmentGroup?.paymentsCount} receipts`}
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setInstallmentHistoryModalVisible(false)}
+                style={[styles.modalCloseBtn, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={20} color={colors.gray600} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedInstallmentGroup && (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+                {/* Customer & Sale Info Banner */}
+                <View
+                  style={[
+                    styles.receiptCustomerSummaryCard,
+                    {
+                      backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                      borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                    },
+                  ]}
+                >
+                  <View style={[styles.receiptCustomerTopRow, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between' }]}>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                      <Ionicons name="person-circle" size={18} color={colors.primary} />
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.receiptCustomerName,
+                          { color: colors.black },
+                          (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {selectedInstallmentGroup.partyName}
+                      </Text>
+                      {selectedInstallmentGroup.partyPhone ? (
+                        <Text style={{ fontSize: 11.5, color: colors.gray400 }}>
+                          • {selectedInstallmentGroup.partyPhone}
+                        </Text>
+                      ) : null}
+                    </View>
+
+                    {selectedInstallmentGroup.saleInvoiceNumber ? (
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          setInstallmentHistoryModalVisible(false);
+                          if (selectedInstallmentGroup.saleId) {
+                            getSaleById(selectedInstallmentGroup.saleId).then((s) => s && handleOpenSaleDetails(s));
+                          }
+                        }}
+                        style={[
+                          styles.receiptInvoiceBadge,
+                          {
+                            backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : '#EEF2FF',
+                            borderColor: isDark ? 'rgba(99, 102, 241, 0.35)' : '#C7D2FE',
+                            flexDirection: isRTL ? 'row-reverse' : 'row',
+                            alignItems: 'center',
+                            gap: 3,
+                          },
+                        ]}
+                      >
+                        <Ionicons name="document-text-outline" size={11} color="#6366F1" />
+                        <IdText style={[styles.receiptInvoiceBadgeText, { color: '#6366F1' }]}>
+                          #{selectedInstallmentGroup.saleInvoiceNumber}
+                        </IdText>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+
+                  {/* 3 KPIs: Total, Paid, Remaining */}
+                  <View
+                    style={[
+                      styles.receiptFinanceRow,
+                      {
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                        borderTopColor: isDark ? colors.gray300 : '#E2E8F0',
+                      },
+                    ]}
+                  >
+                    <View style={styles.receiptFinanceCol}>
+                      <Text style={[styles.receiptFinanceLabel, { color: colors.gray500, textAlign }]}>
+                        {isAr ? 'الإجمالي' : isKu ? 'کۆی قیست' : 'Total'}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.receiptFinanceValue,
+                          { color: colors.black, textAlign },
+                          (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {formatMoney(selectedInstallmentGroup.grandTotal)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.receiptFinanceCol}>
+                      <Text style={[styles.receiptFinanceLabel, { color: colors.gray500, textAlign }]}>
+                        {isAr ? 'المدفوع' : isKu ? 'کۆی دراو' : 'Paid'}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.receiptFinanceValue,
+                          { color: '#10B981', textAlign },
+                          (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {formatMoney(selectedInstallmentGroup.totalPaid)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.receiptFinanceCol}>
+                      <Text style={[styles.receiptFinanceLabel, { color: colors.gray500, textAlign }]}>
+                        {isAr ? 'المتبقي' : isKu ? 'ماوەی قەرز' : 'Remaining'}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.receiptFinanceValue,
+                          {
+                            color: selectedInstallmentGroup.remainingDebt <= 0 ? '#10B981' : '#EF4444',
+                            textAlign,
+                          },
+                          (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {formatMoney(selectedInstallmentGroup.remainingDebt)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Section Header */}
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 8 }}>
+                  <Text
+                    style={[
+                      styles.receiptSectionHeader,
+                      { color: colors.gray600, textAlign, marginBottom: 0 },
+                      (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
+                    {isAr ? 'قائمة إيصالات التسديد:' : isKu ? 'لیستی وەسڵەکانی دانەوە:' : 'Payment Receipts:'}
+                  </Text>
+                  <Text style={{ fontSize: 11.5, color: colors.gray400 }}>
+                    {selectedInstallmentGroup.paymentsCount} {isAr ? 'إيصالات' : isKu ? 'وەسڵ' : 'receipts'}
+                  </Text>
+                </View>
+
+                {/* List of Receipt Cards */}
+                <View style={{ gap: 10 }}>
+                  {selectedInstallmentGroup.payments.map((p, idx) => {
+                    const receiptIndex = selectedInstallmentGroup.payments.length - idx;
+                    const isLatest = idx === 0;
+                    return (
+                      <View
+                        key={`modal-pay-${p.id}`}
+                        style={[
+                          styles.receiptTableRow,
+                          {
+                            backgroundColor: isDark ? colors.gray200 : '#FFFFFF',
+                            borderColor: isLatest ? (isDark ? colors.primary : '#D4AF37') : (isDark ? colors.gray300 : '#CBD5E1'),
+                            borderWidth: isLatest ? 1.5 : 1,
+                            flexDirection: 'column',
+                            alignItems: 'stretch',
+                            gap: 8,
+                            padding: 12,
+                          },
+                        ]}
+                      >
+                        {/* Top Row: Payment Number, Date, Index Badge */}
+                        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                            <View style={[styles.invoiceNumberBadge, { backgroundColor: isDark ? colors.gray100 : '#F1F5F9' }]}>
+                              <IdText style={[styles.invoiceNumberText, { color: colors.primary, fontSize: 12 }]}>
+                                #{p.paymentNumber}
+                              </IdText>
+                            </View>
+                            <View style={[styles.receiptPillTag, { backgroundColor: hexToRgba('#10B981', 0.15) }]}>
+                              <Text style={[styles.receiptPillTagText, { color: '#059669', fontWeight: '700' }]}>
+                                {isAr ? `دفعة ${receiptIndex}` : isKu ? `وەسڵی ${receiptIndex}` : `Payment #${receiptIndex}`}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={{ fontSize: 11, color: colors.gray400, writingDirection: 'ltr' }}>
+                            {formatDate(p.createdAt)} {p.createdAt.includes('T') ? `• ${formatTime(p.createdAt)}` : ''}
+                          </Text>
+                        </View>
+
+                        {/* Middle Row: Note & Payment Method */}
+                        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text
+                            numberOfLines={1}
+                            style={[
+                              { fontSize: 12, color: colors.gray500, flex: 1, textAlign },
+                              (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT },
+                            ]}
+                          >
+                            {p.note || (isAr ? 'تسديد قسط' : isKu ? 'دانەوەی قیست' : 'Installment Payment')}
+                          </Text>
+                          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
+                            <Ionicons
+                              name={p.paymentMethod === 'fib' ? 'card-outline' : 'cash-outline'}
+                              size={12}
+                              color={p.paymentMethod === 'fib' ? '#2563EB' : '#059669'}
+                            />
+                            <Text style={{ fontSize: 11, color: p.paymentMethod === 'fib' ? '#2563EB' : '#059669', fontWeight: '600' }}>
+                              {p.paymentMethod === 'fib' ? 'FIB' : (isAr ? 'كاش' : isKu ? 'کاش' : 'Cash')}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Amount & Remaining */}
+                        <View style={[styles.installmentAmountRow, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: isDark ? colors.gray300 : '#F1F5F9', paddingTop: 6 }]}>
+                          <View>
+                            <Text style={{ fontSize: 10, color: colors.gray400, textAlign }}>
+                              {isAr ? 'المبلغ المدفوع' : isKu ? 'بڕی دراو بەم وەسڵە' : 'Amount Paid'}
+                            </Text>
+                            <Text style={{ fontSize: 13.5, color: '#10B981', fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
+                              {formatMoney(p.amount)}
+                            </Text>
+                          </View>
+                          <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
+                            <Text style={{ fontSize: 10, color: colors.gray400, textAlign }}>
+                              {isAr ? 'المتبقي بعد هذا الوصل' : isKu ? 'ماوە دوای ئەم وەسڵە' : 'Remaining After'}
+                            </Text>
+                            <Text style={{ fontSize: 13, color: p.remainingAfter <= 0 ? '#10B981' : '#EA580C', fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
+                              {p.remainingAfter <= 0 ? (isAr ? 'مكتمل' : isKu ? 'تەواوبوو' : 'Settled') : formatMoney(p.remainingAfter)}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Actions: View and Print */}
+                        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 6, marginTop: 4 }}>
+                          <TouchableOpacity
+                            activeOpacity={0.8}
+                            onPress={() => {
+                              setInstallmentHistoryModalVisible(false);
+                              setTimeout(() => handleOpenDebtReceipt(p), 200);
+                            }}
+                            style={{
+                              flex: 1,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 4,
+                              paddingVertical: 7,
+                              borderRadius: 8,
+                              backgroundColor: isDark ? colors.gray300 : '#F1F5F9',
+                              borderWidth: 1,
+                              borderColor: isDark ? colors.gray400 : '#E2E8F0',
+                            }}
+                          >
+                            <Ionicons name="eye-outline" size={13} color={colors.primary} />
+                            <Text style={{ fontSize: 11.5, color: colors.black, fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
+                              {isAr ? 'معاينة الوصل' : isKu ? 'بینینی وەسڵ' : 'View'}
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            activeOpacity={0.8}
+                            onPress={() => handleDirectPrintDebtReceipt(p)}
+                            style={{
+                              flex: 1,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 4,
+                              paddingVertical: 7,
+                              borderRadius: 8,
+                              backgroundColor: isDark ? colors.primary : '#1E293B',
+                            }}
+                          >
+                            <Ionicons name="print-outline" size={13} color="#FFFFFF" />
+                            <Text style={{ fontSize: 11.5, color: '#FFFFFF', fontFamily: SETTINGS_KURDISH_FONT_BOLD }}>
+                              {isAr ? 'طباعة' : isKu ? 'چاپکردن' : 'Print'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* ── 4-Format Print Picker Modal (Purchases, Sales, Quotations) ── */}
       <PrintFormatPickerModal
         visible={formatPickerVisible}
@@ -3970,5 +4564,95 @@ const styles = StyleSheet.create({
   },
   productsSummaryText: {
     lineHeight: 16,
+  },
+  receiptTableModalCard: {
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  receiptModalHeader: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  receiptModalHeaderIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  receiptModalTitle: {
+    fontSize: 16,
+  },
+  receiptModalSubtitle: {
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  receiptCustomerSummaryCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 10,
+  },
+  receiptCustomerTopRow: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  receiptCustomerName: {
+    fontSize: 15,
+    flexShrink: 1,
+  },
+  receiptInvoiceBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  receiptInvoiceBadgeText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  receiptFinanceRow: {
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'space-between',
+  },
+  receiptFinanceCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  receiptFinanceLabel: {
+    fontSize: 10.5,
+    marginBottom: 2,
+  },
+  receiptFinanceValue: {
+    fontSize: 13,
+  },
+  receiptSectionHeader: {
+    fontSize: 12.5,
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  receiptTableRow: {
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 8,
+  },
+  receiptPillTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  receiptPillTagText: {
+    fontSize: 10.5,
   },
 });
