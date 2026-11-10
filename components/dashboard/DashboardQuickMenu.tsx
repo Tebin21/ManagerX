@@ -81,20 +81,20 @@ export function DashboardQuickMenu() {
                   width: btnSize,
                   height: btnSize,
                   borderRadius: btnRadius,
-                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
-                  borderColor: isDark ? 'rgba(245, 158, 11, 0.35)' : '#FDE68A',
+                  backgroundColor: colors.softBlue,
+                  borderColor: colors.primary + '1F',
                 },
               ]}
               hitSlop={8}
             >
               <Ionicons
-                name={isDark ? 'sunny' : 'moon'}
+                name={isDark ? 'sunny-outline' : 'moon-outline'}
                 size={iconSize}
-                color={isDark ? '#FBBF24' : '#4F46E5'}
+                color={colors.primary}
               />
             </TouchableOpacity>
 
-            {/* 2. Second Icon: Dollar Exchange Rate ("دووم ئایکۆن ئایکۆنی دۆلار بێت") */}
+            {/* 2. Second Icon: Dollar Exchange Rate ("ئایکۆنی دۆلارەکە با هەر ئایکۆنی دۆلار بێث بە سادیی") */}
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={handleOpenDollarModal}
@@ -104,16 +104,16 @@ export function DashboardQuickMenu() {
                   width: btnSize,
                   height: btnSize,
                   borderRadius: btnRadius,
-                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
-                  borderColor: isDark ? 'rgba(16, 185, 129, 0.35)' : '#A7F3D0',
+                  backgroundColor: colors.softBlue,
+                  borderColor: colors.primary + '1F',
                 },
               ]}
               hitSlop={8}
             >
               <Ionicons
-                name="cash-outline"
+                name="logo-usd"
                 size={iconSize}
-                color={isDark ? '#34D399' : '#059669'}
+                color={colors.primary}
               />
             </TouchableOpacity>
           </View>
@@ -164,12 +164,7 @@ const styles = StyleSheet.create({
   actionBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth: 1,
   },
   menuTriggerBtn: {
     alignItems: 'center',
