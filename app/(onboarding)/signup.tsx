@@ -280,10 +280,10 @@ export default function SignUpScreen() {
         style={[
           styles.unifiedPillBar,
           {
-            backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : '#E2E8F0',
+            backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E2E8F0',
             shadowColor: isDark ? '#000000' : '#0F172A',
-            shadowOpacity: isDark ? 0.3 : 0.08,
+            shadowOpacity: isDark ? 0.25 : 0.06,
           },
         ]}
       >
@@ -805,11 +805,6 @@ export default function SignUpScreen() {
       <View style={[styles.screen, { backgroundColor: isDark ? '#0F172A' : '#F8FAFC' }]}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <SafeAreaView style={styles.mobileSafeContainer}>
-          {/* Top Action Bar */}
-          <View style={[styles.mobileTopBar, { zIndex: 100 }]}>
-            {renderTopControls(true)}
-          </View>
-
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={{ flex: 1 }}
@@ -835,6 +830,11 @@ export default function SignUpScreen() {
                   },
                 ]}
               >
+                {/* Embedded Controls inside the card */}
+                <View style={{ marginBottom: 12, width: '100%', zIndex: 100 }}>
+                  {renderTopControls(true)}
+                </View>
+
                 {/* Inner Illustration Card */}
                 <View
                   style={[

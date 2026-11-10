@@ -189,10 +189,10 @@ export default function ForgotPasswordScreen() {
         style={[
           styles.unifiedPillBar,
           {
-            backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : '#E2E8F0',
+            backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E2E8F0',
             shadowColor: isDark ? '#000000' : '#0F172A',
-            shadowOpacity: isDark ? 0.3 : 0.08,
+            shadowOpacity: isDark ? 0.25 : 0.06,
           },
         ]}
       >
