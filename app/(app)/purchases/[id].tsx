@@ -577,11 +577,6 @@ export default function PurchaseDetailScreen() {
               onPress={() => setFormatPickerVisible(true)}
               disabled={isPrinting || isSharing}
             />
-            <HeaderActionButton
-              icon="share-outline"
-              onPress={() => handleShare(useSettingsStore.getState().purchasePaperSizePreference || '80mm')}
-              disabled={isPrinting || isSharing}
-            />
           </View>
         }
       />
