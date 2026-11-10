@@ -109,6 +109,7 @@ interface Props {
   onToggle?: (val: boolean) => void;
   disabled?: boolean;
   isDark?: boolean;
+  embedded?: boolean;
 }
 
 const TRACK_WIDTH = 98;
@@ -130,6 +131,7 @@ export function LanguageToggleSwitch({
   onToggle,
   disabled = false,
   isDark: isDarkProp,
+  embedded = false,
 }: Props) {
   let appThemeDark = true;
   try {
@@ -223,20 +225,22 @@ export function LanguageToggleSwitch({
   const lightGradients: [string, string] = ['#FFFFFF', '#F1F5F9'];
 
   return (
-    <View style={styles.switchWrapper}>
+    <View style={[styles.switchWrapper, embedded && { paddingVertical: 0 }]}>
       <View
         style={[
           styles.trackContainer,
           {
-            backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : '#E2E8F0',
+            backgroundColor: embedded ? 'transparent' : (isDark ? '#1E293B' : '#FFFFFF'),
+            borderColor: embedded ? 'transparent' : (isDark ? 'rgba(255, 255, 255, 0.16)' : '#E2E8F0'),
+            borderWidth: embedded ? 0 : 1.5,
             shadowColor: isDark ? '#000000' : '#0F172A',
-            shadowOpacity: isDark ? 0.3 : 0.08,
+            shadowOpacity: embedded ? 0 : (isDark ? 0.3 : 0.08),
+            elevation: embedded ? 0 : 3,
           },
         ]}
       >
         <LinearGradient
-          colors={isDark ? darkGradients : lightGradients}
+          colors={embedded ? ['transparent', 'transparent'] : (isDark ? darkGradients : lightGradients)}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.trackGradient}

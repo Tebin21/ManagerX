@@ -160,75 +160,77 @@ export default function ForgotPasswordScreen() {
   const phoneSvgSize = Math.min(220, width * 0.54);
   const tabletSvgSize = isTabletLandscape ? 380 : 310;
 
-  // Render Top Header Controls (Back Button + Dev bypass + Language Flag Dropdown + Theme Switcher)
+  // Render Top Header Controls (Unified Centered Pill: Language Toggle + Dark/Light Mode)
   const renderTopControls = (showBack: boolean = true) => (
-    <View style={[styles.topControlsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-      {/* Navigation / Dev Controls side */}
-      <View style={{ minWidth: 1, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
-        {showBack && (
-          <TouchableOpacity
-            onPress={handleBack}
-            activeOpacity={0.8}
-            style={[
-              styles.backBtn,
-              {
-                backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                borderColor: isDark ? '#334155' : '#E2E8F0',
-              },
-            ]}
-          >
-            <Ionicons
-              name={isRTL ? 'arrow-forward' : 'arrow-back'}
-              size={18}
-              color={isDark ? '#F8C61E' : '#475569'}
-            />
-          </TouchableOpacity>
-        )}
-
-        {/* Dev Quick Login Bypass (if enabled) */}
-        {(DEV_FORCE_ONBOARDING_PREVIEW || __DEV__) && (
-          <TouchableOpacity
-            onPress={handleDevBypass}
-            activeOpacity={0.8}
-            style={[
-              styles.devBypassBtn,
-              { backgroundColor: isDark ? 'rgba(51, 65, 85, 0.7)' : 'rgba(241, 245, 249, 0.9)' },
-            ]}
-          >
-            <Text style={[styles.devBypassText, curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-              {strings.devBypass}
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Settings side: Language picker + Dark mode toggle */}
-      <View style={[styles.controlsGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        {/* Language Toggle Switch (3-Way: EN | AR | KU) */}
-        <LanguageToggleSwitch
-          language={curLang}
-          isDark={isDark}
-          onChangeLanguage={(newLang) => setLanguage(newLang)}
-        />
-
-        {/* Dark / Light Mode Toggle Button */}
+    <View style={styles.topControlsCenteredRow}>
+      {showBack && (
         <TouchableOpacity
-          onPress={handleToggleTheme}
+          onPress={handleBack}
           activeOpacity={0.8}
           style={[
-            styles.themeBtn,
+            styles.backBtnAbsolute,
             {
               backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
               borderColor: isDark ? '#334155' : '#E2E8F0',
+              [isRTL ? 'right' : 'left']: 16,
             },
           ]}
         >
           <Ionicons
-            name={isDark ? 'sunny' : 'moon'}
+            name={isRTL ? 'arrow-forward' : 'arrow-back'}
             size={18}
             color={isDark ? '#F8C61E' : '#475569'}
           />
         </TouchableOpacity>
+      )}
+
+      {/* Unified Centered Capsule / Pill Bar (تەبلەکە) */}
+      <View
+        style={[
+          styles.unifiedPillBar,
+          {
+            backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : '#E2E8F0',
+            shadowColor: isDark ? '#000000' : '#0F172A',
+            shadowOpacity: isDark ? 0.3 : 0.08,
+          },
+        ]}
+      >
+        {/* Dark / Light Mode Toggle Button */}
+        <TouchableOpacity
+          onPress={handleToggleTheme}
+          activeOpacity={0.75}
+          style={[
+            styles.themePillBtn,
+            {
+              backgroundColor: isDark ? 'rgba(248, 198, 30, 0.12)' : 'rgba(71, 85, 105, 0.08)',
+            },
+          ]}
+          accessibilityLabel="Toggle Dark/Light Mode"
+          accessibilityRole="button"
+        >
+          <Ionicons
+            name={isDark ? 'sunny' : 'moon'}
+            size={16}
+            color={isDark ? '#F8C61E' : '#475569'}
+          />
+        </TouchableOpacity>
+
+        {/* Vertical Divider */}
+        <View
+          style={[
+            styles.pillDivider,
+            { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.14)' : '#E2E8F0' },
+          ]}
+        />
+
+        {/* Language Toggle Switch (3-Way: EN | AR | KU) */}
+        <LanguageToggleSwitch
+          language={curLang}
+          isDark={isDark}
+          embedded
+          onChangeLanguage={(newLang) => setLanguage(newLang)}
+        />
       </View>
     </View>
   );
@@ -690,7 +692,55 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
-  // Top Controls (Language dropdown, theme switch, dev bypass)
+  // --- Top Controls (Language, Theme, Unified Centered Pill) ---
+  topControlsCenteredRow: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    paddingVertical: 4,
+    zIndex: 100,
+  },
+  unifiedPillBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  themePillBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillDivider: {
+    width: 1,
+    height: 18,
+    marginHorizontal: 6,
+  },
+  backBtnAbsolute: {
+    position: 'absolute',
+    top: 3,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    zIndex: 101,
+  },
   topControlsRow: {
     justifyContent: 'space-between',
     alignItems: 'center',
