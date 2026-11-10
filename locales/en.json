@@ -1452,6 +1452,7 @@
     "totalIqd":              "Total (IQD)",
     "totalUsd":              "Total (USD)",
     "amountPaid":            "Amount Paid",
+    "downPaymentPaid":       "Down Payment",
     "remainingDebt":         "Remaining Debt",
     "paymentStatusLabel":    "Payment Status",
     "poweredBy":             "Powered by",

@@ -1030,6 +1030,12 @@ export default function ReceiptCustomizationScreen() {
               <Text style={styles.a4FinVal}>{isAr ? 'نقداً' : isKurdish ? 'کاش (نەقد)' : 'Cash'}</Text>
             </View>
           )}
+          {purchaseSettings.showPaidAmount !== false && (
+            <View style={styles.a4FinRow}>
+              <Text style={[styles.a4FinLabel, { color: '#047857', fontWeight: '700' }]}>{isAr ? 'المقدمة المدفوعة:' : isKurdish ? 'پێشەکیی دراو:' : 'Down Payment:'}</Text>
+              <Text style={[styles.a4FinVal, { color: '#047857', fontWeight: '700' }]}>1,000 IQD</Text>
+            </View>
+          )}
           {purchaseSettings.showRemainingDebt && (
             <View style={styles.a4FinRow}>
               <Text style={styles.a4FinLabel}>{isAr ? 'الدين المتبقي:' : isKurdish ? 'قەرزی ماوە:' : 'Remaining Debt:'}</Text>
@@ -2271,17 +2277,24 @@ export default function ReceiptCustomizationScreen() {
                       <Text style={styles.receiptGrandTotalAmount}>3,200,000 IQD</Text>
                     </View>
 
-                    {purchaseSettings.showRemainingDebt && (
-                      <View style={[styles.receiptRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'الدين المتبقي:' : isKurdish ? 'قەرزی ماوە:' : 'Remaining:'}</Text>
-                        <Text style={styles.receiptValue}>0 IQD</Text>
-                      </View>
-                    )}
-
                     {purchaseSettings.showPaymentMethod && (
                       <View style={[styles.receiptRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                         <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'طريقة الدفع:' : isKurdish ? 'شێوازی پارەدان:' : 'Payment:'}</Text>
                         <Text style={[styles.receiptValue, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'نقداً (Cash)' : isKurdish ? 'نەختینە (کاش)' : 'Cash'}</Text>
+                      </View>
+                    )}
+
+                    {purchaseSettings.showPaidAmount !== false && (
+                      <View style={[styles.receiptRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }, { color: '#047857' }]}>{isAr ? 'المقدمة المدفوعة:' : isKurdish ? 'پێشەکیی دراو:' : 'Down Payment:'}</Text>
+                        <Text style={[styles.receiptValue, { color: '#047857', fontWeight: '700' }]}>200,000 IQD</Text>
+                      </View>
+                    )}
+
+                    {purchaseSettings.showRemainingDebt && (
+                      <View style={[styles.receiptRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'الدين المتبقي:' : isKurdish ? 'قەرزی ماوە:' : 'Remaining:'}</Text>
+                        <Text style={styles.receiptValue}>0 IQD</Text>
                       </View>
                     )}
                   </View>
@@ -2645,6 +2658,13 @@ export default function ReceiptCustomizationScreen() {
                 purchaseSettings.showPaymentMethod,
                 () => updatePurchaseSettings({ showPaymentMethod: !purchaseSettings.showPaymentMethod }),
                 'wallet-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'الدفعة الأولى / المقدمة المدفوعة' : isKurdish ? 'پێشەکیی دراوی قەرز' : 'Down Payment Paid',
+                isAr ? 'إظهار مبلغ الدفعة المقدمة عند الشراء بالدين' : isKurdish ? 'پیشاندانی بڕی پێشەکیی دراو لە کاتی کڕینی بەقەرز' : 'Show upfront down payment amount on credit purchases',
+                purchaseSettings.showPaidAmount !== false,
+                () => updatePurchaseSettings({ showPaidAmount: !(purchaseSettings.showPaidAmount !== false) }),
+                'cash-outline'
               )}
               {renderToggleRow(
                 isAr ? 'الدين المتبقي للمورد' : isKurdish ? 'قەرزی ماوەی دابینکەر' : 'Remaining Payable Debt',

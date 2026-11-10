@@ -1972,6 +1972,7 @@
   "invoicePdf": {
     "address": "العنوان",
     "amountPaid": "المبلغ المدفوع",
+    "downPaymentPaid": "المقدمة المدفوعة",
     "cartDiscountTotal": "خصم السلة الكلي",
     "colDiscount": "الخصم",
     "colLineTotal": "المجموع",

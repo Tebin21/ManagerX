@@ -27,6 +27,7 @@ import {
 } from '@/store/settingsStore';
 import type { ReceiptCurrencyMode } from './invoiceTemplate';
 import type { Quotation } from '@/types/quotation';
+import type { PurchaseDebt } from '@/types/debt';
 import { escHtml } from '@/lib/security';
 
 interface BusinessInfo {
@@ -745,13 +746,16 @@ export function buildThermalPurchaseReceiptHTML(
     supplierPhone?: string | null;
     totalIQD: number;
     paymentStatus?: 'paid' | 'fib' | 'debt';
+    initialAmountPaid?: number;
+    initialPaymentMethod?: 'cash' | 'fib' | null;
     notes?: string | null;
   },
   items: PurchaseReceiptItem[],
   business: BusinessInfo,
   width: ThermalReceiptWidth = '80mm',
   customSettings?: Partial<PurchaseReceiptSettings>,
-  currencyMode: ReceiptCurrencyMode = 'iqd'
+  currencyMode: ReceiptCurrencyMode = 'iqd',
+  purchaseDebt?: PurchaseDebt | null
 ): string {
   const storeSettings = useSettingsStore.getState();
   const settings: PurchaseReceiptSettings = {
@@ -769,6 +773,14 @@ export function buildThermalPurchaseReceiptHTML(
   const rate = storeSettings.exchangeRate || 1310;
   const fmtRow = (val: number) =>
     isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
+
+  const paidAmount = purchaseDebt?.paidAmount ?? (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib' ? purchase.totalIQD : (purchase.initialAmountPaid ?? 0));
+  const remainingAmount = purchaseDebt?.remainingAmount ?? (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib' ? 0 : Math.max(0, purchase.totalIQD - paidAmount));
+  const initialMethod = purchaseDebt?.initialPaymentMethod || purchase.initialPaymentMethod;
+  const initialMethodTag = initialMethod ? ` (${initialMethod === 'fib' ? 'FIB' : (isPurchaseAr ? 'نقداً' : isPurchaseKu ? 'کاش' : 'Cash')})` : '';
+  const downPaymentLabel = remainingAmount > 0
+    ? (isPurchaseAr ? 'المقدمة المدفوعة:' : isPurchaseKu ? 'پێشەکیی دراو:' : 'Down Payment:')
+    : (isPurchaseAr ? 'المبلغ المسدد:' : isPurchaseKu ? 'بڕی دراو:' : 'Amount Paid:');
 
   const rawDate = purchase.date || purchase.createdAt || new Date().toISOString();
   const rawTime = purchase.time || purchase.createdAt || (purchase.date && purchase.date.includes('T') ? purchase.date : '') || new Date().toISOString();
@@ -952,6 +964,16 @@ export function buildThermalPurchaseReceiptHTML(
       <div class="total-row" style="margin-top:4px;">
         <span class="info-label">${ku(isPurchaseAr ? 'حالة الدفع:' : isPurchaseKu ? 'دۆخی پارەدان:' : 'Payment:')}</span>
         <span class="info-value">${ku(statusLabel)}</span>
+      </div>` : ''}
+      ${(settings.showPaidAmount !== false && purchase.paymentStatus === 'debt' && paidAmount > 0) ? `
+      <div class="total-row" style="margin-top:2px;">
+        <span class="info-label" style="color:#047857;font-weight:700;">${ku(downPaymentLabel)}${initialMethodTag}</span>
+        <span class="info-value" style="color:#047857;font-weight:700;">${fmtRow(paidAmount)}</span>
+      </div>` : ''}
+      ${(settings.showRemainingDebt && (purchase.paymentStatus === 'debt' || remainingAmount > 0)) ? `
+      <div class="total-row" style="margin-top:2px;font-weight:800;">
+        <span class="info-label" style="color:#b91c1c;">${ku(isPurchaseAr ? 'الدين المتبقي:' : isPurchaseKu ? 'قەرزی ماوە:' : 'Remaining Debt:')}</span>
+        <span class="info-value" style="color:#b91c1c;">${fmtRow(remainingAmount)}</span>
       </div>` : ''}
     </div>
 

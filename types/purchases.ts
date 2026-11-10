@@ -25,6 +25,7 @@ export interface Purchase {
   notes: string | null;
   aboutPolicy?: string | null;
   paymentStatus: PurchasePaymentStatus;
+  initialAmountPaid?: number;
   initialPaymentMethod?: 'cash' | 'fib' | null;
   /** Supplier brand logo or image */
   supplierImageUri?: string | null;

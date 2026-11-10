@@ -1293,9 +1293,16 @@ export function buildPurchaseInvoiceHTML(
       </div>`;
 
   // ── Financial ──
-  const paidAmount = purchaseDebt?.paidAmount ?? (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib' ? purchase.totalIQD : 0);
+  const paidAmount = purchaseDebt?.paidAmount ?? (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib' ? purchase.totalIQD : (purchase.initialAmountPaid ?? 0));
   const remainingAmount = purchaseDebt?.remainingAmount ?? (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib' ? 0 : Math.max(0, purchase.totalIQD - paidAmount));
   const subtotalUSD = effectiveExchangeRate > 0 ? (purchase.totalIQD / effectiveExchangeRate) : 0;
+
+  const initialMethod = purchaseDebt?.initialPaymentMethod || purchase.initialPaymentMethod;
+  const initialMethodTag = initialMethod ? ` (${initialMethod === 'fib' ? 'FIB' : (isPurchaseAr ? 'نقداً' : isPurchaseKu ? 'کاش' : 'Cash')})` : '';
+
+  const downPaymentLabel = remainingAmount > 0
+    ? (isPurchaseAr ? 'المقدمة المدفوعة:' : isPurchaseKu ? 'پێشەکیی دراو:' : 'Down Payment:')
+    : (isPurchaseAr ? 'المبلغ المسدد:' : isPurchaseKu ? 'بڕی دراو:' : 'Amount Paid:');
 
   const effectivePurchaseMode: ReceiptCurrencyMode = currencyMode || (isUsdBase ? 'usd' : 'iqd');
   const showPurchaseUsdOnly = effectivePurchaseMode === 'usd';
@@ -1367,6 +1374,11 @@ export function buildPurchaseInvoiceHTML(
       <div class="fin-row" style="margin-top:3px;">
         <span>${ku(isPurchaseAr ? 'طريقة السداد:' : isPurchaseKu ? 'شێوازی دران:' : 'Payment:')}</span>
         <span class="fin-amount">${purchase.paymentStatus === 'fib' ? 'FIB' : (purchase.paymentStatus === 'debt' ? (isPurchaseAr ? 'آجل (دين)' : isPurchaseKu ? 'قەرز' : 'Debt') : (isPurchaseAr ? 'نقداً' : isPurchaseKu ? 'کاش (نەقد)' : 'Cash'))}</span>
+      </div>` : ''}
+      ${(purchaseSettings.showPaidAmount !== false && purchase.paymentStatus === 'debt' && paidAmount > 0) ? `
+      <div class="fin-row" style="margin-top:2px;">
+        <span style="color:#047857;font-weight:700;">${ku(downPaymentLabel)}${initialMethodTag}</span>
+        <span class="fin-amount fin-amount-paid en-num" dir="ltr">${fmtRow(paidAmount)}</span>
       </div>` : ''}
       ${(purchaseSettings.showRemainingDebt && (purchase.paymentStatus === 'debt' || remainingAmount > 0)) ? `
       <div class="fin-row" style="margin-top:2px;">

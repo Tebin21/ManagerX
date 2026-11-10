@@ -23,6 +23,7 @@ export interface SalesReceiptSettings {
   showDiscount: boolean;
   showItemBarcode: boolean;
   showPaymentMethod: boolean;
+  showPaidAmount?: boolean;
   showRemainingDebt: boolean;
   showNotes: boolean;
   showSignature?: boolean;
@@ -45,6 +46,7 @@ export interface PurchaseReceiptSettings {
   showDiscount: boolean;
   showItemBarcode: boolean;
   showPaymentMethod: boolean;
+  showPaidAmount?: boolean;
   showRemainingDebt: boolean;
   showNotes: boolean;
   showSignature?: boolean;
@@ -118,6 +120,7 @@ export const DEFAULT_SALES_RECEIPT_SETTINGS: SalesReceiptSettings = {
   showDiscount: true,
   showItemBarcode: false,
   showPaymentMethod: true,
+  showPaidAmount: true,
   showRemainingDebt: true,
   showNotes: true,
   showSignature: true,
@@ -140,6 +143,7 @@ export const DEFAULT_PURCHASE_RECEIPT_SETTINGS: PurchaseReceiptSettings = {
   showDiscount: true,
   showItemBarcode: false,
   showPaymentMethod: true,
+  showPaidAmount: true,
   showRemainingDebt: true,
   showNotes: true,
   showSignature: true,

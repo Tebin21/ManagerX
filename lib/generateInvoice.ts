@@ -489,7 +489,8 @@ export async function sharePurchaseInvoice(
         biz,
         paperSize as ThermalReceiptWidth,
         undefined,
-        currencyMode
+        currencyMode,
+        resolvedDebt
       );
       fileName = buildFroshiarPdfFileName(`${purchase.purchaseNumber}-${paperSize}`, 'PurchaseThermal');
     }
@@ -713,7 +714,7 @@ export async function directPrintPurchaseInvoice(
           lineTotal: item.lineTotalIQD ?? ((item.buyPriceIQD ?? 0) * item.quantity),
           itemId: Array.isArray(item.itemIds) && item.itemIds.length > 0 ? item.itemIds.join(', ') : undefined,
         }));
-        html = buildThermalPurchaseReceiptHTML(purchase, thermalItems, biz, paperSize as ThermalReceiptWidth, undefined, currencyMode);
+        html = buildThermalPurchaseReceiptHTML(purchase, thermalItems, biz, paperSize as ThermalReceiptWidth, undefined, currencyMode, resolvedDebt);
       }
       const desktopAPI = typeof window !== 'undefined' ? (window as any).desktopAPI : null;
       if (desktopAPI && typeof desktopAPI.printReceipt === 'function') {
@@ -763,7 +764,7 @@ export async function directPrintPurchaseInvoice(
         lineTotal: item.lineTotalIQD ?? ((item.buyPriceIQD ?? 0) * item.quantity),
         itemId: Array.isArray(item.itemIds) && item.itemIds.length > 0 ? item.itemIds.join(', ') : undefined,
       }));
-      html = buildThermalPurchaseReceiptHTML(purchase, thermalItems, biz, paperSize as ThermalReceiptWidth, undefined, currencyMode);
+      html = buildThermalPurchaseReceiptHTML(purchase, thermalItems, biz, paperSize as ThermalReceiptWidth, undefined, currencyMode, resolvedDebt);
     }
     await Print.printAsync({ html });
     await recordInvoicePrint();
