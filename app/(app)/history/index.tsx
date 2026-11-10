@@ -994,37 +994,113 @@ export default function HistoryScreen() {
           </View>
 
           {/* Net Activity Balance Card */}
-          <View style={[styles.netBalanceCard, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
-            <View style={[styles.netBalanceTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <View style={[styles.netBalanceIconBox, { backgroundColor: netActivityColor + '18' }]}>
-                <Ionicons
-                  name={reportNetActivity >= 0 ? 'shield-checkmark-outline' : 'trending-down-outline'}
-                  size={22}
-                  color={netActivityColor}
-                />
-              </View>
-              <View style={{ flex: 1, marginHorizontal: 10, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+          <View
+            style={[
+              styles.netBalanceCard,
+              {
+                backgroundColor: isDark ? colors.gray100 : colors.white,
+                borderColor: isDark ? colors.gray200 : colors.gray200,
+              },
+            ]}
+          >
+            {/* Header: Icon + Title + Status Badge */}
+            <View style={[styles.netBalanceHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={[styles.netBalanceHeaderLeft, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <View style={[styles.netBalanceIconBox, { backgroundColor: netActivityColor + '18' }]}>
+                  <Ionicons
+                    name={reportNetActivity >= 0 ? 'shield-checkmark-outline' : 'trending-down-outline'}
+                    size={isTablet ? 22 : 18}
+                    color={netActivityColor}
+                  />
+                </View>
                 <Text
                   style={[
                     styles.netBalanceTitle,
-                    { color: colors.black },
+                    { color: colors.black, textAlign: isRTL ? 'right' : 'left' },
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                   ]}
+                  numberOfLines={1}
                 >
                   {t('history.netActivityBalance')}
                 </Text>
-                <Text style={[styles.netBalanceSubtitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
-                  {netActivityDesc}
+              </View>
+
+              {/* Status Pill Badge */}
+              <View
+                style={[
+                  styles.netBalanceBadge,
+                  {
+                    backgroundColor: reportNetActivity >= 0
+                      ? (isDark ? 'rgba(16, 185, 129, 0.18)' : '#DCFCE7')
+                      : (isDark ? 'rgba(239, 68, 68, 0.18)' : '#FEE2E2'),
+                    borderColor: reportNetActivity >= 0
+                      ? (isDark ? 'rgba(16, 185, 129, 0.4)' : '#86EFAC')
+                      : (isDark ? 'rgba(239, 68, 68, 0.4)' : '#FCA5A5'),
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={reportNetActivity >= 0 ? 'arrow-up' : 'arrow-down'}
+                  size={11}
+                  color={netActivityColor}
+                />
+                <Text
+                  style={[
+                    styles.netBalanceBadgeText,
+                    { color: netActivityColor },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {reportNetActivity >= 0
+                    ? (isAr ? 'فائض' : isKuLanguage ? 'ئەرێنی' : 'Surplus')
+                    : (isAr ? 'عجز' : isKuLanguage ? 'نەرێنی' : 'Deficit')}
                 </Text>
               </View>
-              <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
-                <AmountText
-                  value={Math.abs(reportNetActivity)}
-                  currency="IQD"
-                  variant="large"
-                  style={[styles.netBalanceAmount, { color: netActivityColor }, NUMBER_LTR]}
-                />
-              </View>
+            </View>
+
+            {/* Body: Responsive Amount & Explanatory Subtitle */}
+            <View
+              style={[
+                styles.netBalanceBody,
+                {
+                  flexDirection: isTablet ? (isRTL ? 'row-reverse' : 'row') : 'column',
+                  alignItems: isTablet ? 'center' : (isRTL ? 'flex-end' : 'flex-start'),
+                  justifyContent: isTablet ? 'space-between' : 'flex-start',
+                },
+              ]}
+            >
+              <AmountText
+                value={Math.abs(reportNetActivity)}
+                currency="IQD"
+                variant="hero"
+                style={[
+                  styles.netBalanceAmount,
+                  {
+                    color: netActivityColor,
+                    fontSize: isTablet ? 26 : 22,
+                    lineHeight: isTablet ? 32 : 28,
+                  },
+                  NUMBER_LTR,
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              />
+
+              <Text
+                style={[
+                  styles.netBalanceSubtitle,
+                  {
+                    color: colors.gray500,
+                    textAlign: isRTL ? 'right' : 'left',
+                    marginTop: isTablet ? 0 : 5,
+                  },
+                ]}
+                numberOfLines={isTablet ? 1 : 2}
+              >
+                {netActivityDesc}
+              </Text>
             </View>
           </View>
 
@@ -1568,7 +1644,7 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
     netBalanceCard: {
       borderRadius: 16,
       borderWidth: 1,
-      padding: 14,
+      padding: isTablet ? 16 : 14,
       marginBottom: 14,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
@@ -1576,25 +1652,48 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
       shadowRadius: 5,
       elevation: 2,
     },
-    netBalanceTop: {
+    netBalanceHeaderRow: {
       alignItems: 'center',
       justifyContent: 'space-between',
+      gap: 10,
+      width: '100%',
+    },
+    netBalanceHeaderLeft: {
+      alignItems: 'center',
+      gap: 8,
+      flex: 1,
     },
     netBalanceIconBox: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
+      width: isTablet ? 38 : 34,
+      height: isTablet ? 38 : 34,
+      borderRadius: 10,
       alignItems: 'center',
       justifyContent: 'center',
     },
     netBalanceTitle: {
-      fontSize: 14,
+      fontSize: isTablet ? 15 : 13.5,
       fontWeight: '800',
-      marginBottom: 2,
+      flexShrink: 1,
+    },
+    netBalanceBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 3.5,
+      borderRadius: 8,
+      borderWidth: 1,
+      alignItems: 'center',
+      gap: 4,
+    },
+    netBalanceBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    netBalanceBody: {
+      marginTop: 10,
+      width: '100%',
     },
     netBalanceSubtitle: {
-      fontSize: 11,
-      lineHeight: 15,
+      fontSize: isTablet ? 12.5 : 11.5,
+      lineHeight: isTablet ? 17 : 16,
     },
     netBalanceAmount: {
       fontWeight: '800',

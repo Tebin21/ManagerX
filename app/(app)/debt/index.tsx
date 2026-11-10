@@ -1394,37 +1394,113 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
           </View>
 
           {/* Net Debt Balance Card */}
-          <View style={[styles.netBalanceCard, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
-            <View style={[styles.netBalanceTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <View style={[styles.netBalanceIconBox, { backgroundColor: netBalanceColor + '18' }]}>
-                <Ionicons
-                  name={reportNetBalance >= 0 ? 'shield-checkmark-outline' : 'warning-outline'}
-                  size={22}
-                  color={netBalanceColor}
-                />
-              </View>
-              <View style={{ flex: 1, marginHorizontal: 10, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+          <View
+            style={[
+              styles.netBalanceCard,
+              {
+                backgroundColor: isDark ? colors.gray100 : colors.white,
+                borderColor: isDark ? colors.gray200 : colors.gray200,
+              },
+            ]}
+          >
+            {/* Header: Icon + Title + Status Badge */}
+            <View style={[styles.netBalanceHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={[styles.netBalanceHeaderLeft, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <View style={[styles.netBalanceIconBox, { backgroundColor: netBalanceColor + '18' }]}>
+                  <Ionicons
+                    name={reportNetBalance >= 0 ? 'shield-checkmark-outline' : 'warning-outline'}
+                    size={isTablet ? 22 : 18}
+                    color={netBalanceColor}
+                  />
+                </View>
                 <Text
                   style={[
                     styles.netBalanceTitle,
-                    { color: colors.black },
+                    { color: colors.black, textAlign: isRTL ? 'right' : 'left' },
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                   ]}
+                  numberOfLines={1}
                 >
                   {isAr ? 'صافي رصيد الديون' : isKuLanguage ? 'باڵانسی پوختەی قەرزەکان' : 'Net Debt Balance'}
                 </Text>
-                <Text style={[styles.netBalanceSubtitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
-                  {netBalanceDesc}
+              </View>
+
+              {/* Status Pill Badge */}
+              <View
+                style={[
+                  styles.netBalanceBadge,
+                  {
+                    backgroundColor: reportNetBalance >= 0
+                      ? (isDark ? 'rgba(16, 185, 129, 0.18)' : '#DCFCE7')
+                      : (isDark ? 'rgba(239, 68, 68, 0.18)' : '#FEE2E2'),
+                    borderColor: reportNetBalance >= 0
+                      ? (isDark ? 'rgba(16, 185, 129, 0.4)' : '#86EFAC')
+                      : (isDark ? 'rgba(239, 68, 68, 0.4)' : '#FCA5A5'),
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={reportNetBalance >= 0 ? 'checkmark-circle' : 'alert-circle'}
+                  size={11}
+                  color={netBalanceColor}
+                />
+                <Text
+                  style={[
+                    styles.netBalanceBadgeText,
+                    { color: netBalanceColor },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {reportNetBalance >= 0
+                    ? (isAr ? 'إيجابي' : isKuLanguage ? 'ئەرێنی' : 'Positive')
+                    : (isAr ? 'سلبي' : isKuLanguage ? 'نەرێنی' : 'Negative')}
                 </Text>
               </View>
-              <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
-                <AmountText
-                  value={Math.abs(reportNetBalance)}
-                  currency="IQD"
-                  variant="large"
-                  style={[styles.netBalanceAmount, { color: netBalanceColor }, NUMBER_LTR]}
-                />
-              </View>
+            </View>
+
+            {/* Body: Responsive Amount & Explanatory Subtitle */}
+            <View
+              style={[
+                styles.netBalanceBody,
+                {
+                  flexDirection: isTablet ? (isRTL ? 'row-reverse' : 'row') : 'column',
+                  alignItems: isTablet ? 'center' : (isRTL ? 'flex-end' : 'flex-start'),
+                  justifyContent: isTablet ? 'space-between' : 'flex-start',
+                },
+              ]}
+            >
+              <AmountText
+                value={Math.abs(reportNetBalance)}
+                currency="IQD"
+                variant="hero"
+                style={[
+                  styles.netBalanceAmount,
+                  {
+                    color: netBalanceColor,
+                    fontSize: isTablet ? 26 : 22,
+                    lineHeight: isTablet ? 32 : 28,
+                  },
+                  NUMBER_LTR,
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              />
+
+              <Text
+                style={[
+                  styles.netBalanceSubtitle,
+                  {
+                    color: colors.gray500,
+                    textAlign: isRTL ? 'right' : 'left',
+                    marginTop: isTablet ? 0 : 5,
+                  },
+                ]}
+                numberOfLines={isTablet ? 1 : 2}
+              >
+                {netBalanceDesc}
+              </Text>
             </View>
           </View>
 
@@ -1869,7 +1945,7 @@ function getStyles(colors: AppColors, isTablet: boolean = false, isTabletLandsca
     netBalanceCard: {
       borderRadius: 16,
       borderWidth: 1,
-      padding: 14,
+      padding: isTablet ? 16 : 14,
       marginBottom: 14,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
@@ -1877,25 +1953,48 @@ function getStyles(colors: AppColors, isTablet: boolean = false, isTabletLandsca
       shadowRadius: 5,
       elevation: 2,
     },
-    netBalanceTop: {
+    netBalanceHeaderRow: {
       alignItems: 'center',
       justifyContent: 'space-between',
+      gap: 10,
+      width: '100%',
+    },
+    netBalanceHeaderLeft: {
+      alignItems: 'center',
+      gap: 8,
+      flex: 1,
     },
     netBalanceIconBox: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
+      width: isTablet ? 38 : 34,
+      height: isTablet ? 38 : 34,
+      borderRadius: 10,
       alignItems: 'center',
       justifyContent: 'center',
     },
     netBalanceTitle: {
-      fontSize: 14,
+      fontSize: isTablet ? 15 : 13.5,
       fontWeight: '800',
-      marginBottom: 2,
+      flexShrink: 1,
+    },
+    netBalanceBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 3.5,
+      borderRadius: 8,
+      borderWidth: 1,
+      alignItems: 'center',
+      gap: 4,
+    },
+    netBalanceBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    netBalanceBody: {
+      marginTop: 10,
+      width: '100%',
     },
     netBalanceSubtitle: {
-      fontSize: 11,
-      lineHeight: 15,
+      fontSize: isTablet ? 12.5 : 11.5,
+      lineHeight: isTablet ? 17 : 16,
     },
     netBalanceAmount: {
       fontWeight: '800',
