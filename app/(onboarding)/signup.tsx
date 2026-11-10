@@ -791,10 +791,7 @@ export default function SignUpScreen() {
             style={{ flex: 1 }}
           >
             <ScrollView
-              contentContainerStyle={[
-                styles.mobileScrollContent,
-                { paddingBottom: Math.max(insets.bottom, 28) },
-              ]}
+              contentContainerStyle={styles.mobileScrollContent}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -1184,16 +1181,18 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   mobileScrollContent: {
-    paddingHorizontal: 6,
-    paddingTop: 8,
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 12,
   },
   mobileCardContainer: {
-    maxWidth: 460,
+    maxWidth: 440,
     width: '100%',
     alignSelf: 'center',
     borderRadius: 24,
     borderWidth: 1.5,
-    padding: 14,
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
