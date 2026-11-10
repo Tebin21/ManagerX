@@ -151,6 +151,8 @@ function SalesDebtCardImpl({
   const styles = useMemo(() => getStyles(colors, isTablet, isTabletLandscape), [colors, isTablet, isTabletLandscape]);
   const { flexDirection, alignEnd, isRTL } = useRTL();
   const { chevronForward } = useDirectionalChevron();
+  const baseCurrency = useSettingsStore((s) => s.baseCurrency);
+  const isUSD = baseCurrency === 'USD';
   const currentLang = useLanguageStore((s) => s.language) || 'ku';
   const isAr = currentLang === 'ar';
   const isKuLanguage = currentLang === 'ku';
@@ -222,12 +224,37 @@ function SalesDebtCardImpl({
         ) : null}
 
         <View style={styles.cardAmounts}>
-          <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.primary }, NUMBER_LTR]} />
-          <View style={{ flexDirection, flexWrap: 'wrap' }}>
-            <LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber>
-            <Text style={styles.amountSub}> </Text>
-            <Text style={styles.amountSub}>{i18n.t('debt.owedByCustomer')}</Text>
+          <View style={[styles.cardAmountsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Text
+              style={[
+                styles.amountSub,
+                { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+            >
+              {isKuLanguage
+                ? 'ماوە کڕیار بیدات'
+                : isAr
+                ? 'متبقي في ذمة الزبون'
+                : 'Owed by customer'}
+            </Text>
+            <AmountText
+              value={debt.remainingAmount}
+              currency="IQD"
+              variant="large"
+              style={[styles.amountRemaining, { color: colors.primary }, NUMBER_LTR]}
+            />
           </View>
+          {isUSD && (
+            <View style={[styles.cardSecondaryAmountRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={[styles.amountSubSecondaryLabel, { color: colors.gray400 }]}>
+                {isKuLanguage ? 'بڕ بە دینار:' : isAr ? 'المبلغ بالدينار:' : 'In IQD:'}
+              </Text>
+              <LTRNumber style={[styles.amountSubSecondaryVal, { color: colors.gray500 }]}>
+                {fmtIQD(debt.remainingAmount)} IQD
+              </LTRNumber>
+            </View>
+          )}
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
@@ -271,6 +298,8 @@ function PurchaseDebtCardImpl({
   const purchaseAvatarTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
   const { flexDirection, alignEnd, isRTL } = useRTL();
   const { chevronForward } = useDirectionalChevron();
+  const baseCurrency = useSettingsStore((s) => s.baseCurrency);
+  const isUSD = baseCurrency === 'USD';
   const currentLang = useLanguageStore((s) => s.language) || 'ku';
   const isAr = currentLang === 'ar';
   const isKuLanguage = currentLang === 'ku';
@@ -328,47 +357,56 @@ function PurchaseDebtCardImpl({
             <View style={[styles.cardBatchIconBadge, { backgroundColor: colors.error + '20' }]}>
               <Ionicons name="layers" size={12} color={colors.error} />
             </View>
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', flexWrap: 'wrap', gap: 3 }}>
-              <Text
-                style={[
-                  styles.cardBatchText,
-                  { color: isDark ? '#FCA5A5' : '#991B1B' },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                ]}
-                numberOfLines={1}
-              >
-                {debt.productName} • {isAr ? `الوجبة ${debt.batchNumber || 1}` : isKuLanguage ? `وەجبەی ${debt.batchNumber || 1}` : `Batch #${debt.batchNumber || 1}`}
-              </Text>
-              {debt.batchQuantity ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ color: isDark ? '#FCA5A5' : '#991B1B', fontSize: 11.5, fontWeight: '700' }}>(</Text>
-                  <Text style={{ color: isDark ? '#FCA5A5' : '#991B1B', fontSize: 11.5, fontWeight: '700' }}>{debt.batchQuantity}</Text>
-                  <Text style={{ color: isDark ? '#FCA5A5' : '#991B1B', fontSize: 11.5 }}>{` ${isAr ? 'قطعة' : isKuLanguage ? 'دانە' : 'pcs'}`}</Text>
-                  <Text style={{ color: isDark ? '#FCA5A5' : '#991B1B', fontSize: 11.5, fontWeight: '700' }}>)</Text>
-                </View>
-              ) : null}
-              {debt.totalBatches && debt.totalBatches > 1 ? (
-                <Text
-                  style={[
-                    styles.cardBatchText,
-                    { color: isDark ? '#FCA5A5' : '#991B1B' },
-                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                  ]}
-                >
-                  {` · ${isAr ? `من إجمالي ${debt.totalBatches} وجبات` : isKuLanguage ? `لە کۆی ${debt.totalBatches} وەجبە` : `of ${debt.totalBatches}`}`}
-                </Text>
-              ) : null}
-            </View>
+            <Text
+              style={[
+                styles.cardBatchText,
+                { color: isDark ? '#FCA5A5' : '#991B1B', textAlign: isRTL ? 'right' : 'left' },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+              ]}
+              numberOfLines={1}
+            >
+              {debt.productName}
+              {` • ${isAr ? `الوجبة ${debt.batchNumber || 1}` : isKuLanguage ? `وەجبەی ${debt.batchNumber || 1}` : `Batch #${debt.batchNumber || 1}`}`}
+              {debt.batchQuantity ? ` (${debt.batchQuantity} ${isAr ? 'قطعة' : isKuLanguage ? 'دانە' : 'pcs'})` : ''}
+              {debt.totalBatches && debt.totalBatches > 1
+                ? ` · ${isAr ? `من إجمالي ${debt.totalBatches} وجبات` : isKuLanguage ? `لە کۆی ${debt.totalBatches} وەجبە` : `of ${debt.totalBatches}`}`
+                : ''}
+            </Text>
           </View>
         ) : null}
 
         <View style={styles.cardAmounts}>
-          <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.error }, NUMBER_LTR]} />
-          <View style={{ flexDirection, flexWrap: 'wrap' }}>
-            <LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber>
-            <Text style={styles.amountSub}> </Text>
-            <Text style={styles.amountSub}>{i18n.t('debt.owedToSupplier')}</Text>
+          <View style={[styles.cardAmountsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Text
+              style={[
+                styles.amountSub,
+                { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+            >
+              {isKuLanguage
+                ? 'ماوە بیدەین بە دابینکەر'
+                : isAr
+                ? 'متبقي للمورد'
+                : 'Owed to supplier'}
+            </Text>
+            <AmountText
+              value={debt.remainingAmount}
+              currency="IQD"
+              variant="large"
+              style={[styles.amountRemaining, { color: colors.error }, NUMBER_LTR]}
+            />
           </View>
+          {isUSD && (
+            <View style={[styles.cardSecondaryAmountRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={[styles.amountSubSecondaryLabel, { color: colors.gray400 }]}>
+                {isKuLanguage ? 'بڕ بە دینار:' : isAr ? 'المبلغ بالدينار:' : 'In IQD:'}
+              </Text>
+              <LTRNumber style={[styles.amountSubSecondaryVal, { color: colors.gray500 }]}>
+                {fmtIQD(debt.remainingAmount)} IQD
+              </LTRNumber>
+            </View>
+          )}
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
@@ -2096,33 +2134,40 @@ function getStyles(colors: AppColors, isTablet: boolean = false, isTabletLandsca
       shadowOpacity: 0.07,
       shadowRadius: 8,
       elevation: 3,
+      overflow: 'hidden',
     },
     cardPurchase: { borderStartWidth: 3, borderStartColor: colors.error },
-    cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: isTabletLandscape ? 14 : 10 },
+    cardTop: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginBottom: isTabletLandscape ? 14 : 10,
+      gap: 10,
+    },
     cardAvatar: {
       width: isTabletLandscape ? 58 : isTablet ? 52 : 40,
       height: isTabletLandscape ? 58 : isTablet ? 52 : 40,
       borderRadius: isTabletLandscape ? 29 : isTablet ? 26 : 20,
       alignItems: 'center',
       justifyContent: 'center',
-      marginEnd: isTabletLandscape ? 14 : 10,
     },
     cardAvatarText: { fontSize: isTabletLandscape ? 20 : isTablet ? 18 : 15, fontWeight: '700' },
-    cardInfo: { flex: 1 },
-    cardName: { fontSize: isTabletLandscape ? 19.5 : isTablet ? 18 : 15, fontWeight: '700', color: colors.black, marginBottom: 6 },
+    cardInfo: { flex: 1, minWidth: 0 },
+    cardName: { fontSize: isTabletLandscape ? 19.5 : isTablet ? 18 : 15, fontWeight: '700', color: colors.black, marginBottom: 4 },
     cardSub: { fontSize: isTabletLandscape ? 14.5 : isTablet ? 14 : 12, color: colors.gray400 },
     cardSub2: { fontSize: isTabletLandscape ? 13.5 : isTablet ? 13 : 11, color: colors.gray400, marginTop: 2 },
-    cardRight: { alignItems: 'flex-end', gap: 4 },
+    cardRight: { alignItems: 'flex-end', gap: 4, flexShrink: 0 },
 
     cardBatchRow: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: isTabletLandscape ? 12 : 10,
-      paddingVertical: isTabletLandscape ? 7 : 5,
+      paddingVertical: isTabletLandscape ? 7 : 6,
       borderRadius: 10,
       borderWidth: 1,
-      marginBottom: isTabletLandscape ? 12 : 9,
-      gap: 6,
+      marginBottom: isTabletLandscape ? 12 : 10,
+      gap: 7,
+      overflow: 'hidden',
     },
     cardBatchIconBadge: {
       width: 20,
@@ -2130,16 +2175,50 @@ function getStyles(colors: AppColors, isTablet: boolean = false, isTabletLandsca
       borderRadius: 6,
       alignItems: 'center',
       justifyContent: 'center',
+      flexShrink: 0,
     },
     cardBatchText: {
       flex: 1,
+      minWidth: 0,
       fontSize: isTabletLandscape ? 13.5 : 12,
       fontWeight: '600',
     },
 
-    cardAmounts: { flexDirection: 'column', gap: 3, marginBottom: isTabletLandscape ? 12 : 8 },
-    amountRemaining: { fontSize: isTabletLandscape ? 23 : isTablet ? 20 : 17, fontWeight: '800' },
-    amountSub: { fontSize: isTabletLandscape ? 14.5 : isTablet ? 14 : 12, color: colors.gray400 },
+    cardAmounts: {
+      flexDirection: 'column',
+      gap: 4,
+      marginBottom: isTabletLandscape ? 12 : 10,
+      width: '100%',
+    },
+    cardAmountsRow: {
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      width: '100%',
+    },
+    amountRemaining: {
+      fontSize: isTabletLandscape ? 22 : isTablet ? 19 : 17.5,
+      fontWeight: '800',
+      flexShrink: 0,
+    },
+    amountSub: {
+      fontSize: isTabletLandscape ? 14 : isTablet ? 13 : 12,
+      color: colors.gray400,
+      flexShrink: 1,
+    },
+    cardSecondaryAmountRow: {
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 1,
+    },
+    amountSubSecondaryLabel: {
+      fontSize: 11,
+      color: colors.gray400,
+    },
+    amountSubSecondaryVal: {
+      fontSize: 11.5,
+      fontWeight: '600',
+    },
 
     progressTrack: {
       height: isTabletLandscape ? 8 : 6,
