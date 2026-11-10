@@ -158,51 +158,79 @@ export function PurchasePaymentOptionsAccordion({
     <View style={styles.container}>
       {/* ── Interactive Collapsible Header Button ── */}
       <TouchableOpacity
-        activeOpacity={0.8}
+        activeOpacity={0.85}
         onPress={toggleExpand}
         style={[
           styles.headerButton,
           {
-            flexDirection: isRTL ? 'row-reverse' : 'row',
             backgroundColor: isDark ? '#1E293B' : colors.white,
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.08)',
           },
         ]}
       >
-        <View style={[styles.headerLeft, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        {/* Top Row: Icon + Section Title & Subtitle + Expand Indicator */}
+        <View style={[styles.headerTopRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.headerLeft, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View
+              style={[
+                styles.headerIconBox,
+                { backgroundColor: hexToRgba(colors.primary, isDark ? 0.24 : 0.14) },
+              ]}
+            >
+              <Ionicons name="options-outline" size={20} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { color: colors.black, textAlign },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                ]}
+                numberOfLines={1}
+              >
+                {isArabic ? 'خيارات الدفع وإتمام الشراء' : isKurdish ? 'شێوازی پارەدان و تەواوکردنی کڕین' : 'Payment & Checkout Options'}
+              </Text>
+              <Text
+                style={[
+                  styles.sectionSubtitle,
+                  { color: colors.gray400, textAlign },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
+                ]}
+                numberOfLines={1}
+              >
+                {isArabic ? 'الدفع، العملة، الصندوق وطريقة الشراء' : isKurdish ? 'پارەدان، دراوی وەسڵ، دەخیلە و شێوازی کڕین' : 'Payment, currency, drawer & checkout mode'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Expand/Collapse Chevron Indicator */}
           <View
             style={[
-              styles.headerIconBox,
-              { backgroundColor: hexToRgba(colors.primary, isDark ? 0.22 : 0.12) },
+              styles.chevronCircle,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray100,
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : colors.gray200,
+              },
             ]}
           >
-            <Ionicons name="options-outline" size={17} color={colors.primary} />
-          </View>
-          <View style={{ flexShrink: 1 }}>
-            <Text
-              style={[
-                styles.sectionTitle,
-                { color: colors.black, textAlign },
-                (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-              ]}
-              numberOfLines={1}
-            >
-              {isArabic ? 'خيارات الدفع وإتمام الشراء' : isKurdish ? 'شێوازی پارەدان و تەواوکردنی کڕین' : 'Payment & Checkout Options'}
-            </Text>
-            <Text
-              style={[
-                styles.sectionSubtitle,
-                { color: colors.gray400, textAlign },
-                (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
-              ]}
-              numberOfLines={1}
-            >
-              {isArabic ? 'الدفع، العملة، الصندوق وطريقة الشراء' : isKurdish ? 'پارەدان، دراوی وەسڵ، دەخیلە و شێوازی کڕین' : 'Payment, currency, drawer & checkout mode'}
-            </Text>
+            <Ionicons
+              name={isExpanded ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={colors.primary}
+            />
           </View>
         </View>
 
-        <View style={[styles.headerRight, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        {/* Subtle Divider */}
+        <View
+          style={[
+            styles.headerDivider,
+            { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' },
+          ]}
+        />
+
+        {/* Bottom Tier: Prominent Active Summary Badges */}
+        <View style={[styles.headerPillsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           {/* Active Payment Status Pill */}
           <View
             style={[
@@ -210,16 +238,16 @@ export function PurchasePaymentOptionsAccordion({
               {
                 backgroundColor:
                   paymentStatus === 'paid'
-                    ? (isDark ? hexToRgba(colors.success, 0.2) : '#DCFCE7')
+                    ? (isDark ? hexToRgba(colors.success, 0.18) : '#DCFCE7')
                     : paymentStatus === 'fib'
-                    ? (isDark ? hexToRgba('#3B82F6', 0.22) : '#DBEAFE')
-                    : (isDark ? hexToRgba(colors.error, 0.2) : '#FEE2E2'),
+                    ? (isDark ? hexToRgba('#3B82F6', 0.2) : '#DBEAFE')
+                    : (isDark ? hexToRgba(colors.error, 0.18) : '#FEE2E2'),
                 borderColor:
                   paymentStatus === 'paid'
-                    ? colors.success
+                    ? (isDark ? hexToRgba(colors.success, 0.5) : '#86EFAC')
                     : paymentStatus === 'fib'
-                    ? '#3B82F6'
-                    : colors.error,
+                    ? (isDark ? hexToRgba('#3B82F6', 0.6) : '#93C5FD')
+                    : (isDark ? hexToRgba(colors.error, 0.5) : '#FCA5A5'),
               },
             ]}
           >
@@ -231,13 +259,13 @@ export function PurchasePaymentOptionsAccordion({
                   ? 'phone-portrait'
                   : 'alert-circle'
               }
-              size={11}
+              size={14}
               color={
                 paymentStatus === 'paid'
-                  ? colors.success
+                  ? (isDark ? '#4ADE80' : '#15803D')
                   : paymentStatus === 'fib'
                   ? (isDark ? '#60A5FA' : '#1D4ED8')
-                  : colors.error
+                  : (isDark ? '#F87171' : '#B91C1C')
               }
             />
             <Text
@@ -246,15 +274,21 @@ export function PurchasePaymentOptionsAccordion({
                 {
                   color:
                     paymentStatus === 'paid'
-                      ? colors.success
+                      ? (isDark ? '#4ADE80' : '#15803D')
                       : paymentStatus === 'fib'
                       ? (isDark ? '#60A5FA' : '#1D4ED8')
-                      : colors.error,
+                      : (isDark ? '#F87171' : '#B91C1C'),
                 },
                 (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {paymentStatus === 'paid' ? t('purchases.paid') : paymentStatus === 'fib' ? 'FIB' : t('purchases.debt')}
+              {paymentStatus === 'paid'
+                ? (isArabic ? 'مدفوع نقد' : isKurdish ? 'نەقد (پارەدراو)' : 'Paid (Cash)')
+                : paymentStatus === 'fib'
+                ? 'FIB'
+                : (rawPaidNum > 0
+                    ? (isArabic ? 'آجل (مدفوع مقدم)' : isKurdish ? 'قەرز (پێشەکی)' : 'Debt (Deposit)')
+                    : (isArabic ? 'آجل' : isKurdish ? 'قەرز' : 'Debt'))}
             </Text>
           </View>
 
@@ -264,10 +298,15 @@ export function PurchasePaymentOptionsAccordion({
               styles.activePill,
               {
                 backgroundColor: isDark ? hexToRgba(colors.primary, 0.18) : '#FEF3C7',
-                borderColor: isDark ? hexToRgba(colors.primary, 0.4) : '#FDE68A',
+                borderColor: isDark ? hexToRgba(colors.primary, 0.45) : '#FCD34D',
               },
             ]}
           >
+            <Ionicons
+              name="cash-outline"
+              size={14}
+              color={isDark ? '#FBBF24' : '#B45309'}
+            />
             <Text
               style={[
                 styles.activePillText,
@@ -275,7 +314,11 @@ export function PurchasePaymentOptionsAccordion({
                 (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {receiptCurrency === 'iqd' ? (isArabic ? 'دينار' : 'دینار') : receiptCurrency === 'usd' ? (isArabic ? 'دولار' : 'دۆلار') : (isArabic ? 'دينار + دولار' : 'دینار+دۆلار')}
+              {receiptCurrency === 'iqd'
+                ? (isArabic ? 'دراو: دينار' : isKurdish ? 'دراو: دینار' : 'IQD')
+                : receiptCurrency === 'usd'
+                ? (isArabic ? 'دراو: دولار' : isKurdish ? 'دراو: دۆلار' : 'USD')
+                : (isArabic ? 'دراو: دينار + دولار' : isKurdish ? 'دراو: دینار + دۆلار' : 'IQD + USD')}
             </Text>
           </View>
 
@@ -284,48 +327,76 @@ export function PurchasePaymentOptionsAccordion({
             style={[
               styles.activePill,
               {
-                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray100,
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : colors.gray200,
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.18)' : '#CBD5E1',
               },
             ]}
           >
             <Ionicons
               name={checkoutMode.startsWith('print') ? 'print-outline' : 'flash-outline'}
-              size={11}
-              color={colors.primary}
+              size={14}
+              color={isDark ? colors.primary : '#334155'}
             />
             <Text
               style={[
                 styles.activePillText,
-                { color: colors.black },
+                { color: isDark ? '#F1F5F9' : '#334155' },
                 (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
               {checkoutMode === 'print'
-                ? (isArabic ? 'طباعة A4' : isKurdish ? 'پرینت A4' : 'A4 Print')
-                : checkoutMode === 'print58'
-                ? '58mm'
+                ? (isArabic ? 'طباعة فۆرم A4' : isKurdish ? 'چاپی فۆرمی A4' : 'A4 Print')
                 : checkoutMode === 'print80'
-                ? '80mm'
+                ? (isArabic ? 'تيرمال 80mm' : isKurdish ? 'تێرمال 80mm' : '80mm Print')
+                : checkoutMode === 'print58'
+                ? (isArabic ? 'وصيل 58mm' : isKurdish ? 'وەسڵی 58mm' : '58mm Print')
                 : checkoutMode === 'print110'
-                ? '110mm'
-                : (isArabic ? 'عادي' : isKurdish ? 'ئاسایی' : 'Normal')}
+                ? (isArabic ? 'تيرمال 110mm' : isKurdish ? 'تێرمالی 110mm' : '110mm Print')
+                : (isArabic ? 'توفير عادي' : isKurdish ? 'ئاسایی' : 'Normal')}
             </Text>
           </View>
 
-          {/* Expand/Collapse Chevron Indicator */}
-          <View
-            style={[
-              styles.chevronCircle,
-              { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : colors.gray100 },
-            ]}
-          >
-            <Ionicons
-              name={isExpanded ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color={colors.primary}
-            />
-          </View>
+          {/* Active Drawer Pill (if capital tracking is enabled) */}
+          {isCapitalEnabled && drawerBalance !== null && (
+            <View
+              style={[
+                styles.activePill,
+                {
+                  backgroundColor: isInsufficientCash
+                    ? (isDark ? hexToRgba(colors.error, 0.18) : '#FEE2E2')
+                    : (isDark ? hexToRgba(colors.success, 0.15) : '#F0FDF4'),
+                  borderColor: isInsufficientCash
+                    ? (isDark ? hexToRgba(colors.error, 0.45) : '#FCA5A5')
+                    : (isDark ? hexToRgba(colors.success, 0.45) : '#BBF7D0'),
+                },
+              ]}
+            >
+              <Ionicons
+                name={isInsufficientCash ? 'alert-circle' : 'wallet-outline'}
+                size={14}
+                color={
+                  isInsufficientCash
+                    ? (isDark ? '#F87171' : '#B91C1C')
+                    : (isDark ? '#4ADE80' : '#15803D')
+                }
+              />
+              <Text
+                style={[
+                  styles.activePillText,
+                  {
+                    color: isInsufficientCash
+                      ? (isDark ? '#F87171' : '#B91C1C')
+                      : (isDark ? '#4ADE80' : '#15803D'),
+                  },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {isInsufficientCash
+                  ? (isArabic ? 'الدرج: نقص' : isKurdish ? 'دەخیلە: کورتهێنان' : 'Drawer: Shortage')
+                  : (isArabic ? 'الدرج: متاح' : isKurdish ? 'دەخیلە: بەردەستە' : 'Drawer: Ready')}
+              </Text>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
 
@@ -934,54 +1005,72 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   headerButton: {
+    paddingHorizontal: 14,
+    paddingTop: 13,
+    paddingBottom: 13,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  headerTopRow: {
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
+    width: '100%',
   },
   headerLeft: {
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     flex: 1,
   },
   headerIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
+    width: 38,
+    height: 38,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sectionTitle: {
-    fontSize: 13.5,
+    fontSize: 14.5,
     fontWeight: '700',
   },
   sectionSubtitle: {
-    fontSize: 11,
-    marginTop: 1,
+    fontSize: 11.5,
+    marginTop: 2,
   },
-  headerRight: {
+  headerDivider: {
+    height: 1,
+    marginTop: 11,
+    marginBottom: 10,
+    width: '100%',
+  },
+  headerPillsRow: {
     alignItems: 'center',
-    gap: 6,
+    flexWrap: 'wrap',
+    gap: 8,
+    width: '100%',
   },
   activePill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 5.5,
+    borderRadius: 11,
     borderWidth: 1,
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 4,
+    gap: 5.5,
   },
   activePillText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontWeight: '700',
   },
   chevronCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },

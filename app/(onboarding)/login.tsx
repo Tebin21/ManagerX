@@ -152,7 +152,7 @@ export default function LoginScreen() {
           try {
             const { useOnlineStoreStore } = await import('@/store/onlineStoreStore');
             await useOnlineStoreStore.getState().resetStoreState();
-          } catch {}
+          } catch { }
 
           if (isStoreManager) {
             // Log in as Store Manager / Desktop Owner
@@ -187,7 +187,7 @@ export default function LoginScreen() {
             try {
               const { clearStoreApiKey } = await import('@/lib/onlineStore/storage');
               await clearStoreApiKey();
-            } catch {}
+            } catch { }
           }
           useBusinessStore.getState().setOwnerUserId(targetOwner);
 
@@ -316,7 +316,7 @@ export default function LoginScreen() {
     try {
       const { initializeDatabase } = await import('@/lib/sqlite');
       await initializeDatabase();
-    } catch {}
+    } catch { }
     const { useManagementStore } = await import('@/store/managementStore');
     useManagementStore.getState().resetAllManagementState();
     const mockUser = {
@@ -624,8 +624,8 @@ export default function LoginScreen() {
                 {curLang === 'ku'
                   ? '💻 چوونەژوورەوەی ئۆفلاین (دۆخی لۆکاڵ - بێ ئینتەرنێت)'
                   : curLang === 'ar'
-                  ? '💻 الدخول في وضع عدم الاتصال (محلي - بدون إنترنت)'
-                  : '💻 Sign in Offline (Local POS Mode)'}
+                    ? '💻 الدخول في وضع عدم الاتصال (محلي - بدون إنترنت)'
+                    : '💻 Sign in Offline (Local POS Mode)'}
               </Text>
             </TouchableOpacity>
           )}
@@ -743,8 +743,8 @@ export default function LoginScreen() {
             {curLang === 'ku'
               ? '🔒 هەژماری فرۆشیار و وشەی نهێنی لەلایەن بەڕێوەبەرەوە دابین دەکرێت'
               : curLang === 'ar'
-              ? '🔒 يتم تزويد حساب المتجر وكلمة المرور من قبل المسؤول'
-              : '🔒 Store account and login password are provided by administration'}
+                ? '🔒 يتم تزويد حساب المتجر وكلمة المرور من قبل المسؤول'
+                : '🔒 Store account and login password are provided by administration'}
           </Text>
         </View>
       )}
