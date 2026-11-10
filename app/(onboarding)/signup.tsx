@@ -251,50 +251,40 @@ export default function SignUpScreen() {
   const phoneSvgSize = Math.min(160, width * 0.42);
   const tabletSvgSize = isTabletLandscape ? 380 : 310;
 
-  // Render Top Header Controls (Unified Centered Pill: Language Toggle + Dark/Light Mode)
+  // Render Top Header Controls (Dark Mode on Left, Language Flags on Right)
   const renderTopControls = (showBack: boolean = true) => (
-    <View style={styles.topControlsCenteredRow}>
-      {showBack && (
+    <View style={styles.topControlsSpreadRow}>
+      {/* Left side: Back Button (if showBack) + Dark / Light Mode Button */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {showBack && (
+          <TouchableOpacity
+            onPress={handleBack}
+            activeOpacity={0.8}
+            style={[
+              styles.backBtn,
+              {
+                backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                borderColor: isDark ? '#334155' : '#E2E8F0',
+              },
+            ]}
+          >
+            <Ionicons
+              name={isRTL ? 'arrow-forward' : 'arrow-back'}
+              size={18}
+              color={isDark ? '#F8C61E' : '#475569'}
+            />
+          </TouchableOpacity>
+        )}
+
+        {/* Dark / Light Mode Toggle Button (Left) */}
         <TouchableOpacity
-          onPress={handleBack}
+          onPress={handleToggleTheme}
           activeOpacity={0.8}
           style={[
-            styles.backBtnAbsolute,
+            styles.themeBtn,
             {
               backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
               borderColor: isDark ? '#334155' : '#E2E8F0',
-              [isRTL ? 'right' : 'left']: 16,
-            },
-          ]}
-        >
-          <Ionicons
-            name={isRTL ? 'arrow-forward' : 'arrow-back'}
-            size={18}
-            color={isDark ? '#F8C61E' : '#475569'}
-          />
-        </TouchableOpacity>
-      )}
-
-      {/* Unified Centered Capsule / Pill Bar (تەبلەکە) */}
-      <View
-        style={[
-          styles.unifiedPillBar,
-          {
-            backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E2E8F0',
-            shadowColor: isDark ? '#000000' : '#0F172A',
-            shadowOpacity: isDark ? 0.25 : 0.06,
-          },
-        ]}
-      >
-        {/* Dark / Light Mode Toggle Button */}
-        <TouchableOpacity
-          onPress={handleToggleTheme}
-          activeOpacity={0.75}
-          style={[
-            styles.themePillBtn,
-            {
-              backgroundColor: isDark ? 'rgba(248, 198, 30, 0.12)' : 'rgba(71, 85, 105, 0.08)',
             },
           ]}
           accessibilityLabel="Toggle Dark/Light Mode"
@@ -302,27 +292,18 @@ export default function SignUpScreen() {
         >
           <Ionicons
             name={isDark ? 'sunny' : 'moon'}
-            size={16}
+            size={18}
             color={isDark ? '#F8C61E' : '#475569'}
           />
         </TouchableOpacity>
-
-        {/* Vertical Divider */}
-        <View
-          style={[
-            styles.pillDivider,
-            { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.14)' : '#E2E8F0' },
-          ]}
-        />
-
-        {/* Language Toggle Switch (3-Way: EN | AR | KU) */}
-        <LanguageToggleSwitch
-          language={curLang}
-          isDark={isDark}
-          embedded
-          onChangeLanguage={(newLang) => setLanguage(newLang)}
-        />
       </View>
+
+      {/* Right side: Language Toggle Switch (3-Way: EN | AR | KU) */}
+      <LanguageToggleSwitch
+        language={curLang}
+        isDark={isDark}
+        onChangeLanguage={(newLang) => setLanguage(newLang)}
+      />
     </View>
   );
 
@@ -883,7 +864,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // --- Top Controls (Language, Theme, Unified Centered Pill) ---
+  // --- Top Controls (Language on Right, Theme on Left) ---
+  topControlsSpreadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 2,
+    zIndex: 100,
+  },
   topControlsCenteredRow: {
     width: '100%',
     alignItems: 'center',
@@ -1195,16 +1184,16 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   mobileScrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
+    paddingHorizontal: 6,
+    paddingTop: 8,
   },
   mobileCardContainer: {
     maxWidth: 460,
     width: '100%',
     alignSelf: 'center',
-    borderRadius: 28,
-    borderWidth: 1,
-    padding: 16,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    padding: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
