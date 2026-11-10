@@ -689,10 +689,10 @@ export default function NewPurchaseScreen() {
   const rawPaidNum   = parseFloat(toEnglishDigits(amountPaid).replace(/,/g, '')) || 0;
   const isPaidExceeded = paymentStatus === 'debt' && rawPaidNum > maxDownPayment;
   const maxDownPaymentDisplay = isUSD ? `$${maxDownPayment}` : `${maxDownPayment.toLocaleString()} IQD`;
-  const rawPaidIQD = isUSD ? roundToNearest250(rawPaidNum * exchangeRate) : roundToNearest250(rawPaidNum);
+  const rawPaidIQD = isUSD ? (rawPaidNum * exchangeRate) : roundToNearest250(rawPaidNum);
   const amountPaidIQD = paymentStatus === 'debt' ? Math.max(0, Math.min(rawPaidIQD, maxDownPaymentIQD)) : rawPaidIQD;
   const remainingDebt = paymentStatus === 'debt' ? Math.max(0, totalIQD - amountPaidIQD) : 0;
-  const cashNeeded    = paymentStatus === 'paid' ? totalIQD : (paymentStatus === 'debt' && initialPaymentMethod === 'cash' ? amountPaidIQD : 0);
+  const cashNeeded    = paymentStatus === 'paid' ? totalIQD : (paymentStatus === 'debt' ? amountPaidIQD : 0);
   const projectedBalance = (drawerBalance ?? 0) - cashNeeded;
   const isInsufficientCash = isCapitalEnabled && drawerBalance !== null && cashNeeded > drawerBalance;
 
@@ -951,7 +951,7 @@ export default function NewPurchaseScreen() {
     // Cash drawer balance check when Capital system is enabled
     const capitalStore = useCapitalStore.getState();
     if (capitalStore.isEnabled) {
-      const needed = paymentStatus === 'paid' ? totalIQD : (paymentStatus === 'debt' && initialPaymentMethod === 'cash' ? amountPaidIQD : 0);
+      const needed = paymentStatus === 'paid' ? totalIQD : (paymentStatus === 'debt' ? amountPaidIQD : 0);
       if (needed > 0) {
         const availableBalance = await capitalStore.getDrawerBalance();
         if (needed > availableBalance) {
