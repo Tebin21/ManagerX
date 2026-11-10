@@ -49,6 +49,7 @@ export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalP
   const isKuOrAr = isKu || isAr;
 
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
+  const previousExchangeRate = useSettingsStore((s) => s.previousExchangeRate);
   const setExchangeRate = useSettingsStore((s) => s.setExchangeRate);
 
   const isEmployee = useManagementStore((s) => s.isEmployee);
@@ -58,13 +59,40 @@ export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalP
     : true;
 
   const [input, setInput] = useState<string>('');
-
-  // Sync initial value when modal opens
-  useEffect(() => {
-    if (visible) {
-      setInput(String(Math.round((exchangeRate || 1500) * 100)));
+  const [resolvedOldRate, setResolvedOldRate] = useState<number>(() => {
+    if (previousExchangeRate && Math.abs(previousExchangeRate - exchangeRate) > 0.001) {
+      return previousExchangeRate;
     }
-  }, [visible, exchangeRate]);
+    return exchangeRate;
+  });
+
+  // Sync initial value and determine old rate when modal opens
+  useEffect(() => {
+    if (!visible) return;
+
+    setInput(String(Math.round((exchangeRate || 1500) * 100)));
+
+    if (previousExchangeRate && Math.abs(previousExchangeRate - exchangeRate) > 0.001) {
+      setResolvedOldRate(previousExchangeRate);
+    } else {
+      // Look up previous rate from SQLite exchange_rates audit history
+      import('@/lib/sqlite').then(async ({ getExchangeRateHistory }) => {
+        try {
+          const history = await getExchangeRateHistory(5);
+          const prevEntry = history.find((h) => Math.abs(h.rate - exchangeRate) > 0.001);
+          if (prevEntry) {
+            setResolvedOldRate(prevEntry.rate);
+          } else if (history.length >= 2) {
+            setResolvedOldRate(history[1].rate);
+          } else {
+            setResolvedOldRate(exchangeRate !== 1500 ? 1500 : 1310);
+          }
+        } catch {
+          setResolvedOldRate(exchangeRate !== 1500 ? 1500 : 1310);
+        }
+      }).catch(() => {});
+    }
+  }, [visible, exchangeRate, previousExchangeRate]);
 
   // Calculate parsed rate & preview
   const { cleanNumber, calculatedRate, isValid, diff } = useMemo(() => {
@@ -72,14 +100,15 @@ export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalP
     const num = parseInt(rawDigits, 10) || 0;
     const calc = num >= 10000 ? num / 100 : (num >= 500 ? num : 0);
     const valid = calc >= 500 && calc <= 50000;
-    const rateDiff = valid ? Math.round((calc - exchangeRate) * 100) : 0;
+    const baseline = resolvedOldRate > 0 ? resolvedOldRate : exchangeRate;
+    const rateDiff = valid ? Math.round((calc - baseline) * 100) : 0;
     return {
       cleanNumber: num,
       calculatedRate: calc,
       isValid: valid,
       diff: rateDiff,
     };
-  }, [input, exchangeRate]);
+  }, [input, resolvedOldRate, exchangeRate]);
 
   // Instant save & close without blocking
   const handleSave = () => {
@@ -205,13 +234,13 @@ export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalP
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                   <Text style={[styles.colRateText, { color: colors.gray600, writingDirection: 'ltr' }]}>
-                    {formatComma(Math.round(exchangeRate * 100))}
+                    {formatComma(Math.round(resolvedOldRate * 100))}
                   </Text>
                   <Text style={[styles.colCurrencyText, { color: colors.gray500 }]}>IQD</Text>
                 </View>
 
                 <Text style={[styles.colSubRateText, { color: colors.gray400, writingDirection: 'ltr' }]}>
-                  100$ = {formatComma(Math.round(exchangeRate * 100))}
+                  100$ = {formatComma(Math.round(resolvedOldRate * 100))}
                 </Text>
               </View>
 
@@ -341,7 +370,7 @@ export function QuickDollarRateModal({ visible, onClose }: QuickDollarRateModalP
                 {
                   backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
                   borderColor: isDark ? colors.gray300 : '#CBD5E1',
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  flexDirection: 'row', // Fixed LTR order: [100$ =] on LEFT, [Input] in CENTER, [IQD] on RIGHT
                   alignItems: 'center',
                 },
               ]}

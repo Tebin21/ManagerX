@@ -204,6 +204,7 @@ export const DEFAULT_DEBT_RECEIPT_SETTINGS: DebtReceiptSettings = {
 interface SettingsState {
   isDarkMode:    boolean;
   exchangeRate:  number;
+  previousExchangeRate: number | null;
   rateUpdatedAt: string | null;
   accentColor:             string | null;
   globalLowStockEnabled:   boolean;
@@ -338,6 +339,7 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       isDarkMode:    false,
       exchangeRate:  DEFAULT_EXCHANGE_RATE,
+      previousExchangeRate: null,
       rateUpdatedAt: null,
       accentColor:             null,
       globalLowStockEnabled:   true,
@@ -530,7 +532,14 @@ export const useSettingsStore = create<SettingsState>()(
 
       setExchangeRate: async (rate: number) => {
         const now = new Date().toISOString();
-        set({ exchangeRate: rate, rateUpdatedAt: now });
+        set((state) => {
+          const old = state.exchangeRate;
+          return {
+            previousExchangeRate: old !== rate ? old : state.previousExchangeRate,
+            exchangeRate: rate,
+            rateUpdatedAt: now,
+          };
+        });
         // Persist to SQLite audit log (non-blocking)
         try {
           const { saveExchangeRateHistory } = await import('@/lib/sqlite');
@@ -548,6 +557,7 @@ export const useSettingsStore = create<SettingsState>()(
           ...current,
           ...p,
           exchangeRate:  p?.exchangeRate  ?? DEFAULT_EXCHANGE_RATE,
+          previousExchangeRate: p?.previousExchangeRate ?? null,
           rateUpdatedAt: p?.rateUpdatedAt ?? null,
           accentColor:             p?.accentColor   ?? null,
           globalLowStockEnabled:   p?.globalLowStockEnabled   ?? true,
