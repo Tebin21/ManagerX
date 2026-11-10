@@ -24,7 +24,11 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useManagementStore } from '@/store/managementStore';
 import { useLanguageStore } from '@/store/languageStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { getPurchaseById, getPurchaseItemsByPurchaseId, getPurchaseDebtByPurchaseId, incrementPurchaseViewCount } from '@/lib/sqlite';
+import { getPurchaseById, getPurchaseItemsByPurchaseId, getPurchaseDebtByPurchaseId, incrementPurchaseViewCount, incrementPurchasePrintCount } from '@/lib/sqlite';
+import { sharePurchaseInvoice, directPrintPurchaseInvoice } from '@/lib/generateInvoice';
+import { PrintFormatPickerModal } from '@/components/shared/PrintFormatPickerModal';
+import type { ReceiptPaperSize } from '@/store/settingsStore';
+import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 import { Theme } from '@/constants/theme';
 import { Typography } from '@/constants/typography';
 import type { Purchase } from '@/types/purchases';
@@ -62,6 +66,8 @@ const infoRow = StyleSheet.create({
 
 export default function PurchaseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const baseCurrency = useSettingsStore(s => s.baseCurrency);
+  const receiptCurrency: ReceiptCurrencyMode = baseCurrency === 'USD' ? 'usd' : 'iqd';
   const router   = useRouter();
   const { t } = useTranslation();
   const lang = useLanguageStore(s => s.language);
@@ -78,6 +84,9 @@ export default function PurchaseDetailScreen() {
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
   const [purchaseDebt, setPurchaseDebt] = useState<PurchaseDebt | null>(null);
   const [isLoading, setIsLoading]     = useState(true);
+  const [isSharing, setIsSharing]     = useState(false);
+  const [isPrinting, setIsPrinting]   = useState(false);
+  const [formatPickerVisible, setFormatPickerVisible] = useState(false);
   const [isDeleting, setIsDeleting]   = useState(false);
 
   useEffect(() => { loadPurchase(); }, [id]);
@@ -104,6 +113,85 @@ export default function PurchaseDetailScreen() {
       console.error('Failed to load purchase:', err);
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handleShare(paperSize: ReceiptPaperSize = '80mm') {
+    if (!purchase) return;
+    const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
+    const printCheck = await checkInvoicePrintLimit();
+    if (!printCheck.allowed) {
+      const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+      showUsageLimitModal();
+      return;
+    }
+    setIsSharing(true);
+    incrementPurchasePrintCount(purchase.id).catch(() => {});
+    setPurchase((prev) => (prev ? { ...prev, printCount: (prev.printCount || 0) + 1 } : null));
+    try {
+      const currentDebt = purchase.paymentStatus === 'debt'
+        ? (purchaseDebt ?? await getPurchaseDebtByPurchaseId(purchase.id))
+        : null;
+
+      await sharePurchaseInvoice(
+        purchase,
+        purchaseItems,
+        {
+          name: business.name,
+          phone: business.phone,
+          address: business.address,
+          logoUri: business.logoUri,
+        },
+        receiptCurrency,
+        currentDebt,
+        paperSize
+      );
+    } catch (err) {
+      console.error('[PDF] handleShare unexpected error:', err);
+      Alert.alert(t('common.error'), t('common.tryAgain'));
+    } finally {
+      setIsSharing(false);
+    }
+  }
+
+  async function handleConfirmPrintFormat(paperSize: ReceiptPaperSize, currencyMode?: ReceiptCurrencyMode) {
+    if (!purchase || isPrinting) return;
+    const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
+    const printCheck = await checkInvoicePrintLimit();
+    if (!printCheck.allowed) {
+      const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+      showUsageLimitModal();
+      return;
+    }
+    setIsPrinting(true);
+    useSettingsStore.getState().setPurchasePaperSizePreference(paperSize);
+    incrementPurchasePrintCount(purchase.id).catch(() => {});
+    setPurchase((prev) => (prev ? { ...prev, printCount: (prev.printCount || 0) + 1 } : null));
+    try {
+      const currentDebt = purchase.paymentStatus === 'debt'
+        ? (purchaseDebt ?? await getPurchaseDebtByPurchaseId(purchase.id))
+        : null;
+
+      const chosenCurrency: ReceiptCurrencyMode = currencyMode || receiptCurrency;
+      await directPrintPurchaseInvoice(
+        purchase,
+        purchaseItems,
+        {
+          name: business.name,
+          phone: business.phone,
+          address: business.address,
+          logoUri: business.logoUri,
+        },
+        chosenCurrency,
+        currentDebt,
+        paperSize
+      );
+    } catch (err) {
+      console.error('[Print] handleConfirmPrintFormat unexpected error:', err);
+      Alert.alert(t('common.error'), t('common.tryAgain'));
+    } finally {
+      setIsPrinting(false);
+      setFormatPickerVisible(false);
     }
   }
 
@@ -422,6 +510,14 @@ export default function PurchaseDetailScreen() {
 
       {/* Actions */}
       <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 220 }} style={styles.actionsWrap}>
+        <PrimaryButton
+          label={isPrinting ? (isRTL ? 'خەریکی چاپکردنە...' : 'Printing...') : (isRTL ? 'چاپکردنی وەسڵ 🖨️' : 'Print Invoice 🖨️')}
+          onPress={() => setFormatPickerVisible(true)}
+          loading={isPrinting}
+          disabled={isPrinting || isSharing || isDeleting}
+        />
+        <View style={styles.gap} />
+
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => router.push(`/(app)/invoices?tab=purchases&id=${id}` as never)}
@@ -458,7 +554,7 @@ export default function PurchaseDetailScreen() {
             label={isDeleting ? t('purchases.deleting') : t('purchases.deletePurchase')}
             onPress={confirmDelete}
             loading={isDeleting}
-            disabled={isDeleting}
+            disabled={isDeleting || isSharing || isPrinting}
             variant="outline"
           />
         )}
@@ -475,6 +571,16 @@ export default function PurchaseDetailScreen() {
             <HeaderActionButton
               icon="create-outline"
               onPress={() => router.push(`/(app)/purchases/edit/${id}` as never)}
+            />
+            <HeaderActionButton
+              icon="print-outline"
+              onPress={() => setFormatPickerVisible(true)}
+              disabled={isPrinting || isSharing}
+            />
+            <HeaderActionButton
+              icon="share-outline"
+              onPress={() => handleShare(useSettingsStore.getState().purchasePaperSizePreference || '80mm')}
+              disabled={isPrinting || isSharing}
             />
           </View>
         }
@@ -500,6 +606,20 @@ export default function PurchaseDetailScreen() {
           </>
         )}
       </ScrollView>
+
+      <PrintFormatPickerModal
+        visible={formatPickerVisible}
+        onClose={() => {
+          if (!isPrinting) setFormatPickerVisible(false);
+        }}
+        onConfirm={handleConfirmPrintFormat}
+        isPrinting={isPrinting}
+        initialPaperSize={useSettingsStore.getState().purchasePaperSizePreference || '80mm'}
+        initialCurrencyMode={receiptCurrency}
+        title={isAr ? 'حجم طباعة وصل الشراء' : isKu ? 'قەبارەی چاپی وەسڵی کڕین' : 'Purchase Invoice Paper Size'}
+        invoiceNumber={purchase.purchaseNumber}
+        partyName={purchase.supplierName || (isAr ? 'شراء مباشر' : isKu ? 'کڕینی ڕاستەوخۆ' : 'Direct Supplier')}
+      />
     </View>
   );
 }
