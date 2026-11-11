@@ -447,7 +447,7 @@ function QuickPayModal({
   name: string;
   remaining: number;
   onCancel: () => void;
-  onConfirm: (amount: number, paymentMethod: 'cash' | 'fib') => void;
+  onConfirm: (amount: number, paymentMethod: 'cash' | 'fib', openPrintModal?: boolean) => void;
 }) {
   const { colors, isDark } = useAppTheme();
   const { isTablet } = useResponsive();
@@ -699,30 +699,14 @@ function QuickPayModal({
             </View>
           </View>
 
-          {/* ── Actions Row ── */}
-          <View style={[styles.modalActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {/* ── Actions: Complete & Print OR Complete (Done) ── */}
+          <View style={{ gap: 8, marginTop: 4 }}>
+            {/* 1. Complete & Print Receipt */}
             <TouchableOpacity
-              style={[styles.modalCancel, { borderColor: colors.gray200 }]}
-              onPress={() => {
-                setValue('');
-                setPaymentMethod('cash');
-                onCancel();
-              }}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.modalCancelText,
-                  { color: colors.gray600 },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                ]}
-              >
-                {i18n.t('common.cancel')}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalConfirm, { backgroundColor: colors.primary }]}
+              style={[
+                styles.modalConfirmPrint,
+                { backgroundColor: colors.primary, flexDirection: isRTL ? 'row-reverse' : 'row' },
+              ]}
               onPress={() => {
                 const cleanStr = toEnglishDigits(value).replace(/,/g, '');
                 const entered = parseFloat(cleanStr) || 0;
@@ -737,20 +721,84 @@ function QuickPayModal({
 
                 setValue('');
                 setPaymentMethod('cash');
-                onConfirm(amtInIQD, paymentMethod);
+                onConfirm(amtInIQD, paymentMethod, true);
               }}
               activeOpacity={0.85}
             >
+              <Ionicons name="print-outline" size={17} color={colors.white} />
               <Text
                 style={[
-                  styles.modalConfirmText,
+                  styles.modalConfirmPrintText,
                   { color: colors.white },
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
-                {i18n.t('common.confirm')}
+                {isAr ? 'إتمام وطباعة الوصل' : isKuLanguage ? 'تەواوکردن و چاپ' : 'Complete & Print'}
               </Text>
             </TouchableOpacity>
+
+            {/* 2. Secondary Row: Cancel & Just Complete (تەواوکردن) */}
+            <View style={[styles.modalActionsRow, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }]}>
+              <TouchableOpacity
+                style={[styles.modalCancel, { borderColor: colors.gray200, flex: 1 }]}
+                onPress={() => {
+                  setValue('');
+                  setPaymentMethod('cash');
+                  onCancel();
+                }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.modalCancelText,
+                    { color: colors.gray600 },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {i18n.t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalJustComplete,
+                  {
+                    backgroundColor: isDark ? colors.gray200 : colors.gray100,
+                    borderColor: isDark ? colors.gray300 : colors.gray200,
+                    flex: 1.25,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                ]}
+                onPress={() => {
+                  const cleanStr = toEnglishDigits(value).replace(/,/g, '');
+                  const entered = parseFloat(cleanStr) || 0;
+                  if (!entered || entered <= 0) {
+                    Alert.alert(i18n.t('common.error'), i18n.t('debt.invalidAmount'));
+                    return;
+                  }
+                  const isFullPayment = entered >= remainingInCurrentCurrency;
+                  const amtInIQD = isFullPayment
+                    ? remaining
+                    : (isUSD ? Math.round(entered * exchangeRate) : roundToNearest250(entered));
+
+                  setValue('');
+                  setPaymentMethod('cash');
+                  onConfirm(amtInIQD, paymentMethod, false);
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="checkmark-circle-outline" size={17} color={isDark ? '#34D399' : '#059669'} />
+                <Text
+                  style={[
+                    styles.modalJustCompleteText,
+                    { color: colors.black },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isAr ? 'تأكيد وإتمام' : isKuLanguage ? 'تەواوکردن' : 'Done'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </MotiView>
       </KeyboardAvoidingView>
@@ -931,7 +979,7 @@ export default function DebtScreen() {
   }, [periodKey, customRange, isKuLanguage]);
 
   // Payment handler
-  const handlePay = useCallback(async (amount: number, paymentMethod: 'cash' | 'fib' = 'cash') => {
+  const handlePay = useCallback(async (amount: number, paymentMethod: 'cash' | 'fib' = 'cash', openPrintModal: boolean = true) => {
     if (!payTarget) return;
     try {
       let receipt: DebtPaymentReceiptData;
@@ -941,8 +989,10 @@ export default function DebtScreen() {
         receipt = await payPurchaseDebt(payTarget.id, amount, undefined, paymentMethod);
       }
       setPayTarget(null);
-      setCreatedReceipt(receipt);
-      setShowReceiptModal(true);
+      if (openPrintModal) {
+        setCreatedReceipt(receipt);
+        setShowReceiptModal(true);
+      }
     } catch {
       Alert.alert(t('common.error'), t('debt.errorPayment'));
     }
@@ -2361,6 +2411,38 @@ function getStyles(colors: AppColors, isTablet: boolean = false, isTabletLandsca
     modalActions: {
       gap: 10,
       marginTop: 2,
+    },
+    modalConfirmPrint: {
+      borderRadius: 11,
+      paddingVertical: isTablet ? 13 : 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.12,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    modalConfirmPrintText: {
+      fontSize: isTablet ? 15 : 14,
+      fontWeight: '700',
+    },
+    modalActionsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    modalJustComplete: {
+      borderRadius: 10,
+      borderWidth: 1.5,
+      paddingVertical: isTablet ? 13 : 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+    },
+    modalJustCompleteText: {
+      fontSize: isTablet ? 14.5 : 13.5,
+      fontWeight: '700',
     },
     modalCancel: {
       flex: 1,
