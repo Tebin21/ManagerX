@@ -318,11 +318,7 @@ function buildSalesCSS(isKurdish: boolean): string {
     unicode-bidi: isolate;
     white-space: nowrap !important;
   }
-    font-size: 12px;
-    direction: ltr;
-    unicode-bidi: isolate;
-  }
-  .fin-discount { color: #d97706; font-weight: 700; }
+  .fin-discount { color: #000000; font-weight: 700; }
   .fin-amount-paid { color: #047857; font-weight: 700; }
   .fin-amount-debt { color: #b91c1c; font-weight: 800; }
 
@@ -555,12 +551,12 @@ export function buildInvoiceHTML(
   const itemRows = items.length > 0 ? items.map((item, i) => `
     <tr>
       <td class="num-col" style="width:4%;">${i + 1}</td>
-      <td style="width:36%;text-align:${kuAlign};"><span class="item-name">${ku(escHtml(item.productName))}</span>${item.itemDescription ? `<span class="item-desc">${ku(escHtml(item.itemDescription))}</span>` : ''}</td>
+      <td style="width:30%;text-align:${kuAlign};"><span class="item-name">${ku(escHtml(item.productName))}</span>${item.itemDescription ? `<span class="item-desc">${ku(escHtml(item.itemDescription))}</span>` : ''}</td>
       <td class="center" style="width:12%;">${(salesSettings.showItemBarcode && item.itemId) ? `<span class="id-chip">${escHtml(item.itemId)}</span>` : '<span class="muted-cell">—</span>'}</td>
-      <td class="center" style="width:6%;">${item.quantity}</td>
-      <td class="right" style="width:13%;white-space:nowrap !important;">${item.discount > 0 ? `<span style="text-decoration:line-through;color:#94a3b8;font-size:0.9em;margin-inline-end:4px;">${fmtRow(item.sellingPrice)}</span><span style="font-weight:700;">${fmtRow(item.sellingPrice - item.discount)}</span>` : fmtRow(item.sellingPrice)}</td>
-      <td class="right" style="width:11%;white-space:nowrap !important;">${item.discount > 0 ? `<span style="color:#d97706;font-weight:600;">− ${fmtRow(item.discount)}</span>` : '<span class="muted-cell">—</span>'}</td>
-      <td class="right" style="width:18%;white-space:nowrap !important;font-weight:700;">${fmtRow(item.lineTotal)}</td>
+      <td class="center" style="width:8%;font-weight:700;">${item.quantity}</td>
+      <td class="right" style="width:16%;">${item.discount > 0 ? `<div style="display:inline-flex;flex-direction:column;align-items:${isKurdish ? 'flex-start' : 'flex-end'};line-height:1.25;gap:1px;"><span style="font-weight:700;color:#000000;white-space:nowrap;">${fmtRow(item.sellingPrice - item.discount)}</span><span style="text-decoration:line-through;color:#64748b;font-size:10px;white-space:nowrap;">${fmtRow(item.sellingPrice)}</span></div>` : `<span style="font-weight:700;color:#000000;white-space:nowrap;">${fmtRow(item.sellingPrice)}</span>`}</td>
+      <td class="right" style="width:12%;white-space:nowrap !important;">${item.discount > 0 ? `<span style="color:#000000;font-weight:700;">− ${fmtRow(item.discount)}</span>` : '<span class="muted-cell">—</span>'}</td>
+      <td class="right" style="width:18%;white-space:nowrap !important;font-weight:700;color:#000000;">${fmtRow(item.lineTotal)}</td>
     </tr>
   `).join('') : `<tr><td colspan="7" class="empty-row">${ku(t('noItems'))}</td></tr>`;
 
@@ -636,13 +632,13 @@ export function buildInvoiceHTML(
       </div>
       ${sale.discountTotal > 0 ? `
       <div class="fin-row">
-        <span style="color:#d97706;font-weight:600;">${ku(t('itemDiscountTotal'))}</span>
-        <span class="fin-amount fin-discount en-num" dir="ltr">− ${fmtRow(sale.discountTotal)}</span>
+        <span style="color:#000000;font-weight:600;">${ku(t('itemDiscountTotal'))}</span>
+        <span class="fin-amount fin-discount en-num" dir="ltr" style="color:#000000;">− ${fmtRow(sale.discountTotal)}</span>
       </div>` : ''}
       ${sale.globalDiscount > 0 ? `
       <div class="fin-row">
-        <span style="color:#d97706;font-weight:600;">${ku(t('cartDiscountTotal'))}</span>
-        <span class="fin-amount fin-discount en-num" dir="ltr">− ${fmtRow(sale.globalDiscount)}</span>
+        <span style="color:#000000;font-weight:600;">${ku(t('cartDiscountTotal'))}</span>
+        <span class="fin-amount fin-discount en-num" dir="ltr" style="color:#000000;">− ${fmtRow(sale.globalDiscount)}</span>
       </div>` : ''}
       ${totalBlock}
       ${paidRow}
@@ -724,11 +720,11 @@ export function buildInvoiceHTML(
       <thead>
         <tr>
           <th class="center" style="width:4%;min-width:26px;">#</th>
-          <th style="width:36%;text-align:${kuAlign};">${ku(t('colProduct'))}</th>
+          <th style="width:30%;text-align:${kuAlign};">${ku(t('colProduct'))}</th>
           <th class="center" style="width:12%;min-width:55px;">${ku(t('colProductId'))}</th>
-          <th class="center" style="width:6%;min-width:32px;">${ku(t('colQty'))}</th>
-          <th class="right" style="width:13%;min-width:80px;white-space:nowrap;">${ku(t('colUnitPrice'))}</th>
-          <th class="right" style="width:11%;min-width:70px;white-space:nowrap;">${ku(t('colDiscount'))}</th>
+          <th class="center" style="width:8%;min-width:35px;">${ku(t('colQty'))}</th>
+          <th class="right" style="width:16%;min-width:85px;white-space:nowrap;">${ku(t('colUnitPrice'))}</th>
+          <th class="right" style="width:12%;min-width:70px;white-space:nowrap;">${ku(t('colDiscount'))}</th>
           <th class="right" style="width:18%;min-width:85px;white-space:nowrap;">${ku(t('colLineTotal'))}</th>
         </tr>
       </thead>
@@ -971,7 +967,7 @@ function buildPurchaseCSS(isKurdish: boolean): string {
     unicode-bidi: isolate;
   }
   .fin-amount.muted { color: #000000; font-weight: 600; }
-  .fin-discount { color: #d97706; font-weight: 700; }
+  .fin-discount { color: #000000; font-weight: 700; }
   .fin-amount-paid { color: #047857; font-weight: 700; }
   .fin-amount-debt { color: #b91c1c; font-weight: 800; }
 

@@ -239,10 +239,10 @@ export default function ReceiptCustomizationScreen() {
     customerPhone: '',
     customerAddress: '',
     subtotal: 3370250,
-    discountTotal: 0,
+    discountTotal: 50000,
     globalDiscount: 0,
-    grandTotal: 3370250,
-    paidAmount: 3370250,
+    grandTotal: 3320250,
+    paidAmount: 3320250,
     remainingDebt: 0,
     paymentMethod: 'cash',
     notes: isAr ? 'لا توجد ملاحظات' : isKurdish ? 'هیچ تێبینییەک نییە' : 'No notes',
@@ -255,8 +255,8 @@ export default function ReceiptCustomizationScreen() {
         productName: 'iPhone 15 Pro Max',
         quantity: 1,
         sellingPrice: 1450000,
-        discount: 0,
-        lineTotal: 1450000,
+        discount: 50000,
+        lineTotal: 1400000,
         itemId: 'IPH-15PM',
       },
       {
@@ -806,8 +806,8 @@ export default function ReceiptCustomizationScreen() {
           </View>
           {salesSettings.showDiscount && (mockSale.discountTotal > 0 || mockSale.globalDiscount > 0) && (
             <View style={[styles.a4FinRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <Text style={[styles.a4FinLabel, { color: '#D97706', fontWeight: '700' }]}>{isAr ? 'الخصم:' : isKurdish ? 'داشکاندن:' : 'Discount:'}</Text>
-              <RNText style={[styles.a4FinVal, { color: '#D97706', fontWeight: '700' }]}>− {fmtIQD(mockSale.discountTotal + mockSale.globalDiscount)} IQD</RNText>
+              <Text style={[styles.a4FinLabel, { color: '#000000', fontWeight: '700' }]}>{isAr ? 'الخصم:' : isKurdish ? 'داشکاندن:' : 'Discount:'}</Text>
+              <RNText style={[styles.a4FinVal, { color: '#000000', fontWeight: '700' }]}>− {fmtIQD(mockSale.discountTotal + mockSale.globalDiscount)} IQD</RNText>
             </View>
           )}
           <View style={styles.a4TotalBlock}>
@@ -835,16 +835,16 @@ export default function ReceiptCustomizationScreen() {
         )}
       </View>
 
-      {/* Items Table (Exact Columns: # | کاڵا | ئایدی کاڵا | بڕ | نرخی یەکە | داشکاندن | کۆی ڕیز) */}
+      {/* Items Table (Exact Columns: # | کاڵا | ئایدی کاڵا | بڕ | نرخی یەکە | داشکاندن | کۆی گشتی) */}
       <View style={styles.a4TableWrap}>
         <View style={[styles.a4TableHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Text style={[styles.a4Th, { width: '4%', textAlign: 'center' }]} numberOfLines={1}>#</Text>
-          <Text style={[styles.a4Th, { width: '26%', textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{isAr ? 'المادة' : isKurdish ? 'کاڵا' : 'Product'}</Text>
-          <Text style={[styles.a4Th, { width: '11%', textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'رمز المادة' : isKurdish ? 'ئایدی کاڵا' : 'Code'}</Text>
-          <Text style={[styles.a4Th, { width: '5%', textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الكمية' : isKurdish ? 'بڕ' : 'Qty'}</Text>
-          <Text style={[styles.a4Th, { width: '18%', textAlign: isRTL ? 'left' : 'right' }]} numberOfLines={1}>{isAr ? 'سعر الوحدة' : isKurdish ? 'نرخی یەکە' : 'Price'}</Text>
-          <Text style={[styles.a4Th, { width: '14%', textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الخصم' : isKurdish ? 'داشکاندن' : 'Disc.'}</Text>
-          <Text style={[styles.a4Th, { width: '22%', textAlign: isRTL ? 'left' : 'right' }]} numberOfLines={1}>{isAr ? 'المجموع' : isKurdish ? 'کۆی ڕیز' : 'Total'}</Text>
+          <Text style={[styles.a4Th, { width: '30%', textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{isAr ? 'المادة' : isKurdish ? 'کاڵا' : 'Product'}</Text>
+          <Text style={[styles.a4Th, { width: '12%', textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'رمز المادة' : isKurdish ? 'ئایدی کاڵا' : 'Code'}</Text>
+          <Text style={[styles.a4Th, { width: '8%', textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الكمية' : isKurdish ? 'بڕ' : 'Qty'}</Text>
+          <Text style={[styles.a4Th, { width: '16%', textAlign: isRTL ? 'left' : 'right' }]} numberOfLines={1}>{isAr ? 'سعر الوحدة' : isKurdish ? 'نرخی یەکە' : 'Price'}</Text>
+          <Text style={[styles.a4Th, { width: '12%', textAlign: isRTL ? 'left' : 'right' }]} numberOfLines={1}>{isAr ? 'الخصم' : isKurdish ? 'داشکاندن' : 'Disc.'}</Text>
+          <Text style={[styles.a4Th, { width: '18%', textAlign: isRTL ? 'left' : 'right' }]} numberOfLines={1}>{isAr ? 'المجموع' : isKurdish ? 'کۆی گشتی' : 'Total'}</Text>
         </View>
 
         {(mockSale.items ?? []).map((item, idx) => (
@@ -857,13 +857,13 @@ export default function ReceiptCustomizationScreen() {
             ]}
           >
             <RNText style={[styles.a4TdNum, { width: '4%', textAlign: 'center' }]}>{idx + 1}</RNText>
-            <View style={{ width: '26%' }}>
+            <View style={{ width: '30%' }}>
               <Text style={styles.a4ItemName} numberOfLines={1}>{item.productName}</Text>
               {item.itemDescription ? (
                 <Text style={styles.a4ItemDesc} numberOfLines={1}>{item.itemDescription}</Text>
               ) : null}
             </View>
-            <View style={{ width: '11%', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: '12%', alignItems: 'center', justifyContent: 'center' }}>
               {salesSettings.showItemBarcode && item.itemId && item.itemId !== '—' ? (
                 <RNText style={styles.a4IdChip} numberOfLines={1}>
                   {item.itemId}
@@ -874,14 +874,27 @@ export default function ReceiptCustomizationScreen() {
                 </RNText>
               )}
             </View>
-            <RNText style={[styles.a4TdNum, { width: '5%', textAlign: 'center', fontWeight: '700' }]}>{item.quantity}</RNText>
-            <RNText style={[styles.a4TdAmount, { width: '18%', textAlign: isRTL ? 'left' : 'right' }]} numberOfLines={1}>
-              {fmtIQD(item.sellingPrice)} IQD
-            </RNText>
-            <RNText style={[styles.a4Td, { width: '14%', textAlign: 'center', color: '#64748B' }]} numberOfLines={1}>
+            <RNText style={[styles.a4TdNum, { width: '8%', textAlign: 'center', fontWeight: '700' }]}>{item.quantity}</RNText>
+            <View style={{ width: '16%', alignItems: isRTL ? 'flex-start' : 'flex-end', justifyContent: 'center' }}>
+              {salesSettings.showDiscount && item.discount > 0 ? (
+                <>
+                  <RNText style={[styles.a4TdAmount, { textAlign: isRTL ? 'left' : 'right', fontWeight: '700', color: '#000000' }]} numberOfLines={1}>
+                    {fmtIQD(item.sellingPrice - item.discount)} IQD
+                  </RNText>
+                  <RNText style={{ fontSize: 7, color: '#64748B', textDecorationLine: 'line-through', textAlign: isRTL ? 'left' : 'right' }} numberOfLines={1}>
+                    {fmtIQD(item.sellingPrice)} IQD
+                  </RNText>
+                </>
+              ) : (
+                <RNText style={[styles.a4TdAmount, { textAlign: isRTL ? 'left' : 'right', fontWeight: '700', color: '#000000' }]} numberOfLines={1}>
+                  {fmtIQD(item.sellingPrice)} IQD
+                </RNText>
+              )}
+            </View>
+            <RNText style={[styles.a4Td, { width: '12%', textAlign: isRTL ? 'left' : 'right', color: '#000000', fontWeight: '700' }]} numberOfLines={1}>
               {salesSettings.showDiscount && item.discount > 0 ? `− ${fmtIQD(item.discount)}` : '—'}
             </RNText>
-            <RNText style={[styles.a4TdAmountBold, { width: '22%', textAlign: isRTL ? 'left' : 'right' }]} numberOfLines={1}>
+            <RNText style={[styles.a4TdAmountBold, { width: '18%', textAlign: isRTL ? 'left' : 'right', color: '#000000', fontWeight: '700' }]} numberOfLines={1}>
               {fmtIQD(item.lineTotal)} IQD
             </RNText>
           </View>
