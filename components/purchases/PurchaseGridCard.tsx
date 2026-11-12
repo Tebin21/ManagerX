@@ -13,7 +13,7 @@ import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { isDirectSupplierName } from '@/lib/sqlite';
 import { useLanguageStore } from '@/store/languageStore';
-import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { hexToRgba } from '@/lib/colorUtils';
 import type { Purchase } from '@/types/purchases';
 
@@ -131,20 +131,55 @@ export function PurchaseGridCard({ purchase, onPress, onDelete }: Props) {
           styles.pricingBox,
           {
             backgroundColor: isDark ? colors.gray100 : colors.gray50,
-            borderColor: isDark ? colors.gray200 : colors.gray100,
+            borderColor: isDark ? colors.gray200 : hexToRgba(colors.gray200, 0.8),
           },
         ]}
       >
+        {/* Quantity Row */}
         <View style={[styles.priceRow, { flexDirection, justifyContent: 'space-between', alignItems: 'center' }]}>
-          <View style={[styles.qtyBadge, { flexDirection }]}>
-            <Text style={[styles.qtyLabel, { color: colors.gray400 }]}>{t('purchases.qty')}:</Text>
-            <Text style={[styles.qtyValue, { color: colors.black }]}> {purchase.quantity}</Text>
+          <Text
+            style={[
+              styles.qtyLabel,
+              { color: colors.gray400, textAlign },
+              isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT },
+            ]}
+            numberOfLines={1}
+          >
+            {isAr ? 'الكمية' : isKuLanguage ? 'بڕ' : 'Quantity'}
+          </Text>
+          <View style={[styles.qtyBadge, { backgroundColor: isDark ? colors.gray200 : hexToRgba(colors.gray300, 0.45) }]}>
+            <Text style={[styles.qtyValue, { color: colors.black }]} numberOfLines={1}>
+              {purchase.quantity}
+            </Text>
           </View>
-          <AmountText
-            value={purchase.totalIQD}
-            currency="IQD"
-            style={[styles.totalAmount, { color: colors.primary }]}
-          />
+        </View>
+
+        {/* Divider */}
+        <View style={[styles.priceDivider, { backgroundColor: isDark ? colors.gray200 : hexToRgba(colors.gray200, 0.6) }]} />
+
+        {/* Total Cost Row */}
+        <View style={[styles.priceRow, { flexDirection, justifyContent: 'space-between', alignItems: 'center' }]}>
+          <Text
+            style={[
+              styles.priceLabel,
+              { color: colors.gray400, textAlign },
+              isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT },
+            ]}
+            numberOfLines={1}
+          >
+            {isAr ? 'المجموع' : isKuLanguage ? 'کۆی گشتی' : 'Total'}
+          </Text>
+          <View style={{ flex: 1, minWidth: 0, alignItems: alignEnd, paddingLeft: isRTL ? 0 : 6, paddingRight: isRTL ? 6 : 0 }}>
+            <AmountText
+              value={purchase.totalIQD}
+              currency="IQD"
+              variant="small"
+              style={[styles.totalAmount, { color: colors.primary }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            />
+          </View>
         </View>
       </View>
 
@@ -226,24 +261,41 @@ const styles = StyleSheet.create({
   pricingBox: {
     borderRadius: 10,
     borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 7,
-    marginTop: 8,
-    marginBottom: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    marginTop: 6,
+    marginBottom: 6,
+    overflow: 'hidden',
   },
-  priceRow: {},
+  priceRow: {
+    width: '100%',
+  },
+  priceDivider: {
+    height: 1,
+    width: '100%',
+    marginVertical: 4,
+  },
   qtyBadge: {
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   qtyLabel: {
     fontSize: 11,
+    fontWeight: '500',
   },
   qtyValue: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
   },
+  priceLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
   totalAmount: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '800',
   },
   footerRow: {

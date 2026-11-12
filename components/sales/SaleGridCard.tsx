@@ -21,7 +21,7 @@ interface Props {
 
 export function SaleGridCard({ sale, onPress }: Props) {
   const { colors, isDark } = useAppTheme();
-  const { isRTL, textAlign, flexDirection } = useRTL();
+  const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const currentLang = useLanguageStore((s) => s.language);
   const isKuLanguage = currentLang === 'ku';
@@ -128,10 +128,16 @@ export function SaleGridCard({ sale, onPress }: Props) {
           <Text style={[styles.priceLabel, { color: colors.gray400 }]}>
             {isKuLanguage ? 'کۆی گشتی' : 'Total'}
           </Text>
-          <AmountText
-            value={sale.grandTotal}
-            style={[styles.totalAmount, { color: colors.primary }]}
-          />
+          <View style={{ flex: 1, minWidth: 0, alignItems: alignEnd, paddingLeft: isRTL ? 0 : 6, paddingRight: isRTL ? 6 : 0 }}>
+            <AmountText
+              value={sale.grandTotal}
+              variant="small"
+              style={[styles.totalAmount, { color: colors.primary }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            />
+          </View>
         </View>
 
         {sale.remainingDebt > 0 && (
@@ -139,13 +145,18 @@ export function SaleGridCard({ sale, onPress }: Props) {
             <Text style={[styles.debtLabel, { color: colors.error }]}>
               {isKuLanguage ? 'قەرز' : 'Debt'}
             </Text>
-            <AmountText
-              value={sale.remainingDebt}
-              prefix="−"
-              currency="debt"
-              variant="small"
-              style={[styles.debtAmount, { color: colors.error }]}
-            />
+            <View style={{ flex: 1, minWidth: 0, alignItems: alignEnd, paddingLeft: isRTL ? 0 : 6, paddingRight: isRTL ? 6 : 0 }}>
+              <AmountText
+                value={sale.remainingDebt}
+                prefix="−"
+                currency="debt"
+                variant="small"
+                style={[styles.debtAmount, { color: colors.error }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              />
+            </View>
           </View>
         )}
       </View>
@@ -224,6 +235,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     marginTop: 8,
     marginBottom: 8,
+    overflow: 'hidden',
   },
   priceRow: {},
   priceLabel: {
