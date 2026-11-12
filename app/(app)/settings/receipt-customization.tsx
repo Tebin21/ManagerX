@@ -309,7 +309,7 @@ export default function ReceiptCustomizationScreen() {
     remainingDebt: 0,
     paymentStatus: 'paid',
     paymentMethod: 'cash',
-    warranty: isAr ? 'ضمان رسمي لمدة سنة من الشركة الموردة' : isKurdish ? 'گرەنتی یەک ساڵ لە کۆمپانیای دابینکەرەوە' : '1-year official supplier warranty',
+    warranty: '',
     notes: isAr
       ? 'تم فحص البضائع بالكامل واستلامها وإدخالها إلى المخزن الرئيسي.'
       : isKurdish
@@ -1048,9 +1048,13 @@ export default function ReceiptCustomizationScreen() {
         {purchaseSettings.showNotes && (
           <View style={styles.a4SummaryCard}>
             <Text style={styles.a4CardLabel}>{isAr ? 'ملاحظات الشراء' : isKurdish ? 'تێبینیەکانی کڕین' : 'PURCHASE NOTES'}</Text>
-            <Text style={styles.a4NotesWarrantyTitle}>{isAr ? 'ضمان المورد:' : isKurdish ? 'گرەنتی دابینکەر:' : 'Supplier Warranty:'}</Text>
-            <Text style={styles.a4NotesWarrantyText}>{isAr ? 'ضمان رسمي لمدة 1 سنة من الشركة الموردة.' : isKurdish ? 'گرەنتی فەرمی ١ ساڵ لە کۆمپانیای دابینکەرەوە.' : '1-year official supplier warranty.'}</Text>
-            <View style={styles.a4NotesDivider} />
+            {Boolean(mockPurchase.warranty && mockPurchase.warranty.trim()) && (
+              <>
+                <Text style={styles.a4NotesWarrantyTitle}>{isAr ? 'ضمان المورد:' : isKurdish ? 'گرەنتی دابینکەر:' : 'Supplier Warranty:'}</Text>
+                <Text style={styles.a4NotesWarrantyText}>{mockPurchase.warranty}</Text>
+                <View style={styles.a4NotesDivider} />
+              </>
+            )}
             <Text style={styles.a4NotesWarrantyTitle}>{isAr ? 'ملاحظات الفحص والاستلام:' : isKurdish ? 'تێبینی و پشکنین:' : 'Inspection Notes:'}</Text>
             <Text style={styles.a4NotesWarrantyText} numberOfLines={3}>
               {getPurchaseFooterNote()}

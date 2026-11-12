@@ -1397,19 +1397,13 @@ export function buildPurchaseInvoiceHTML(
   const notesCard = purchaseSettings.showNotes ? `
     <div class="card">
       <div class="card-label">${ku(isPurchaseAr ? 'ملاحظات الشراء' : isPurchaseKu ? 'تێبینیەکانی کڕین' : 'PURCHASE NOTES')}</div>
-      ${purchase.warranty ? `
+      ${(purchase.warranty || '').trim() ? `
       <div style="margin-bottom: 6px;">
         <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 2px;">${ku(isPurchaseAr ? 'ضمان المورد:' : isPurchaseKu ? 'گرەنتی دابینکەر:' : 'Supplier Warranty:')}</div>
-        <p class="block-text" style="${blockTextStyle}">${ku(escHtml(purchase.warranty))}</p>
+        <p class="block-text" style="${blockTextStyle}">${ku(escHtml(purchase.warranty!.trim()))}</p>
       </div>
       <div style="margin: 6px 0; border-top: 1px dashed #e2e8f0;"></div>
-      ` : `
-      <div style="margin-bottom: 6px;">
-        <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 2px;">${ku(isPurchaseAr ? 'ضمان المورد:' : isPurchaseKu ? 'گرەنتی دابینکەر:' : 'Supplier Warranty:')}</div>
-        <p class="block-text" style="${blockTextStyle}">${ku(isPurchaseAr ? 'ضمان رسمي لمدة 1 سنة من الشركة الموردة.' : isPurchaseKu ? 'گرەنتی فەرمی ١ ساڵ لە کۆمپانیای دابینکەرەوە.' : '1-year official supplier warranty.')}</p>
-      </div>
-      <div style="margin: 6px 0; border-top: 1px dashed #e2e8f0;"></div>
-      `}
+      ` : ''}
       <div>
         <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 2px;">${ku(isPurchaseAr ? 'ملاحظات الفحص والاستلام:' : isPurchaseKu ? 'تێبینی و پشکنین:' : 'Inspection Notes:')}</div>
         <p class="block-text" style="${blockTextStyle}">${ku(purchase.notes ? escHtml(purchase.notes) : (purchaseSettings.customFooterNote ? escHtml(purchaseSettings.customFooterNote) : (isPurchaseAr ? 'وصل شراء وتوثيق استلام البضائع في النظام' : isPurchaseKu ? 'وەسڵی کڕین و تۆمارکردنی کاڵاکان لە سیستەم' : 'Purchase voucher and warehouse inventory intake record')))}</p>
