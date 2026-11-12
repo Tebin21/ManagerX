@@ -381,9 +381,10 @@ export default function ReceiptCustomizationScreen() {
         productName: it.name,
         barcode: it.itemId,
         quantity: it.qty,
-        price: it.buyPrice,
+        price: `${it.buyPrice.toLocaleString()} IQD`,
+        rawPrice: it.buyPrice,
         discount: 0,
-        lineTotal: `${it.total}`,
+        lineTotal: `${it.total.toLocaleString()} IQD`,
       }));
     }
     if (activeTab === 'quotation') {
@@ -392,9 +393,10 @@ export default function ReceiptCustomizationScreen() {
         productName: it.name,
         barcode: it.itemId,
         quantity: it.qty,
-        price: it.price,
+        price: `${String(it.price).replace(/ IQD/g, '')} IQD`,
+        rawPrice: typeof it.price === 'number' ? it.price : Number(String(it.price).replace(/[^0-9]/g, '')),
         discount: it.discount ? Number(String(it.discount).replace(/[^0-9]/g, '')) : 0,
-        lineTotal: it.total,
+        lineTotal: `${String(it.total).replace(/ IQD/g, '')} IQD`,
       }));
     }
     return (mockSale.items ?? []).map((it) => ({
@@ -402,9 +404,10 @@ export default function ReceiptCustomizationScreen() {
       productName: it.productName,
       barcode: it.itemId || (it as any).barcode,
       quantity: it.quantity,
-      price: it.sellingPrice,
+      price: `${it.sellingPrice.toLocaleString()} IQD`,
+      rawPrice: it.sellingPrice,
       discount: it.discount || 0,
-      lineTotal: `${it.lineTotal}`,
+      lineTotal: `${it.lineTotal.toLocaleString()} IQD`,
     }));
   }, [activeTab, mockPurchase.items, mockQuotation.items, mockSale.items]);
 
@@ -1953,16 +1956,27 @@ export default function ReceiptCustomizationScreen() {
 
                 {/* Receipt Header */}
                 <View style={styles.receiptHeader}>
-                  <Text style={styles.receiptStoreName}>
+                  <Text style={[styles.receiptStoreName, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                     {displayBizName}
                   </Text>
+
+                  {activeTab === 'purchases' && (
+                    <Text style={[styles.receiptTypeBadge, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                      {isAr ? 'وصل شراء (مخزن)' : isKurdish ? 'وەسڵی کڕین (کۆگا)' : 'Purchase Voucher'}
+                    </Text>
+                  )}
+                  {activeTab === 'quotation' && (
+                    <Text style={[styles.receiptTypeBadge, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                      {isAr ? 'عرض أسعار (كشف)' : isKurdish ? 'وەسڵی عەرز (تەنها نرخ)' : 'Price Quotation'}
+                    </Text>
+                  )}
 
                   {((activeTab === 'sales' && salesSettings.showBusinessAddress) ||
                     (activeTab === 'purchases' && purchaseSettings.showBusinessAddress) ||
                     (activeTab === 'inventory' && inventorySettings.showBusinessHeader) ||
                     (activeTab === 'quotation' && quotationSettings.showBusinessAddress) ||
                     (activeTab === 'debts' && debtSettings.showBusinessAddress)) && (
-                      <Text style={styles.receiptContact}>
+                      <Text style={[styles.receiptContact, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                         {displayBizAddress}
                       </Text>
                     )}
@@ -1972,7 +1986,7 @@ export default function ReceiptCustomizationScreen() {
                     (activeTab === 'inventory' && inventorySettings.showBusinessHeader) ||
                     (activeTab === 'quotation' && quotationSettings.showBusinessPhone) ||
                     (activeTab === 'debts' && debtSettings.showBusinessPhone)) && (
-                      <Text style={styles.receiptContact}>
+                      <Text style={[styles.receiptContact, { direction: 'ltr' }]}>
                         {business.phone || '0770 000 0000'}
                       </Text>
                     )}
@@ -2165,19 +2179,19 @@ export default function ReceiptCustomizationScreen() {
                               {showPrice && (
                                 hasDiscount ? (
                                   <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
-                                    <Text style={[styles.item58QtyPrice, { textDecorationLine: 'line-through', color: '#777777', fontSize: 10 }]}>
+                                    <Text style={[styles.item58QtyPrice, { textDecorationLine: 'line-through', color: '#777777', fontSize: 10, direction: 'ltr' }]}>
                                       {itemPrice}
                                     </Text>
-                                    <Text style={[styles.item58QtyPrice, { fontWeight: '700', color: '#000000' }]}>
-                                      {typeof itemPrice === 'number' ? itemPrice - item.discount : itemPrice}
+                                    <Text style={[styles.item58QtyPrice, { fontWeight: '700', color: '#000000', direction: 'ltr' }]}>
+                                      {typeof (item as any).rawPrice === 'number' ? `${((item as any).rawPrice - item.discount).toLocaleString()} IQD` : itemPrice}
                                     </Text>
                                   </View>
                                 ) : (
-                                  <Text style={styles.item58QtyPrice}>{itemPrice}</Text>
+                                  <Text style={[styles.item58QtyPrice, { direction: 'ltr' }]}>{itemPrice}</Text>
                                 )
                               )}
                             </View>
-                            <Text style={styles.item58Total}>{item.lineTotal} IQD</Text>
+                            <Text style={[styles.item58Total, { direction: 'ltr' }]}>{String(item.lineTotal).includes('IQD') ? item.lineTotal : `${item.lineTotal} IQD`}</Text>
                           </View>
                         </View>
                       );
@@ -2249,21 +2263,21 @@ export default function ReceiptCustomizationScreen() {
                             <View style={{ flex: 1.3, justifyContent: 'center', alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
                               {hasDiscount ? (
                                 <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: isRTL ? 'flex-start' : 'flex-end', gap: 3 }}>
-                                  <Text style={[styles.tableItemCell, { textDecorationLine: 'line-through', color: '#777777', fontSize: 10.5 }]}>
+                                  <Text style={[styles.tableItemCell, { textDecorationLine: 'line-through', color: '#777777', fontSize: 10.5, direction: 'ltr' }]}>
                                     {itemPrice}
                                   </Text>
-                                  <Text style={[styles.tableItemCell, { fontWeight: '800', color: '#000000' }]}>
-                                    {typeof itemPrice === 'number' ? itemPrice - item.discount : itemPrice}
+                                  <Text style={[styles.tableItemCell, { fontWeight: '800', color: '#000000', direction: 'ltr' }]}>
+                                    {typeof (item as any).rawPrice === 'number' ? `${((item as any).rawPrice - item.discount).toLocaleString()} IQD` : itemPrice}
                                   </Text>
                                 </View>
                               ) : (
-                                <Text style={[styles.tableItemCell, isRTL ? styles.colLeft : styles.colRight]}>
+                                <Text style={[styles.tableItemCell, isRTL ? styles.colLeft : styles.colRight, { direction: 'ltr' }]}>
                                   {itemPrice}
                                 </Text>
                               )}
                             </View>
                           )}
-                          <Text style={[styles.tableItemCell, isRTL ? styles.colLeft : styles.colRight, { flex: 1.3, fontWeight: '700' }]}>
+                          <Text style={[styles.tableItemCell, isRTL ? styles.colLeft : styles.colRight, { flex: 1.3, fontWeight: '700', direction: 'ltr' }]}>
                             {item.lineTotal}
                           </Text>
                         </View>
@@ -3837,11 +3851,20 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#000000',
     marginBottom: 2,
+    textAlign: 'center',
+  },
+  receiptTypeBadge: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#000000',
+    textAlign: 'center',
+    marginVertical: 2,
   },
   receiptContact: {
     fontSize: 11,
     color: '#555555',
     lineHeight: 16,
+    textAlign: 'center',
   },
   dashedDivider: {
     borderStyle: 'dashed',

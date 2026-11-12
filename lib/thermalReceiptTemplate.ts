@@ -139,9 +139,13 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
     }
 
     /* ── Header ── */
-    .biz-header {
-      text-align: center;
+    .biz-header, .receipt-header {
+      text-align: center !important;
       padding-bottom: 6px;
+      margin: 0 auto;
+    }
+    .biz-header *, .receipt-header * {
+      text-align: center !important;
     }
     .biz-name {
       font-size: ${titleFontSizePx}px;
@@ -150,6 +154,14 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
       margin-bottom: 2px;
       text-transform: uppercase;
       word-break: break-word;
+      text-align: center !important;
+    }
+    .biz-type-badge {
+      display: block;
+      font-size: ${baseFontSizePx}px;
+      font-weight: 700;
+      margin: 2px auto 3px;
+      text-align: center !important;
     }
     .biz-contact {
       font-size: ${baseFontSizePx - 1}px;
@@ -157,6 +169,7 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
       line-height: 1.3;
       margin-top: 1px;
       word-break: break-word;
+      text-align: center !important;
     }
 
     /* ── Dividers ── */
@@ -209,12 +222,13 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
     }
 
     /* ── Items Table ── */
-    .items-table {
+    .items-table, .receipt-table {
       width: 100%;
       border-collapse: collapse;
+      table-layout: fixed;
       margin: 4px 0;
     }
-    .items-table th {
+    .items-table th, .receipt-table th {
       border-top: 1px dashed #000000;
       border-bottom: 1px dashed #000000;
       padding: 4px 2px;
@@ -222,15 +236,33 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
       font-weight: 800;
       text-transform: uppercase;
       text-align: ${kuAlign};
+      vertical-align: middle;
     }
-    .items-table th.num-col, .items-table td.num-col {
+    .items-table th.num-col, .items-table td.num-col,
+    .receipt-table th.num-col, .receipt-table td.num-col,
+    .items-table th.col-price, .items-table td.col-price,
+    .items-table th.col-total, .items-table td.col-total {
       text-align: ${numAlign};
       white-space: nowrap !important;
     }
-    .items-table th.center-col, .items-table td.center-col {
+    .items-table td.num-col, .receipt-table td.num-col,
+    .items-table td.col-price, .receipt-table td.col-price,
+    .items-table td.col-total, .receipt-table td.col-total {
+      direction: ltr;
+      unicode-bidi: embed;
+    }
+    .items-table th.center-col, .items-table td.center-col,
+    .receipt-table th.center-col, .receipt-table td.center-col,
+    .items-table th.col-qty, .items-table td.col-qty {
       text-align: center;
     }
-    .items-table td {
+    .items-table th.item-name-cell, .items-table td.item-name-cell,
+    .receipt-table th.item-name-cell, .receipt-table td.item-name-cell,
+    .items-table th.col-item, .items-table td.col-item {
+      text-align: ${kuAlign};
+      word-break: break-word;
+    }
+    .items-table td, .receipt-table td {
       padding: 4px 2px;
       vertical-align: top;
       font-size: ${baseFontSizePx}px;
@@ -400,7 +432,9 @@ export function buildThermalReceiptHTML(
   const rate = sale.exchangeRateUsed ?? storeSettings.exchangeRate ?? 1310;
 
   const fmtRow = (val: number) =>
-    isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
+    isUsd
+      ? `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">$${fmtUSD(val / rate)}</span>`
+      : `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">${fmtIQD(val)}&nbsp;IQD</span>`;
 
   const items = sale.items ?? [];
   const rawDate = sale.date || sale.createdAt;
@@ -471,6 +505,7 @@ export function buildThermalReceiptHTML(
     const qtyColWidth = width === '110mm' ? '12%' : '14%';
     const priceColWidth = width === '110mm' ? '22%' : '26%';
     const totalColWidth = width === '110mm' ? '22%' : '26%';
+    const nameColWidth = width === '110mm' ? '44%' : '34%';
 
     const rows = items.map((item, i) => {
       const barcodeTag =
@@ -488,7 +523,7 @@ export function buildThermalReceiptHTML(
 
       return `
         <tr>
-          <td class="item-name-cell">
+          <td class="item-name-cell" style="width:${nameColWidth};">
             <span dir="ltr" style="display:inline-block;font-weight:700;margin-inline-end:3px;">${i + 1}.</span><bdi>${escHtml(item.productName)}</bdi>
             ${barcodeTag}
             ${discountTag}
@@ -504,7 +539,7 @@ export function buildThermalReceiptHTML(
       <table class="items-table">
         <thead>
           <tr>
-            <th>${ku(isAr ? 'المادة' : isKu ? 'کاڵا' : 'Item')}</th>
+            <th class="item-name-cell" style="width:${nameColWidth};">${ku(isAr ? 'المادة' : isKu ? 'کاڵا' : 'Item')}</th>
             ${settings.showQty ? `<th class="center-col" style="width:${qtyColWidth};">${ku(isAr ? 'الكمية' : isKu ? 'بڕ' : 'Qty')}</th>` : ''}
             ${settings.showItemPrice ? `<th class="num-col" style="width:${priceColWidth};">${ku(isAr ? 'السعر' : isKu ? 'نرخ' : 'Price')}</th>` : ''}
             <th class="num-col" style="width:${totalColWidth};">${ku(isAr ? 'المجموع' : isKu ? 'کۆ' : 'Total')}</th>
@@ -772,7 +807,9 @@ export function buildThermalPurchaseReceiptHTML(
   const isUsd = baseCurrency === 'USD' || currencyMode === 'usd';
   const rate = storeSettings.exchangeRate || 1310;
   const fmtRow = (val: number) =>
-    isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
+    isUsd
+      ? `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">$${fmtUSD(val / rate)}</span>`
+      : `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">${fmtIQD(val)}&nbsp;IQD</span>`;
 
   const paidAmount = purchaseDebt?.paidAmount ?? (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib' ? purchase.totalIQD : (purchase.initialAmountPaid ?? 0));
   const remainingAmount = purchaseDebt?.remainingAmount ?? (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib' ? 0 : Math.max(0, purchase.totalIQD - paidAmount));
@@ -829,6 +866,7 @@ export function buildThermalPurchaseReceiptHTML(
     const qtyColWidth = width === '110mm' ? '12%' : '14%';
     const priceColWidth = width === '110mm' ? '22%' : '26%';
     const totalColWidth = width === '110mm' ? '22%' : '26%';
+    const nameColWidth = width === '110mm' ? '44%' : '34%';
 
     const rows = items.map((item, i) => {
       const idTag = settings.showItemBarcode && item.itemId ? `<span class="item-id-sub">#${escHtml(item.itemId)}</span>` : '';
@@ -840,7 +878,7 @@ export function buildThermalPurchaseReceiptHTML(
 
       return `
         <tr>
-          <td class="item-name-cell">
+          <td class="item-name-cell" style="width:${nameColWidth};">
             <span class="item-index-inline" dir="ltr" style="display:inline-block;margin-inline-end:3px;">${i + 1}.</span>
             <bdi class="ku-text">${escHtml(item.productName)}</bdi>
             ${idTag}
@@ -853,10 +891,10 @@ export function buildThermalPurchaseReceiptHTML(
     }).join('');
 
     itemsHTML = `
-      <table class="receipt-table">
+      <table class="items-table">
         <thead>
           <tr>
-            <th class="item-name-cell">${ku(isPurchaseAr ? 'المادة' : isPurchaseKu ? 'کاڵا' : 'Item')}</th>
+            <th class="item-name-cell" style="width:${nameColWidth};">${ku(isPurchaseAr ? 'المادة' : isPurchaseKu ? 'کاڵا' : 'Item')}</th>
             ${settings.showQty ? `<th class="center-col" style="width:${qtyColWidth};">${ku(isPurchaseAr ? 'الكمية' : isPurchaseKu ? 'عەدەد' : 'Qty')}</th>` : ''}
             ${settings.showBuyPrice ? `<th class="num-col" style="width:${priceColWidth};">${ku(isPurchaseAr ? 'التكلفة' : isPurchaseKu ? 'تێچوو' : 'Cost')}</th>` : ''}
             <th class="num-col" style="width:${totalColWidth};">${ku(isPurchaseAr ? 'المجموع الكلي' : isPurchaseKu ? 'کۆی گشتی' : 'Total')}</th>
@@ -885,7 +923,7 @@ export function buildThermalPurchaseReceiptHTML(
 </head>
 <body>
   <div class="receipt-container">
-    <div class="receipt-header">
+    <div class="biz-header">
       <div class="biz-name">${ku(storeName)}</div>
       <div class="biz-type-badge">${ku(isPurchaseAr ? 'وصل شراء (مخزن)' : isPurchaseKu ? 'وەسڵی کڕین (کۆگا)' : 'Purchase Voucher')}</div>
       ${storeAddress ? `<div class="biz-contact">${ku(storeAddress)}</div>` : ''}
@@ -943,7 +981,7 @@ export function buildThermalPurchaseReceiptHTML(
               </div>
               <div class="total-row" style="margin-top:2px;">
                 <span class="info-label">${purchaseIqdSubLabel}</span>
-                <span class="info-value">${totalIQD}&nbsp;IQD</span>
+                <span class="info-value" dir="ltr">${totalIQD}&nbsp;IQD</span>
               </div>
             `;
           } else {
@@ -954,7 +992,7 @@ export function buildThermalPurchaseReceiptHTML(
               </div>
               <div class="total-row" style="margin-top:2px;">
                 <span class="info-label">${purchaseUsdSubLabel}</span>
-                <span class="info-value">$${totalUSD} USD</span>
+                <span class="info-value" dir="ltr">$${totalUSD} USD</span>
               </div>
             `;
           }
@@ -1032,7 +1070,9 @@ export function buildThermalInventoryReceiptHTML(
   const isUsd = baseCurrency === 'USD' || currencyMode === 'usd';
   const rate = storeSettings.exchangeRate || 1310;
   const fmtRow = (val: number) =>
-    isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
+    isUsd
+      ? `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">$${fmtUSD(val / rate)}</span>`
+      : `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">${fmtIQD(val)}&nbsp;IQD</span>`;
 
   const totalQty = items.reduce((acc, it) => acc + (it.quantity || 0), 0);
   const totalVal = items.reduce((acc, it) => acc + (it.quantity || 0) * (it.buyPrice || it.sellingPrice || 0), 0);
@@ -1064,30 +1104,35 @@ export function buildThermalInventoryReceiptHTML(
       `;
     }).join('');
   } else {
+    const qtyColWidth = '14%';
+    const priceColWidth = '24%';
+    const totalColWidth = '26%';
+    const nameColWidth = '36%';
+
     rowsHTML = items.map((item, i) => {
       const idTag = settings.showItemId && item.itemId ? `<span class="item-id-sub">#${escHtml(item.itemId)}</span>` : '';
       return `
         <tr>
-          <td class="item-name-cell">
+          <td class="item-name-cell" style="width:${nameColWidth};">
             <span class="item-index-inline">${i + 1}.</span>
             <bdi class="ku-text">${escHtml(item.name)}</bdi>
             ${idTag}
           </td>
-          ${settings.showQuantity ? `<td class="center-col" style="width:14%;">${item.quantity}</td>` : ''}
-          ${settings.showSellPrice ? `<td class="num-col" style="width:24%;">${fmtRow(item.sellingPrice)}</td>` : ''}
-          ${settings.showTotalValue ? `<td class="num-col" style="width:26%;font-weight:700;">${fmtRow((item.buyPrice || item.sellingPrice) * item.quantity)}</td>` : ''}
+          ${settings.showQuantity ? `<td class="center-col" style="width:${qtyColWidth};">${item.quantity}</td>` : ''}
+          ${settings.showSellPrice ? `<td class="num-col" style="width:${priceColWidth};">${fmtRow(item.sellingPrice)}</td>` : ''}
+          ${settings.showTotalValue ? `<td class="num-col" style="width:${totalColWidth};font-weight:700;">${fmtRow((item.buyPrice || item.sellingPrice) * item.quantity)}</td>` : ''}
         </tr>
       `;
     }).join('');
 
     rowsHTML = `
-      <table class="receipt-table">
+      <table class="items-table">
         <thead>
           <tr>
-            <th class="item-name-cell">${ku(isInvAr ? 'المادة' : isInvKu ? 'کاڵا' : 'Item')}</th>
-            ${settings.showQuantity ? `<th class="center-col" style="width:14%;">${ku(isInvAr ? 'الكمية' : isInvKu ? 'بڕ' : 'Qty')}</th>` : ''}
-            ${settings.showSellPrice ? `<th class="num-col" style="width:24%;">${ku(isInvAr ? 'السعر' : isInvKu ? 'نرخ' : 'Price')}</th>` : ''}
-            ${settings.showTotalValue ? `<th class="num-col" style="width:26%;">${ku(isInvAr ? 'إجمالي القيمة' : isInvKu ? 'کۆی بەها' : 'Total')}</th>` : ''}
+            <th class="item-name-cell" style="width:${nameColWidth};">${ku(isInvAr ? 'المادة' : isInvKu ? 'کاڵا' : 'Item')}</th>
+            ${settings.showQuantity ? `<th class="center-col" style="width:${qtyColWidth};">${ku(isInvAr ? 'الكمية' : isInvKu ? 'بڕ' : 'Qty')}</th>` : ''}
+            ${settings.showSellPrice ? `<th class="num-col" style="width:${priceColWidth};">${ku(isInvAr ? 'السعر' : isInvKu ? 'نرخ' : 'Price')}</th>` : ''}
+            ${settings.showTotalValue ? `<th class="num-col" style="width:${totalColWidth};">${ku(isInvAr ? 'إجمالي القيمة' : isInvKu ? 'کۆی بەها' : 'Total')}</th>` : ''}
           </tr>
         </thead>
         <tbody>${rowsHTML}</tbody>
@@ -1107,7 +1152,7 @@ export function buildThermalInventoryReceiptHTML(
 </head>
 <body>
   <div class="receipt-container">
-    <div class="receipt-header">
+    <div class="biz-header">
       <div class="biz-name">${ku(storeName)}</div>
       <div class="biz-type-badge">${ku(resolvedReportTitle)}</div>
       ${fullDateTime ? `<div class="biz-contact"><span dir="rtl">${ku(isInvAr ? 'التاريخ:' : isInvKu ? 'بەروار:' : 'Date:')}</span> <span class="info-date" dir="ltr">${fullDateTime}</span></div>` : ''}
@@ -1164,7 +1209,9 @@ export function buildThermalQuotationReceiptHTML(
   const rate = quotation.exchangeRate ?? storeSettings.exchangeRate ?? 1310;
 
   const fmtRow = (val: number) =>
-    isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
+    isUsd
+      ? `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">$${fmtUSD(val / rate)}</span>`
+      : `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">${fmtIQD(val)}&nbsp;IQD</span>`;
 
   const items = quotation.items ?? [];
   const rawDate = quotation.date || quotation.createdAt;
@@ -1226,6 +1273,7 @@ export function buildThermalQuotationReceiptHTML(
     const qtyColWidth = width === '110mm' ? '12%' : '14%';
     const priceColWidth = width === '110mm' ? '22%' : '26%';
     const totalColWidth = width === '110mm' ? '22%' : '26%';
+    const nameColWidth = width === '110mm' ? '44%' : '34%';
 
     const rows = items.map((item, i) => {
       const barcodeTag =
@@ -1242,7 +1290,7 @@ export function buildThermalQuotationReceiptHTML(
 
       return `
         <tr class="item-row">
-          <td class="col-item"><span dir="ltr" style="display:inline-block;font-weight:700;margin-inline-end:3px;">${i + 1}.</span><bdi class="ku-text">${escHtml(item.productName)}</bdi>${barcodeTag}${discountTag}</td>
+          <td class="col-item" style="width:${nameColWidth};"><span dir="ltr" style="display:inline-block;font-weight:700;margin-inline-end:3px;">${i + 1}.</span><bdi class="ku-text">${escHtml(item.productName)}</bdi>${barcodeTag}${discountTag}</td>
           ${settings.showQty ? `<td class="col-qty" style="width:${qtyColWidth};">${item.quantity}</td>` : ''}
           ${settings.showItemPrice ? `<td class="col-price" style="width:${priceColWidth};">${unitPrice}</td>` : ''}
           <td class="col-total" style="width:${totalColWidth};">${fmtRow(item.lineTotal)}</td>
@@ -1254,7 +1302,7 @@ export function buildThermalQuotationReceiptHTML(
       <table class="items-table">
         <thead>
           <tr>
-            <th class="col-item">${ku(isAr ? 'المادة' : isKu ? 'کاڵا' : 'Item')}</th>
+            <th class="col-item" style="width:${nameColWidth};">${ku(isAr ? 'المادة' : isKu ? 'کاڵا' : 'Item')}</th>
             ${settings.showQty ? `<th class="col-qty" style="width:${qtyColWidth};">${ku(isAr ? 'العدد' : isKu ? 'عدد' : 'Qty')}</th>` : ''}
             ${settings.showItemPrice ? `<th class="col-price" style="width:${priceColWidth};">${ku(isAr ? 'السعر' : isKu ? 'نرخ' : 'Price')}</th>` : ''}
             <th class="col-total" style="width:${totalColWidth};">${ku(isAr ? 'المجموع' : isKu ? 'کۆ' : 'Total')}</th>
