@@ -2191,12 +2191,12 @@ export default function ReceiptCustomizationScreen() {
                               )}
                               {showPrice && (
                                 hasDiscount ? (
-                                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
-                                    <Text style={[styles.item58QtyPrice, { textDecorationLine: 'line-through', color: '#777777', fontSize: 10, direction: 'ltr' }]}>
-                                      {itemPrice}
-                                    </Text>
+                                  <View style={{ flexDirection: 'column', alignItems: isRTL ? 'flex-start' : 'flex-end', gap: 1 }}>
                                     <Text style={[styles.item58QtyPrice, { fontWeight: '700', color: '#000000', direction: 'ltr' }]}>
                                       {typeof (item as any).rawPrice === 'number' ? `${((item as any).rawPrice - item.discount).toLocaleString()} IQD` : itemPrice}
+                                    </Text>
+                                    <Text style={[styles.item58QtyPrice, { textDecorationLine: 'line-through', color: '#777777', fontSize: 9, direction: 'ltr' }]}>
+                                      {itemPrice}
                                     </Text>
                                   </View>
                                 ) : (
@@ -2206,6 +2206,11 @@ export default function ReceiptCustomizationScreen() {
                             </View>
                             <Text style={[styles.item58Total, { direction: 'ltr' }]}>{String(item.lineTotal).includes('IQD') ? item.lineTotal : `${item.lineTotal} IQD`}</Text>
                           </View>
+                          {hasDiscount && (
+                            <Text style={[styles.item58Id, { color: '#000000', fontWeight: '600', marginTop: 2, textAlign: isRTL ? 'right' : 'left' }]}>
+                              {isAr ? 'الخصم:' : isKurdish ? 'داشکاندن:' : 'Disc:'} − {item.discount.toLocaleString()} IQD
+                            </Text>
+                          )}
                         </View>
                       );
                     })}
@@ -2266,6 +2271,11 @@ export default function ReceiptCustomizationScreen() {
                             {showBarcode && !!item.barcode && (
                               <Text style={[styles.tableItemId, { textAlign: isRTL ? 'right' : 'left' }]}>#{item.barcode}</Text>
                             )}
+                            {hasDiscount && (
+                              <Text style={[styles.tableItemId, { color: '#000000', fontWeight: '600', marginTop: 1, textAlign: isRTL ? 'right' : 'left' }]}>
+                                {isAr ? 'الخصم:' : isKurdish ? 'داشکاندن:' : 'Disc:'} − {item.discount.toLocaleString()} IQD
+                              </Text>
+                            )}
                           </View>
                           {showQty && (
                             <Text style={[styles.tableItemCell, styles.colCenter, { flex: 0.8 }]}>
@@ -2275,12 +2285,12 @@ export default function ReceiptCustomizationScreen() {
                           {showPrice && (
                             <View style={{ flex: 1.3, justifyContent: 'center', alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
                               {hasDiscount ? (
-                                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: isRTL ? 'flex-start' : 'flex-end', gap: 3 }}>
-                                  <Text style={[styles.tableItemCell, { textDecorationLine: 'line-through', color: '#777777', fontSize: 10.5, direction: 'ltr' }]}>
-                                    {itemPrice}
-                                  </Text>
+                                <View style={{ flexDirection: 'column', alignItems: isRTL ? 'flex-start' : 'flex-end', justifyContent: 'center', gap: 1 }}>
                                   <Text style={[styles.tableItemCell, { fontWeight: '800', color: '#000000', direction: 'ltr' }]}>
                                     {typeof (item as any).rawPrice === 'number' ? `${((item as any).rawPrice - item.discount).toLocaleString()} IQD` : itemPrice}
+                                  </Text>
+                                  <Text style={[styles.tableItemCell, { textDecorationLine: 'line-through', color: '#777777', fontSize: 9.5, direction: 'ltr' }]}>
+                                    {itemPrice}
                                   </Text>
                                 </View>
                               ) : (

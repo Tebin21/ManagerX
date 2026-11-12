@@ -249,7 +249,7 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
     .items-table td.col-price, .receipt-table td.col-price,
     .items-table td.col-total, .receipt-table td.col-total {
       direction: ltr;
-      unicode-bidi: embed;
+      unicode-bidi: isolate;
     }
     .items-table th.center-col, .items-table td.center-col,
     .receipt-table th.center-col, .receipt-table td.center-col,
@@ -319,6 +319,11 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
       align-items: center;
       margin-bottom: 3px;
       font-size: ${baseFontSizePx}px;
+    }
+    .total-row .info-value {
+      direction: ltr !important;
+      unicode-bidi: isolate !important;
+      white-space: nowrap !important;
     }
     .grand-total-box, .grand-total-row {
       border-top: 2px solid #000000;
@@ -433,8 +438,8 @@ export function buildThermalReceiptHTML(
 
   const fmtRow = (val: number) =>
     isUsd
-      ? `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">$${fmtUSD(val / rate)}</span>`
-      : `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">${fmtIQD(val)}&nbsp;IQD</span>`;
+      ? `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">$${fmtUSD(val / rate)}</span>`
+      : `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">${fmtIQD(val)}&nbsp;IQD</span>`;
 
   const items = sale.items ?? [];
   const rawDate = sale.date || sale.createdAt;
@@ -465,9 +470,13 @@ export function buildThermalReceiptHTML(
   if (width === '58mm') {
     // Compact 2-line layout for 58mm roll
     itemsHTML = items.map((item, i) => {
+      const discountValHTML = isUsd
+        ? `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">−$${fmtUSD(item.discount / rate)}</span>`
+        : `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">−${fmtIQD(item.discount)}&nbsp;IQD</span>`;
+
       const discountTag =
         settings.showDiscount && item.discount > 0
-          ? `<span class="item-discount-sub">${ku(isAr ? 'الخصم:' : isKu ? 'داشکاندن:' : 'Disc:')} -${fmtRow(item.discount)}</span>`
+          ? `<div class="item-discount-sub" style="display:flex;align-items:center;gap:4px;margin-top:2px;"><span class="ku-text">${ku(isAr ? 'الخصم:' : isKu ? 'داشکاندن:' : 'Disc:')}</span> ${discountValHTML}</div>`
           : '';
       const barcodeTag =
         settings.showItemBarcode && item.itemId
@@ -475,13 +484,13 @@ export function buildThermalReceiptHTML(
           : '';
 
       const unitPriceWithDiscount = settings.showDiscount && item.discount > 0
-        ? `<span style="text-decoration:line-through;color:#777777;margin-inline-end:3px;">${fmtRow(item.sellingPrice)}</span><span style="font-weight:700;">${fmtRow(item.sellingPrice - item.discount)}</span>`
+        ? `<span style="font-weight:700;">${fmtRow(item.sellingPrice - item.discount)}</span> <span style="text-decoration:line-through;color:#777777;font-size:0.85em;">${fmtRow(item.sellingPrice)}</span>`
         : fmtRow(item.sellingPrice);
 
       const qtyPricePart = settings.showQty && settings.showItemPrice
-        ? `${item.quantity} × ${unitPriceWithDiscount}`
+        ? `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;">${item.quantity} ×</span> ${unitPriceWithDiscount}`
         : settings.showQty
-        ? `${item.quantity} ${ku(isAr ? 'قطعة' : isKu ? 'دانە' : 'pcs')}`
+        ? `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;">${item.quantity}</span> ${ku(isAr ? 'قطعة' : isKu ? 'دانە' : 'pcs')}`
         : settings.showItemPrice
         ? unitPriceWithDiscount
         : '';
@@ -501,24 +510,52 @@ export function buildThermalReceiptHTML(
       `;
     }).join('');
   } else {
-    // 80mm & 110mm columnar layout
-    const qtyColWidth = width === '110mm' ? '12%' : '14%';
-    const priceColWidth = width === '110mm' ? '22%' : '26%';
-    const totalColWidth = width === '110mm' ? '22%' : '26%';
-    const nameColWidth = width === '110mm' ? '44%' : '34%';
+    // 80mm & 110mm columnar layout (responsive widths summing strictly to 100%)
+    const showQty = !!settings.showQty;
+    const showPrice = !!settings.showItemPrice;
+
+    let qtyColWidth = '0%';
+    let priceColWidth = '0%';
+    let totalColWidth = width === '110mm' ? '23%' : '26%';
+    let nameColWidth = '51%';
+
+    if (showQty && showPrice) {
+      qtyColWidth = width === '110mm' ? '12%' : '13%';
+      priceColWidth = width === '110mm' ? '23%' : '26%';
+      totalColWidth = width === '110mm' ? '23%' : '26%';
+      nameColWidth = width === '110mm' ? '42%' : '35%';
+    } else if (showQty && !showPrice) {
+      qtyColWidth = width === '110mm' ? '16%' : '18%';
+      totalColWidth = width === '110mm' ? '26%' : '30%';
+      nameColWidth = width === '110mm' ? '58%' : '52%';
+    } else if (!showQty && showPrice) {
+      priceColWidth = width === '110mm' ? '26%' : '30%';
+      totalColWidth = width === '110mm' ? '26%' : '30%';
+      nameColWidth = width === '110mm' ? '48%' : '40%';
+    } else {
+      totalColWidth = width === '110mm' ? '30%' : '35%';
+      nameColWidth = width === '110mm' ? '70%' : '65%';
+    }
 
     const rows = items.map((item, i) => {
       const barcodeTag =
         settings.showItemBarcode && item.itemId
           ? `<span class="item-id-sub">#${escHtml(item.itemId)}</span>`
           : '';
+      const discountValHTML = isUsd
+        ? `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">−$${fmtUSD(item.discount / rate)}</span>`
+        : `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">−${fmtIQD(item.discount)}&nbsp;IQD</span>`;
+
       const discountTag =
         settings.showDiscount && item.discount > 0
-          ? `<span class="item-discount-sub">${ku(isAr ? 'الخصم:' : isKu ? 'داشکاندن:' : 'Disc:')} -${fmtRow(item.discount)}</span>`
+          ? `<div class="item-discount-sub" style="display:flex;align-items:center;gap:4px;margin-top:2px;"><span class="ku-text">${ku(isAr ? 'الخصم:' : isKu ? 'داشکاندن:' : 'Disc:')}</span> ${discountValHTML}</div>`
           : '';
 
       const unitPriceCell = settings.showDiscount && item.discount > 0
-        ? `<span style="text-decoration:line-through;color:#777777;font-size:0.9em;margin-inline-end:3px;">${fmtRow(item.sellingPrice)}</span><span style="font-weight:700;">${fmtRow(item.sellingPrice - item.discount)}</span>`
+        ? `<div style="display:inline-flex;flex-direction:column;align-items:${isKurdish ? 'flex-start' : 'flex-end'};line-height:1.2;gap:1px;">
+             <span style="font-weight:700;white-space:nowrap;">${fmtRow(item.sellingPrice - item.discount)}</span>
+             <span style="text-decoration:line-through;color:#777777;font-size:0.85em;white-space:nowrap;">${fmtRow(item.sellingPrice)}</span>
+           </div>`
         : fmtRow(item.sellingPrice);
 
       return `
@@ -528,8 +565,8 @@ export function buildThermalReceiptHTML(
             ${barcodeTag}
             ${discountTag}
           </td>
-          ${settings.showQty ? `<td class="center-col" style="width:${qtyColWidth};">${item.quantity}</td>` : ''}
-          ${settings.showItemPrice ? `<td class="num-col" style="width:${priceColWidth};">${unitPriceCell}</td>` : ''}
+          ${showQty ? `<td class="center-col" style="width:${qtyColWidth};">${item.quantity}</td>` : ''}
+          ${showPrice ? `<td class="num-col" style="width:${priceColWidth};">${unitPriceCell}</td>` : ''}
           <td class="num-col" style="width:${totalColWidth};font-weight:700;">${fmtRow(item.lineTotal)}</td>
         </tr>
       `;
@@ -540,8 +577,8 @@ export function buildThermalReceiptHTML(
         <thead>
           <tr>
             <th class="item-name-cell" style="width:${nameColWidth};">${ku(isAr ? 'المادة' : isKu ? 'کاڵا' : 'Item')}</th>
-            ${settings.showQty ? `<th class="center-col" style="width:${qtyColWidth};">${ku(isAr ? 'الكمية' : isKu ? 'بڕ' : 'Qty')}</th>` : ''}
-            ${settings.showItemPrice ? `<th class="num-col" style="width:${priceColWidth};">${ku(isAr ? 'السعر' : isKu ? 'نرخ' : 'Price')}</th>` : ''}
+            ${showQty ? `<th class="center-col" style="width:${qtyColWidth};">${ku(isAr ? 'الكمية' : isKu ? 'بڕ' : 'Qty')}</th>` : ''}
+            ${showPrice ? `<th class="num-col" style="width:${priceColWidth};">${ku(isAr ? 'السعر' : isKu ? 'نرخ' : 'Price')}</th>` : ''}
             <th class="num-col" style="width:${totalColWidth};">${ku(isAr ? 'المجموع' : isKu ? 'کۆ' : 'Total')}</th>
           </tr>
         </thead>
@@ -589,7 +626,7 @@ export function buildThermalReceiptHTML(
           <span class="grand-total-label">${usdLabel}</span>
           <span class="grand-total-amount">$${totalUSD} USD</span>
         </div>
-        <div class="grand-total-sub">${iqdSubLabel} ${totalIQD}&nbsp;IQD</div>
+        <div class="grand-total-sub">${iqdSubLabel} <span dir="ltr" style="unicode-bidi:isolate;">${totalIQD}&nbsp;IQD</span></div>
       `;
     } else {
       grandTotalHTML = `
@@ -597,7 +634,7 @@ export function buildThermalReceiptHTML(
           <span class="grand-total-label">${iqdLabel}</span>
           <span class="grand-total-amount">${totalIQD}&nbsp;IQD</span>
         </div>
-        <div class="grand-total-sub">${usdSubLabel} $${totalUSD} USD</div>
+        <div class="grand-total-sub">${usdSubLabel} <span dir="ltr" style="unicode-bidi:isolate;">$${totalUSD} USD</span></div>
       `;
     }
   }
@@ -696,13 +733,13 @@ export function buildThermalReceiptHTML(
       ${settings.showDiscount && sale.discountTotal > 0 ? `
       <div class="total-row">
         <span class="info-label">${ku(isAr ? 'خصم المواد:' : isKu ? 'داشکاندنی کاڵا:' : 'Item Discount:')}</span>
-        <span class="info-value" style="color:#000;">− ${fmtRow(sale.discountTotal)}</span>
+        <span class="info-value" style="color:#000;">${isUsd ? `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">−$${fmtUSD(sale.discountTotal / rate)}</span>` : `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">−${fmtIQD(sale.discountTotal)}&nbsp;IQD</span>`}</span>
       </div>` : ''}
 
       ${settings.showDiscount && sale.globalDiscount > 0 ? `
       <div class="total-row">
         <span class="info-label">${ku(isAr ? 'خصم السلة:' : isKu ? 'داشکاندنی گشتی:' : 'Cart Discount:')}</span>
-        <span class="info-value" style="color:#000;">− ${fmtRow(sale.globalDiscount)}</span>
+        <span class="info-value" style="color:#000;">${isUsd ? `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">−$${fmtUSD(sale.globalDiscount / rate)}</span>` : `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">−${fmtIQD(sale.globalDiscount)}&nbsp;IQD</span>`}</span>
       </div>` : ''}
 
       ${grandTotalHTML}
@@ -808,8 +845,8 @@ export function buildThermalPurchaseReceiptHTML(
   const rate = storeSettings.exchangeRate || 1310;
   const fmtRow = (val: number) =>
     isUsd
-      ? `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">$${fmtUSD(val / rate)}</span>`
-      : `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">${fmtIQD(val)}&nbsp;IQD</span>`;
+      ? `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">$${fmtUSD(val / rate)}</span>`
+      : `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">${fmtIQD(val)}&nbsp;IQD</span>`;
 
   const paidAmount = purchaseDebt?.paidAmount ?? (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib' ? purchase.totalIQD : (purchase.initialAmountPaid ?? 0));
   const remainingAmount = purchaseDebt?.remainingAmount ?? (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib' ? 0 : Math.max(0, purchase.totalIQD - paidAmount));
@@ -1071,8 +1108,8 @@ export function buildThermalInventoryReceiptHTML(
   const rate = storeSettings.exchangeRate || 1310;
   const fmtRow = (val: number) =>
     isUsd
-      ? `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">$${fmtUSD(val / rate)}</span>`
-      : `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">${fmtIQD(val)}&nbsp;IQD</span>`;
+      ? `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">$${fmtUSD(val / rate)}</span>`
+      : `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">${fmtIQD(val)}&nbsp;IQD</span>`;
 
   const totalQty = items.reduce((acc, it) => acc + (it.quantity || 0), 0);
   const totalVal = items.reduce((acc, it) => acc + (it.quantity || 0) * (it.buyPrice || it.sellingPrice || 0), 0);
@@ -1210,8 +1247,8 @@ export function buildThermalQuotationReceiptHTML(
 
   const fmtRow = (val: number) =>
     isUsd
-      ? `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">$${fmtUSD(val / rate)}</span>`
-      : `<span class="en-num" dir="ltr" style="unicode-bidi:embed;white-space:nowrap;">${fmtIQD(val)}&nbsp;IQD</span>`;
+      ? `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">$${fmtUSD(val / rate)}</span>`
+      : `<span class="en-num" dir="ltr" style="unicode-bidi:isolate;white-space:nowrap;">${fmtIQD(val)}&nbsp;IQD</span>`;
 
   const items = quotation.items ?? [];
   const rawDate = quotation.date || quotation.createdAt;
