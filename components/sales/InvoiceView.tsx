@@ -1,5 +1,7 @@
-import React, { useRef, useState } from 'react';
-import { View, Image, ScrollView, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Image, ScrollView, StyleSheet, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { useTranslation } from 'react-i18next';
@@ -53,6 +55,8 @@ export function InvoiceView({ sale, compact = false, currencyMode }: Props) {
   const { logoUri, name: businessName } = useBusinessStore();
   const [logoFailed, setLogoFailed] = useState(false);
   const tableScrollRef = useRef<ScrollView>(null);
+  const [scrollPosition, setScrollPosition] = useState<'left' | 'right' | 'middle'>('right');
+  const hasScrolledInitialRef = useRef(false);
 
   const baseCurrency = useSettingsStore(s => s.baseCurrency) || 'IQD';
   const effectiveMode: ReceiptCurrencyMode = currencyMode || (baseCurrency === 'USD' ? 'usd' : 'iqd');
@@ -60,6 +64,49 @@ export function InvoiceView({ sale, compact = false, currencyMode }: Props) {
   const isBoth = effectiveMode === 'both';
 
   const items = sale.items ?? [];
+
+  useEffect(() => {
+    hasScrolledInitialRef.current = false;
+  }, [sale.id, sale.invoiceNumber, items.length]);
+
+  const handleContentSizeChange = useCallback(() => {
+    if (!hasScrolledInitialRef.current) {
+      hasScrolledInitialRef.current = true;
+      if (isRTL) {
+        tableScrollRef.current?.scrollToEnd({ animated: false });
+        setScrollPosition('right');
+      } else {
+        tableScrollRef.current?.scrollTo({ x: 0, animated: false });
+        setScrollPosition('left');
+      }
+    }
+  }, [isRTL]);
+
+  const handleTableScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    const x = contentOffset.x;
+    const maxScroll = Math.max(0, contentSize.width - layoutMeasurement.width);
+    if (maxScroll <= 10) return;
+    if (x <= 20) {
+      setScrollPosition('left');
+    } else if (x >= maxScroll - 20) {
+      setScrollPosition('right');
+    } else {
+      setScrollPosition('middle');
+    }
+  }, []);
+
+  const scrollToLeft = useCallback(() => {
+    try { Haptics.selectionAsync().catch(() => {}); } catch {}
+    tableScrollRef.current?.scrollTo({ x: 0, animated: true });
+    setScrollPosition('left');
+  }, []);
+
+  const scrollToRight = useCallback(() => {
+    try { Haptics.selectionAsync().catch(() => {}); } catch {}
+    tableScrollRef.current?.scrollToEnd({ animated: true });
+    setScrollPosition('right');
+  }, []);
   const status = getPaymentStatus(sale);
   const statusBg = isDark ? hexToRgba(colors[STATUS_TONE[status]], 0.18) : STATUS_BG_LIGHT[status];
   const statusText = isDark ? colors[STATUS_TONE[status]] : STATUS_TEXT_LIGHT[status];
@@ -202,19 +249,95 @@ export function InvoiceView({ sale, compact = false, currencyMode }: Props) {
       {/* Items */}
       {!compact && items.length > 0 && (
         <View style={[styles.card, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
-          <Text style={[styles.cardLabel, { color: colors.gray400, textAlign, writingDirection }, kuLabel]}>{t('invoicePreview.items')}</Text>
+          <View style={[styles.itemsCardHeader, { flexDirection }]}>
+            <View style={{ flexDirection, alignItems: 'center', gap: 6 }}>
+              <Text style={[styles.cardLabel, { color: colors.gray400, textAlign, writingDirection, marginBottom: 0 }, kuLabel]}>
+                {t('invoicePreview.items')}
+              </Text>
+              <View style={[styles.itemsCountBadge, { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.18)' : '#FEF3C7' }]}>
+                <Text style={[styles.itemsCountText, { color: isDark ? '#FBBF24' : '#B45309' }]}>
+                  {items.length}
+                </Text>
+              </View>
+            </View>
+
+            {/* Left / Right Scroll Controls */}
+            <View style={[styles.tableScrollControls, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <TouchableOpacity
+                onPress={scrollToLeft}
+                style={[
+                  styles.tableScrollBtn,
+                  {
+                    backgroundColor: scrollPosition === 'left'
+                      ? (isDark ? 'rgba(212, 175, 55, 0.22)' : '#FEF3C7')
+                      : (isDark ? colors.gray100 : colors.gray50),
+                    borderColor: scrollPosition === 'left' ? colors.primary : colors.gray200,
+                  },
+                ]}
+                activeOpacity={0.7}
+                accessibilityLabel="Scroll to left side"
+              >
+                <Ionicons
+                  name="chevron-back"
+                  size={13}
+                  color={scrollPosition === 'left' ? colors.primary : colors.gray500}
+                />
+                <Text
+                  style={[
+                    styles.tableScrollBtnText,
+                    { color: scrollPosition === 'left' ? colors.primary : colors.gray500 },
+                    isKuLanguage && { fontFamily: 'BahijJanna-Bold' },
+                  ]}
+                >
+                  {isAr ? 'اليسار' : isKuLanguage ? 'چەپ' : 'Left'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={scrollToRight}
+                style={[
+                  styles.tableScrollBtn,
+                  {
+                    backgroundColor: scrollPosition === 'right'
+                      ? (isDark ? 'rgba(212, 175, 55, 0.22)' : '#FEF3C7')
+                      : (isDark ? colors.gray100 : colors.gray50),
+                    borderColor: scrollPosition === 'right' ? colors.primary : colors.gray200,
+                  },
+                ]}
+                activeOpacity={0.7}
+                accessibilityLabel="Scroll to right side"
+              >
+                <Text
+                  style={[
+                    styles.tableScrollBtnText,
+                    { color: scrollPosition === 'right' ? colors.primary : colors.gray500 },
+                    isKuLanguage && { fontFamily: 'BahijJanna-Bold' },
+                  ]}
+                >
+                  {isAr ? 'اليمين' : isKuLanguage ? 'ڕاست' : 'Right'}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={13}
+                  color={scrollPosition === 'right' ? colors.primary : colors.gray500}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <ScrollView
             ref={tableScrollRef}
             horizontal
-            showsHorizontalScrollIndicator={false}
-            // No native RTL here (the app mirrors layout via JS, not I18nManager), so a
-            // horizontal ScrollView always opens at its physical-left edge. In Kurdish
-            // the table is mirrored so the "first" column (Product/#) sits on the
-            // physical right — without this it would default to showing Total/Discount
-            // instead of the product name.
-            onContentSizeChange={() => { if (isRTL) tableScrollRef.current?.scrollToEnd({ animated: false }); }}
+            showsHorizontalScrollIndicator={true}
+            persistentScrollbar={true}
+            nestedScrollEnabled={true}
+            directionalLockEnabled={true}
+            scrollEventThrottle={16}
+            onScroll={handleTableScroll}
+            onContentSizeChange={handleContentSizeChange}
+            contentContainerStyle={styles.tableScrollContent}
           >
-            <View>
+            <View style={{ minWidth: 530 }}>
               <View style={[styles.tableHeaderRow, { flexDirection, borderColor: colors.gray200 }]}>
                 <Text style={[styles.colNum, styles.tableHeaderText, { color: colors.gray400 }]}>#</Text>
                 <Text style={[styles.colProduct, styles.tableHeaderText, { color: colors.gray400, textAlign, writingDirection }]}>{t('invoicePreview.colProduct')}</Text>
@@ -266,6 +389,18 @@ export function InvoiceView({ sale, compact = false, currencyMode }: Props) {
               ))}
             </View>
           </ScrollView>
+
+          {/* Swipe indicator hint below table */}
+          <View style={[styles.scrollHintRow, { flexDirection }]}>
+            <Ionicons name="swap-horizontal" size={13} color={colors.gray400} />
+            <Text style={[styles.scrollHintText, { color: colors.gray400 }, isKuLanguage && { fontFamily: 'BahijJanna-Regular' }]}>
+              {isAr
+                ? 'اسحب يميناً ويساراً أو استخدم الأزرار لرؤية التفاصيل'
+                : isKuLanguage
+                ? 'بۆ لای چەپ و ڕاست ڕابکێشە یان دوگمەکان بەکاربهێنە'
+                : 'Swipe left/right or use buttons to view all columns'}
+            </Text>
+          </View>
         </View>
       )}
 
@@ -474,6 +609,54 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
+  /* Items Card Header & Left/Right Scroll Controls */
+  itemsCardHeader: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  itemsCountBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    borderRadius: Theme.radius.full,
+  },
+  itemsCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  tableScrollControls: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  tableScrollBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 7,
+    borderWidth: 1,
+  },
+  tableScrollBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  tableScrollContent: {
+    paddingVertical: 2,
+  },
+  scrollHintRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  scrollHintText: {
+    fontSize: 10.5,
+  },
+
   infoStack: { flexDirection: 'column' },
   infoLine: { fontSize: 13, fontWeight: '600', paddingVertical: 4 },
   infoLineLabel: { fontSize: 12.5, fontWeight: '500' },
@@ -505,13 +688,13 @@ const styles = StyleSheet.create({
   tableCellTotal: { fontSize: 12.5, fontWeight: '700', textAlign: 'center' },
   tableCellName: { fontSize: 13, fontWeight: '600' },
 
-  colNum: { width: 20 },
-  colProduct: { width: 100 },
-  colId: { width: 54 },
-  colQty: { width: 28 },
-  colUnitPrice: { width: 76 },
-  colDiscount: { width: 70 },
-  colTotal: { width: 80 },
+  colNum: { width: 24 },
+  colProduct: { width: 120 },
+  colId: { width: 65 },
+  colQty: { width: 34 },
+  colUnitPrice: { width: 95 },
+  colDiscount: { width: 85 },
+  colTotal: { width: 95 },
 
   totalRow: { justifyContent: 'space-between', marginBottom: 6 },
   totalLabel: { fontSize: 13 },
