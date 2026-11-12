@@ -98,7 +98,7 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
 
   const primaryFont = isKurdish
     ? `'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`
-    : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif`;
+    : `'Inter', 'Bahij Janna', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`;
 
   return `
     ${KURDISH_FONT_FACE}
@@ -361,7 +361,7 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
       font-size: ${baseFontSizePx - 1.5}px;
       line-height: 1.35;
       word-break: break-word;
-      font-family: ${isKurdish ? `'Bahij Janna', sans-serif` : `'Inter', sans-serif`};
+      font-family: ${isKurdish ? `'Bahij Janna', 'Inter', sans-serif` : `'Inter', 'Bahij Janna', sans-serif`};
       direction: ${isKurdish ? 'rtl' : 'ltr'};
       text-align: ${isKurdish ? 'right' : 'left'};
     }
@@ -369,11 +369,12 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
       font-weight: 800;
       margin-bottom: 2px;
       text-transform: uppercase;
-      font-family: ${isKurdish ? `'Bahij Janna', sans-serif` : `'Inter', sans-serif`};
+      font-family: ${isKurdish ? `'Bahij Janna', 'Inter', sans-serif` : `'Inter', 'Bahij Janna', sans-serif`};
     }
     .notes-content {
       word-break: break-word;
-      font-family: ${isKurdish ? `'Bahij Janna', sans-serif` : `'Inter', sans-serif`};
+      white-space: pre-wrap;
+      font-family: ${isKurdish ? `'Bahij Janna', 'Inter', sans-serif` : `'Inter', 'Bahij Janna', sans-serif`};
     }
 
     /* ── Footer ── */
@@ -561,7 +562,7 @@ export function buildThermalReceiptHTML(
       return `
         <tr>
           <td class="item-name-cell" style="width:${nameColWidth};">
-            <span dir="ltr" style="display:inline-block;font-weight:700;margin-inline-end:3px;">${i + 1}.</span><bdi>${escHtml(item.productName)}</bdi>
+            <span dir="ltr" style="display:inline-block;font-weight:700;margin-inline-end:3px;">${i + 1}.</span><bdi class="ku-text">${escHtml(item.productName)}</bdi>
             ${barcodeTag}
             ${discountTag}
           </td>

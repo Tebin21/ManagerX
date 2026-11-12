@@ -134,6 +134,14 @@ export const KURDISH_FONT_FACE = `
     font-weight: normal;
     font-style: normal;
   }
+  .ku-text {
+    font-family: 'Bahij Janna', sans-serif !important;
+    direction: rtl;
+    unicode-bidi: isolate;
+  }
+  .ku-heading {
+    font-weight: 700 !important;
+  }
 `;
 
 export const PDF_BRAND_WEBSITE = 'www.froshiar.store';
@@ -149,6 +157,8 @@ export const PDF_BRAND_NAME = 'Froshiar';
 // one bidi unit — wrapping them separately is what causes the two halves to
 // reorder against each other.
 import i18n from '@/lib/i18n';
+import { containsKurdishScript } from '@/lib/settingsFont';
+
 export function pdfDevelopedByText(): string {
   return `${i18n.t('common.developedBy')} ${PDF_BRAND_NAME}`;
 }
@@ -170,7 +180,9 @@ export function currentPdfLanguage(): 'ku' | 'ar' | 'en' {
 }
 
 export function kuSpan(html: string, heading = false): string {
-  return isKurdishPdfActive()
+  if (!html) return html;
+  if (typeof html === 'string' && html.includes('ku-text')) return html;
+  return (isKurdishPdfActive() || containsKurdishScript(html))
     ? `<span class="ku-text${heading ? ' ku-heading' : ''}" dir="rtl">${html}</span>`
     : html;
 }

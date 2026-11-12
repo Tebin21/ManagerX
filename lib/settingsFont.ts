@@ -221,15 +221,19 @@ export const NUMERIC_KEYBOARD_TYPES = new Set<TextInputProps['keyboardType']>([
  *    - Otherwise, in Kurdish mode, returns true so the placeholder renders in Bahij Janna!
  */
 export function resolveInputIsKurdish(opts: LatinAwareInputStyleOptions): boolean {
-  if (!opts.isKuLanguage) return false;
   if (opts.forceLatin) return false;
 
   const hasTypedValue = opts.value != null && String(opts.value).trim().length > 0;
   if (hasTypedValue) {
     if (NUMERIC_KEYBOARD_TYPES.has(opts.keyboardType)) return false;
-    if (!containsKurdishScript(String(opts.value))) return false;
-    return true;
+    // If the typed value contains Kurdish script, ALWAYS render with Bahij Janna,
+    // regardless of whether the app language is Kurdish or English!
+    if (containsKurdishScript(String(opts.value))) return true;
+    return false;
   }
+
+  // When value is empty or not typed yet, only use Kurdish font if app is in Kurdish mode
+  if (!opts.isKuLanguage) return false;
 
   // When value is empty or whitespace-only, the input displays its placeholder.
   // If an explicit placeholder has NO Kurdish script at all (e.g. pure numbers/English like "0.00"), use Latin.

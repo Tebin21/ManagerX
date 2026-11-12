@@ -6,6 +6,7 @@ import {
   getPaymentStatus,
 } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText, kuSpan, isKurdishPdfActive } from '@/lib/pdfFont';
+import { containsKurdishScript } from '@/lib/settingsFont';
 import i18n from '@/lib/i18n';
 import { useSettingsStore } from '@/store/settingsStore';
 
@@ -125,7 +126,7 @@ function buildSalesCSS(isKurdish: boolean): string {
   const numAlign = isKurdish ? 'left' : 'right';
   const primaryFont = isKurdish
     ? `'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`
-    : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif`;
+    : `'Inter', 'Bahij Janna', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`;
   return `
   ${KURDISH_FONT_FACE}
   @page {
@@ -565,7 +566,8 @@ export function buildInvoiceHTML(
   const dateFormatted = formatDate(saleDate);
   const timeFormatted = formatTime(saleTime);
 
-  const blockTextStyle = isKurdish ? `direction:rtl;text-align:${kuAlign};white-space:pre-wrap;` : '';
+  const salesNotesIsKurdish = isKurdish || containsKurdishScript(sale.notes || '') || containsKurdishScript(sale.warranty || '');
+  const blockTextStyle = `white-space:pre-wrap;${salesNotesIsKurdish ? 'direction:rtl;text-align:right;' : 'direction:ltr;text-align:left;'}`;
 
   const notesText = sale.notes ? escHtml(sale.notes) : ku(t('noNotes'));
 
@@ -774,7 +776,7 @@ function buildPurchaseCSS(isKurdish: boolean): string {
   const numAlign = isKurdish ? 'left' : 'right';
   const primaryFont = isKurdish
     ? `'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`
-    : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif`;
+    : `'Inter', 'Bahij Janna', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`;
   return `
   ${KURDISH_FONT_FACE}
   @page {
@@ -1388,7 +1390,8 @@ export function buildPurchaseInvoiceHTML(
     </div>`;
 
   // ── Optional blocks ──
-  const blockTextStyle = isKurdish ? `direction:rtl;text-align:${kuAlign};white-space:pre-wrap;` : '';
+  const purchaseNotesIsKurdish = isKurdish || containsKurdishScript(purchase.notes || '') || containsKurdishScript(purchase.warranty || '');
+  const blockTextStyle = `white-space:pre-wrap;${purchaseNotesIsKurdish ? 'direction:rtl;text-align:right;' : 'direction:ltr;text-align:left;'}`;
 
   const notesCard = purchaseSettings.showNotes ? `
     <div class="card">
