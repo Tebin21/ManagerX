@@ -238,12 +238,12 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       }
     } else {
       // Re-purchase algorithm:
-      // Check if product exists in inventory by (itemId + name) OR repeatable name
+      // Check if product exists in inventory by (itemId + name) OR repeatable name (when no barcode was given)
       let existingProd: InventoryProduct | null = null;
-      if (input.itemIds && input.itemIds[0]) {
-        existingProd = await getProductByItemIdAndName(input.itemIds[0], input.productName);
-      }
-      if (!existingProd) {
+      const hasBarcode = Boolean(input.itemIds && input.itemIds[0]?.trim());
+      if (hasBarcode) {
+        existingProd = await getProductByItemIdAndName(input.itemIds[0].trim(), input.productName);
+      } else {
         existingProd = await getRepeatableProductByName(input.productName);
       }
 

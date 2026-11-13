@@ -37,6 +37,8 @@ import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import { hexToRgba } from '@/lib/colorUtils';
 import type { PurchaseIdType, PurchasePaymentStatus } from '@/types/purchases';
+
+export type RepurchaseIdMode = 'custom' | 'restock' | 'new_shared';
 import { getProductCategories } from '@/lib/sqlite';
 import { DIRECT_SUPPLIER_NAME, isDirectSupplierName } from '@/lib/supplierUtils';
 import { generateUniqueProductId, generateMultipleUniqueProductIds } from '@/lib/generateId';
@@ -121,6 +123,7 @@ export default function NewPurchaseScreen() {
   const [productName, setProductName]       = useState('');
   const [itemDescription, setItemDescription] = useState('');
   const [qty, setQty]                       = useState('1');
+  const qtyNum                              = Math.max(1, parseInt(qty) || 1);
   const [buyIQD, setBuyIQD]                 = useState('');
   const [buyUSD, setBuyUSD]                 = useState('');
 
@@ -155,8 +158,20 @@ export default function NewPurchaseScreen() {
 
     // 2. Barcode / Item ID binding
     if (preset.itemId && preset.itemId.trim()) {
-      setIdType('shared');
-      setSharedId(preset.itemId.trim());
+      const isUniqueItem = (preset as any).idMode === 'unique' || (preset as any).id_mode === 'unique';
+      if (isUniqueItem && qtyNum > 1) {
+        setRepurchaseMode('custom');
+        setIdType('custom');
+        setCustomIds((prev) => {
+          const next = [...prev];
+          while (next.length < qtyNum) next.push('');
+          return next.slice(0, qtyNum);
+        });
+      } else {
+        setRepurchaseMode('restock');
+        setIdType('shared');
+        setSharedId(preset.itemId.trim());
+      }
       setBoundProductIdentity({ name: preset.name, itemId: preset.itemId.trim() });
       setIdClearedNotice(null);
     } else {
@@ -286,7 +301,7 @@ export default function NewPurchaseScreen() {
     return null;
   }, [productName, boundProductIdentity, inventoryProducts, savedPresets]);
 
-  // A purchase is strictly a locked restock ONLY IF:
+  // A purchase is repurchasing existing product IF:
   // 1. It already exists in inventory (id > 0)
   // 2. AND it already has a non-empty itemId / barcode!
   const isRepurchasingExisting = Boolean(
@@ -296,17 +311,66 @@ export default function NewPurchaseScreen() {
   );
   const existingProductLockedId = existingInventoryProduct?.itemId?.trim() || '';
 
-  // Auto-lock and auto-fill existing product ID when repurchasing
+  const [repurchaseMode, setRepurchaseMode] = useState<RepurchaseIdMode>('restock');
+  const lastExistingProductIdRef = useRef<number | null>(null);
+
+  const handleSelectRepurchaseMode = (mode: RepurchaseIdMode) => {
+    setRepurchaseMode(mode);
+    try {
+      Haptics.selectionAsync().catch(() => {});
+    } catch {}
+
+    if (mode === 'restock') {
+      setIdType('shared');
+      if (existingProductLockedId) {
+        setSharedId(existingProductLockedId);
+      }
+    } else if (mode === 'custom') {
+      setIdType('custom');
+      setCustomIds((prev) => {
+        const next = [...prev];
+        while (next.length < qtyNum) next.push('');
+        return next.slice(0, qtyNum);
+      });
+      if (sharedId === existingProductLockedId) {
+        setSharedId('');
+      }
+    } else if (mode === 'new_shared') {
+      setIdType('shared');
+      if (sharedId === existingProductLockedId) {
+        setSharedId('');
+      }
+    }
+  };
+
+  // Auto-sync and auto-fill existing product ID when repurchasing
   useEffect(() => {
     if (existingInventoryProduct && existingInventoryProduct.id > 0) {
       const targetId = existingInventoryProduct.itemId?.trim() || '';
-      if (targetId) {
-        if (sharedId !== targetId) {
-          setSharedId(targetId);
-        }
-        if (idType !== 'shared') {
+      const isNewExistingProduct = lastExistingProductIdRef.current !== existingInventoryProduct.id;
+      lastExistingProductIdRef.current = existingInventoryProduct.id;
+
+      if (isNewExistingProduct) {
+        const isUnique = existingInventoryProduct.idMode === 'unique';
+        if (isUnique && qtyNum > 1) {
+          setRepurchaseMode('custom');
+          setIdType('custom');
+          setCustomIds((prev) => {
+            const next = [...prev];
+            while (next.length < qtyNum) next.push('');
+            return next.slice(0, qtyNum);
+          });
+        } else {
+          setRepurchaseMode('restock');
           setIdType('shared');
+          if (targetId) setSharedId(targetId);
         }
+      } else if (repurchaseMode === 'restock') {
+        if (targetId && sharedId !== targetId) setSharedId(targetId);
+        if (idType !== 'shared') setIdType('shared');
+      }
+
+      if (targetId) {
         if (!boundProductIdentity || boundProductIdentity.name.trim().toLowerCase() !== existingInventoryProduct.name.trim().toLowerCase()) {
           setBoundProductIdentity({
             name: existingInventoryProduct.name,
@@ -344,8 +408,10 @@ export default function NewPurchaseScreen() {
           }).catch(() => {});
         }).catch(() => {});
       }
+    } else {
+      lastExistingProductIdRef.current = null;
     }
-  }, [existingInventoryProduct, isRepurchasingExisting]);
+  }, [existingInventoryProduct, repurchaseMode, qtyNum]);
 
   // ─── Barcode Scanner ────────────────────────────────────────────────────────
   const [scannerVisible, setScannerVisible] = useState(false);
@@ -431,10 +497,15 @@ export default function NewPurchaseScreen() {
 
       // Case 1: Name is empty OR matches the existing product
       if (!currentTrimmedName || currentTrimmedName === matchedName.toLowerCase()) {
-        handleSelectSavedItem(matched);
-        if (targetCustomIdx !== null) {
-          updateCustomId(targetCustomIdx, cleanCode);
+        if (targetCustomIdx !== null || idType === 'custom') {
+          const idx = targetCustomIdx !== null ? targetCustomIdx : (customIds.findIndex((val) => !val.trim()) >= 0 ? customIds.findIndex((val) => !val.trim()) : 0);
+          updateCustomId(idx, cleanCode);
+          if (!productName.trim()) setProductName(matched.name);
+          if (!buyIQD && matched.buyPriceIQD) setBuyIQD(String(matched.buyPriceIQD));
+          if (!sellIQD && matched.sellPriceIQD) setSellIQD(String(matched.sellPriceIQD));
+          if (!category && matched.category) setCategory(matched.category);
         } else {
+          handleSelectSavedItem(matched);
           setIdType('shared');
           setSharedId(cleanCode);
         }
@@ -455,10 +526,12 @@ export default function NewPurchaseScreen() {
           {
             text: isArLanguage ? `التبديل إلى «${matchedName}»` : isKuLanguage ? `بۆ «${matchedName}» بگۆڕە` : `Switch to "${matchedName}"`,
             onPress: () => {
-              handleSelectSavedItem(matched);
-              if (targetCustomIdx !== null) {
-                updateCustomId(targetCustomIdx, cleanCode);
+              if (targetCustomIdx !== null || idType === 'custom') {
+                const idx = targetCustomIdx !== null ? targetCustomIdx : 0;
+                updateCustomId(idx, cleanCode);
+                setProductName(matched.name);
               } else {
+                handleSelectSavedItem(matched);
                 setIdType('shared');
                 setSharedId(cleanCode);
               }
@@ -665,7 +738,6 @@ export default function NewPurchaseScreen() {
   }, []);
 
   // ─── Derived ────────────────────────────────────────────────────────────────
-  const qtyNum       = Math.max(1, parseInt(qty) || 1);
   const buyIQDNum    = parseFloat(toEnglishDigits(buyIQD).replace(/,/g, '')) || 0;
   const sellIQDNum   = parseFloat(toEnglishDigits(sellIQD).replace(/,/g, '')) || 0;
   const totalIQD     = qtyNum * buyIQDNum;
@@ -1042,6 +1114,8 @@ export default function NewPurchaseScreen() {
         setProductName(''); setPurchaseDate(new Date()); setSupplierName('');
         setQty('1'); setBuyIQD(''); setBuyUSD(''); setSellIQD(''); setSellUSD('');
         setIdType(null); setSharedId(''); setCustomIds(['']);
+        setRepurchaseMode('restock');
+        lastExistingProductIdRef.current = null;
         setSupplierPhone(''); setSupplierAddress(''); setSelectedSupplierId(undefined);
         setSupplierImageUri(null);
         const currentPrefs = useSettingsStore.getState();
@@ -1434,7 +1508,7 @@ export default function NewPurchaseScreen() {
             ]}
           >
             {isRepurchasingExisting
-              ? (isArLanguage ? 'تحديد الكمية لإعادة تزويد مادة سابقة' : isKuLanguage ? 'دیاریکردنی عەدەد بۆ کۆگاکردنەوەی کاڵای کۆن' : 'Set quantity to restock existing product')
+              ? (isArLanguage ? 'تحديد الكمية ونوع الباركود للمادة السابقة' : isKuLanguage ? 'دیاریکردنی عەدەد و شێوازی بارکۆد بۆ کاڵای کۆن' : 'Set quantity and barcode mode for existing product')
               : (isArLanguage ? 'عدد القطع، الباركود أو المعرف الخاص' : isKuLanguage ? 'ژمارەی دانە، کۆدی بارکۆد یان ئایدی' : 'Units count, barcode scanner, or unique IDs')}
           </Text>
         </View>
@@ -1449,8 +1523,493 @@ export default function NewPurchaseScreen() {
         placeholder={t('purchases.qtyPlaceholder')}
       />
 
-      {isRepurchasingExisting ? (
-        /* ── Locked Existing Product Card for Repurchasing / Restock ── */
+      {/* ── Mode Selection Section when an Existing Product is Detected ── */}
+      {isRepurchasingExisting && (
+        <View style={styles.repurchaseModeSection}>
+          <View style={[styles.repurchaseModeHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+              <Ionicons name="options-outline" size={16} color={colors.primary} />
+              <Text
+                style={[
+                  styles.repurchaseModeSectionTitle,
+                  { color: colors.black, textAlign: isRTL ? 'right' : 'left' },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {isArLanguage ? 'طريقة الباركود والمعرف:' : isKuLanguage ? 'شێوازی ناسێنەر و بارکۆد:' : 'Barcode & ID Mode:'}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.repurchaseBadge,
+                {
+                  backgroundColor: isDark ? 'rgba(212, 175, 55, 0.16)' : '#FEF3C7',
+                  borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : '#FDE68A',
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.repurchaseBadgeText,
+                  { color: isDark ? '#FDE047' : '#B45309' },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {isArLanguage ? 'مادة سابقة' : isKuLanguage ? 'کاڵای پێشوو' : 'Existing Item'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Cards for Mode Selection */}
+          <View style={styles.repurchaseCardsList}>
+            {qtyNum > 1 ? (
+              <>
+                {/* 1. Custom IDs per unit */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => handleSelectRepurchaseMode('custom')}
+                  style={[
+                    styles.repurchaseOptionCard,
+                    isTablet && { padding: 15, borderRadius: 16 },
+                    {
+                      backgroundColor: repurchaseMode === 'custom'
+                        ? (isDark ? 'rgba(212, 175, 55, 0.14)' : '#FFFBEB')
+                        : (isDark ? colors.gray100 : '#FFFFFF'),
+                      borderColor: repurchaseMode === 'custom'
+                        ? colors.primary
+                        : (isDark ? colors.gray200 : '#E2E8F0'),
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.repurchaseOptionIconBox,
+                      isTablet && { width: 44, height: 44, borderRadius: 12 },
+                      {
+                        backgroundColor: repurchaseMode === 'custom'
+                          ? colors.primary
+                          : (isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9'),
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="barcode-outline"
+                      size={isTablet ? 22 : 18}
+                      color={repurchaseMode === 'custom' ? '#FFFFFF' : colors.gray500}
+                    />
+                  </View>
+                  <View style={[styles.repurchaseOptionTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text
+                        style={[
+                          styles.repurchaseOptionTitle,
+                          isTablet && { fontSize: 15.5 },
+                          {
+                            color: repurchaseMode === 'custom' ? colors.primary : colors.black,
+                            textAlign: isRTL ? 'right' : 'left',
+                          },
+                          isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {isArLanguage ? 'معرف خاص لكل قطعة' : isKuLanguage ? 'ئایدیی جیاواز بۆ هەر دانەیەک' : 'Custom ID per unit'}
+                      </Text>
+                      <View
+                        style={[
+                          styles.repurchaseOptionTag,
+                          {
+                            backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : '#ECFDF5',
+                            borderColor: isDark ? 'rgba(16, 185, 129, 0.35)' : '#A7F3D0',
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.repurchaseOptionTagText,
+                            { color: '#10B981' },
+                            isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          ]}
+                        >
+                          {isArLanguage ? `${qtyNum} قطع` : isKuLanguage ? `${qtyNum} دانە` : `${qtyNum} units`}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text
+                      style={[
+                        styles.repurchaseOptionSub,
+                        isTablet && { fontSize: 13, lineHeight: 18 },
+                        {
+                          color: colors.gray500,
+                          textAlign: isRTL ? 'right' : 'left',
+                        },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                      ]}
+                    >
+                      {isArLanguage
+                        ? 'للهواتف والأجهزة؛ تسجيل باركود أو تسلسل خاص بكل قطعة'
+                        : isKuLanguage
+                        ? 'بۆ مۆبایل و ئامێرەکان؛ تۆمارکردنی بارکۆد یان ئایدیی تایبەت بۆ هەر دانەیەک'
+                        : 'For phones & electronics; register unique barcode or serial for each'}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.repurchaseOptionRadio,
+                      isTablet && { width: 24, height: 24, borderRadius: 12 },
+                      {
+                        borderColor: repurchaseMode === 'custom' ? colors.primary : (isDark ? colors.gray300 : '#CBD5E1'),
+                        backgroundColor: repurchaseMode === 'custom' ? colors.primary : 'transparent',
+                      },
+                    ]}
+                  >
+                    {repurchaseMode === 'custom' && (
+                      <Ionicons name="checkmark" size={isTablet ? 15 : 13} color="#FFFFFF" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+
+                {/* 2. Same Old Barcode (Restock) */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => handleSelectRepurchaseMode('restock')}
+                  style={[
+                    styles.repurchaseOptionCard,
+                    isTablet && { padding: 15, borderRadius: 16 },
+                    {
+                      backgroundColor: repurchaseMode === 'restock'
+                        ? (isDark ? 'rgba(212, 175, 55, 0.14)' : '#FFFBEB')
+                        : (isDark ? colors.gray100 : '#FFFFFF'),
+                      borderColor: repurchaseMode === 'restock'
+                        ? colors.primary
+                        : (isDark ? colors.gray200 : '#E2E8F0'),
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.repurchaseOptionIconBox,
+                      isTablet && { width: 44, height: 44, borderRadius: 12 },
+                      {
+                        backgroundColor: repurchaseMode === 'restock'
+                          ? colors.primary
+                          : (isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9'),
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="cube-outline"
+                      size={isTablet ? 22 : 18}
+                      color={repurchaseMode === 'restock' ? '#FFFFFF' : colors.gray500}
+                    />
+                  </View>
+                  <View style={[styles.repurchaseOptionTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+                    <Text
+                      style={[
+                        styles.repurchaseOptionTitle,
+                        isTablet && { fontSize: 15.5 },
+                        {
+                          color: repurchaseMode === 'restock' ? colors.primary : colors.black,
+                          textAlign: isRTL ? 'right' : 'left',
+                        },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {isArLanguage ? 'نفس الباركود السابق (إعادة تزويد)' : isKuLanguage ? 'هەمان ئایدیی کۆن (کۆگاکردنەوە)' : 'Same Existing ID (Restock)'}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.repurchaseOptionSub,
+                        isTablet && { fontSize: 13, lineHeight: 18 },
+                        {
+                          color: colors.gray500,
+                          textAlign: isRTL ? 'right' : 'left',
+                        },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                      ]}
+                    >
+                      {isArLanguage
+                        ? `زيادة الكمية بنفس الباركود السابق (${existingProductLockedId})`
+                        : isKuLanguage
+                        ? `زیادکردنی بڕ بە هەمان بارکۆدی پێشوو (${existingProductLockedId})`
+                        : `Add quantity using the existing barcode (${existingProductLockedId})`}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.repurchaseOptionRadio,
+                      isTablet && { width: 24, height: 24, borderRadius: 12 },
+                      {
+                        borderColor: repurchaseMode === 'restock' ? colors.primary : (isDark ? colors.gray300 : '#CBD5E1'),
+                        backgroundColor: repurchaseMode === 'restock' ? colors.primary : 'transparent',
+                      },
+                    ]}
+                  >
+                    {repurchaseMode === 'restock' && (
+                      <Ionicons name="checkmark" size={isTablet ? 15 : 13} color="#FFFFFF" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+
+                {/* 3. New Shared Barcode */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => handleSelectRepurchaseMode('new_shared')}
+                  style={[
+                    styles.repurchaseOptionCard,
+                    isTablet && { padding: 15, borderRadius: 16 },
+                    {
+                      backgroundColor: repurchaseMode === 'new_shared'
+                        ? (isDark ? 'rgba(212, 175, 55, 0.14)' : '#FFFBEB')
+                        : (isDark ? colors.gray100 : '#FFFFFF'),
+                      borderColor: repurchaseMode === 'new_shared'
+                        ? colors.primary
+                        : (isDark ? colors.gray200 : '#E2E8F0'),
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.repurchaseOptionIconBox,
+                      isTablet && { width: 44, height: 44, borderRadius: 12 },
+                      {
+                        backgroundColor: repurchaseMode === 'new_shared'
+                          ? colors.primary
+                          : (isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9'),
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="sparkles-outline"
+                      size={isTablet ? 22 : 18}
+                      color={repurchaseMode === 'new_shared' ? '#FFFFFF' : colors.gray500}
+                    />
+                  </View>
+                  <View style={[styles.repurchaseOptionTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+                    <Text
+                      style={[
+                        styles.repurchaseOptionTitle,
+                        isTablet && { fontSize: 15.5 },
+                        {
+                          color: repurchaseMode === 'new_shared' ? colors.primary : colors.black,
+                          textAlign: isRTL ? 'right' : 'left',
+                        },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {isArLanguage ? 'باركود جديد مشترك للدفعة' : isKuLanguage ? 'بارکۆدی نوێی هاوبەش بۆ وەجبە' : 'New Shared Barcode'}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.repurchaseOptionSub,
+                        isTablet && { fontSize: 13, lineHeight: 18 },
+                        {
+                          color: colors.gray500,
+                          textAlign: isRTL ? 'right' : 'left',
+                        },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                      ]}
+                    >
+                      {isArLanguage
+                        ? `تعيين باركود جديد مشترك لجميع هذه الـ ${qtyNum} قطع`
+                        : isKuLanguage
+                        ? `دیاریکردنی بارکۆدێکی نوێ کە هاوبەش بێت بۆ سەرجەم ئەم ${qtyNum} دانەیە`
+                        : `Set a new barcode shared across all these ${qtyNum} units`}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.repurchaseOptionRadio,
+                      isTablet && { width: 24, height: 24, borderRadius: 12 },
+                      {
+                        borderColor: repurchaseMode === 'new_shared' ? colors.primary : (isDark ? colors.gray300 : '#CBD5E1'),
+                        backgroundColor: repurchaseMode === 'new_shared' ? colors.primary : 'transparent',
+                      },
+                    ]}
+                  >
+                    {repurchaseMode === 'new_shared' && (
+                      <Ionicons name="checkmark" size={isTablet ? 15 : 13} color="#FFFFFF" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </>
+            ) : (
+              /* When Qty === 1 */
+              <>
+                {/* 1. Same Old Barcode (Restock) */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => handleSelectRepurchaseMode('restock')}
+                  style={[
+                    styles.repurchaseOptionCard,
+                    isTablet && { padding: 15, borderRadius: 16 },
+                    {
+                      backgroundColor: repurchaseMode === 'restock'
+                        ? (isDark ? 'rgba(212, 175, 55, 0.14)' : '#FFFBEB')
+                        : (isDark ? colors.gray100 : '#FFFFFF'),
+                      borderColor: repurchaseMode === 'restock'
+                        ? colors.primary
+                        : (isDark ? colors.gray200 : '#E2E8F0'),
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.repurchaseOptionIconBox,
+                      isTablet && { width: 44, height: 44, borderRadius: 12 },
+                      {
+                        backgroundColor: repurchaseMode === 'restock'
+                          ? colors.primary
+                          : (isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9'),
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="cube-outline"
+                      size={isTablet ? 22 : 18}
+                      color={repurchaseMode === 'restock' ? '#FFFFFF' : colors.gray500}
+                    />
+                  </View>
+                  <View style={[styles.repurchaseOptionTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+                    <Text
+                      style={[
+                        styles.repurchaseOptionTitle,
+                        isTablet && { fontSize: 15.5 },
+                        {
+                          color: repurchaseMode === 'restock' ? colors.primary : colors.black,
+                          textAlign: isRTL ? 'right' : 'left',
+                        },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {isArLanguage ? 'نفس الباركود السابق (إعادة تزويد)' : isKuLanguage ? 'هەمان ئایدیی کۆن (دووبارە کڕینەوە)' : 'Same Existing ID (Restock)'}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.repurchaseOptionSub,
+                        isTablet && { fontSize: 13, lineHeight: 18 },
+                        {
+                          color: colors.gray500,
+                          textAlign: isRTL ? 'right' : 'left',
+                        },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                      ]}
+                    >
+                      {isArLanguage
+                        ? `زيادة قطعة واحدة بنفس الباركود (${existingProductLockedId})`
+                        : isKuLanguage
+                        ? `زیادکردنی ١ دانە بە هەمان ئایدی و بارکۆد (${existingProductLockedId})`
+                        : `Add 1 unit with same barcode (${existingProductLockedId})`}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.repurchaseOptionRadio,
+                      isTablet && { width: 24, height: 24, borderRadius: 12 },
+                      {
+                        borderColor: repurchaseMode === 'restock' ? colors.primary : (isDark ? colors.gray300 : '#CBD5E1'),
+                        backgroundColor: repurchaseMode === 'restock' ? colors.primary : 'transparent',
+                      },
+                    ]}
+                  >
+                    {repurchaseMode === 'restock' && (
+                      <Ionicons name="checkmark" size={isTablet ? 15 : 13} color="#FFFFFF" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+
+                {/* 2. New Barcode / ID */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => handleSelectRepurchaseMode('new_shared')}
+                  style={[
+                    styles.repurchaseOptionCard,
+                    isTablet && { padding: 15, borderRadius: 16 },
+                    {
+                      backgroundColor: repurchaseMode === 'new_shared'
+                        ? (isDark ? 'rgba(212, 175, 55, 0.14)' : '#FFFBEB')
+                        : (isDark ? colors.gray100 : '#FFFFFF'),
+                      borderColor: repurchaseMode === 'new_shared'
+                        ? colors.primary
+                        : (isDark ? colors.gray200 : '#E2E8F0'),
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.repurchaseOptionIconBox,
+                      isTablet && { width: 44, height: 44, borderRadius: 12 },
+                      {
+                        backgroundColor: repurchaseMode === 'new_shared'
+                          ? colors.primary
+                          : (isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9'),
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="barcode-outline"
+                      size={isTablet ? 22 : 18}
+                      color={repurchaseMode === 'new_shared' ? '#FFFFFF' : colors.gray500}
+                    />
+                  </View>
+                  <View style={[styles.repurchaseOptionTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+                    <Text
+                      style={[
+                        styles.repurchaseOptionTitle,
+                        isTablet && { fontSize: 15.5 },
+                        {
+                          color: repurchaseMode === 'new_shared' ? colors.primary : colors.black,
+                          textAlign: isRTL ? 'right' : 'left',
+                        },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {isArLanguage ? 'باركود أو معرف جديد' : isKuLanguage ? 'بارکۆد یان ئایدیی نوێ' : 'New Barcode / ID'}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.repurchaseOptionSub,
+                        isTablet && { fontSize: 13, lineHeight: 18 },
+                        {
+                          color: colors.gray500,
+                          textAlign: isRTL ? 'right' : 'left',
+                        },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                      ]}
+                    >
+                      {isArLanguage
+                        ? 'تسجيل هذه القطعة بباركود أو معرف جديد ومستقل'
+                        : isKuLanguage
+                        ? 'تۆمارکردنی ئەم دانەیە بە بارکۆد یان ئایدییەکی نوێ و سەربەخۆ'
+                        : 'Register this item with a new distinct barcode'}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.repurchaseOptionRadio,
+                      isTablet && { width: 24, height: 24, borderRadius: 12 },
+                      {
+                        borderColor: repurchaseMode === 'new_shared' ? colors.primary : (isDark ? colors.gray300 : '#CBD5E1'),
+                        backgroundColor: repurchaseMode === 'new_shared' ? colors.primary : 'transparent',
+                      },
+                    ]}
+                  >
+                    {repurchaseMode === 'new_shared' && (
+                      <Ionicons name="checkmark" size={isTablet ? 15 : 13} color="#FFFFFF" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* ── Locked Existing Product Card for Repurchasing / Restock ── */}
+      {isRepurchasingExisting && repurchaseMode === 'restock' && (
         <View
           style={[
             styles.existingProductBanner,
@@ -1593,54 +2152,57 @@ export default function NewPurchaseScreen() {
             </Text>
           </View>
         </View>
-      ) : (
-        <>
+      )}
 
-      {/* ID Type */}
-      <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.idType')}</Text>
-      <View style={[styles.idTypeRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        <TouchableOpacity
-          style={[styles.idTypeBtn,
-            isTablet && { height: 50, borderRadius: 14 },
-            idType === 'shared'
-              ? { backgroundColor: colors.primary, borderColor: colors.primary }
-              : { borderColor: colors.gray200, backgroundColor: colors.white }
-          ]}
-          onPress={() => selectIdType('shared')}
-          activeOpacity={0.8}
-        >
-          <Text style={[
-            styles.idTypeBtnText,
-            isTablet && { fontSize: 15.5 },
-            isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-            { color: idType === 'shared' ? colors.white : colors.gray500 }
-          ]}>
-            {t('purchases.sharedId')}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.idTypeBtn,
-            isTablet && { height: 50, borderRadius: 14 },
-            idType === 'custom'
-              ? { backgroundColor: colors.primary, borderColor: colors.primary }
-              : { borderColor: colors.gray200, backgroundColor: colors.white }
-          ]}
-          onPress={() => selectIdType('custom')}
-          activeOpacity={0.8}
-        >
-          <Text style={[
-            styles.idTypeBtnText,
-            isTablet && { fontSize: 15.5 },
-            isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-            { color: idType === 'custom' ? colors.white : colors.gray500 }
-          ]}>
-            {t('purchases.customIds')}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* ── When Not Repurchasing: Standard ID Type Row ── */}
+      {!isRepurchasingExisting && (
+        <>
+          <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.idType')}</Text>
+          <View style={[styles.idTypeRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <TouchableOpacity
+              style={[styles.idTypeBtn,
+                isTablet && { height: 50, borderRadius: 14 },
+                idType === 'shared'
+                  ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                  : { borderColor: colors.gray200, backgroundColor: colors.white }
+              ]}
+              onPress={() => selectIdType('shared')}
+              activeOpacity={0.8}
+            >
+              <Text style={[
+                styles.idTypeBtnText,
+                isTablet && { fontSize: 15.5 },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                { color: idType === 'shared' ? colors.white : colors.gray500 }
+              ]}>
+                {t('purchases.sharedId')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.idTypeBtn,
+                isTablet && { height: 50, borderRadius: 14 },
+                idType === 'custom'
+                  ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                  : { borderColor: colors.gray200, backgroundColor: colors.white }
+              ]}
+              onPress={() => selectIdType('custom')}
+              activeOpacity={0.8}
+            >
+              <Text style={[
+                styles.idTypeBtnText,
+                isTablet && { fontSize: 15.5 },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                { color: idType === 'custom' ? colors.white : colors.gray500 }
+              ]}>
+                {t('purchases.customIds')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
 
       {/* Prominent Barcode / QR Scanner Button Banner - Mobile Only */}
-      {Platform.OS !== 'web' && (
+      {Platform.OS !== 'web' && (!isRepurchasingExisting || repurchaseMode !== 'restock') && (
         <TouchableOpacity
           style={[
             styles.scanBarcodeBanner,
@@ -1713,7 +2275,7 @@ export default function NewPurchaseScreen() {
         </TouchableOpacity>
       )}
 
-      {idType === 'shared' && (
+      {((!isRepurchasingExisting && idType === 'shared') || (isRepurchasingExisting && repurchaseMode === 'new_shared')) && (
         <View
           style={[
             styles.customIdCardBox,
@@ -1885,7 +2447,7 @@ export default function NewPurchaseScreen() {
         </View>
       )}
 
-      {idType === 'custom' && (
+      {((!isRepurchasingExisting && idType === 'custom') || (isRepurchasingExisting && repurchaseMode === 'custom')) && (
         <View style={styles.customIdsContainer}>
           <View style={styles.customIdsHeader}>
             {/* Row 1: Title + Responsive Kurdish Parenthesis Badge */}
@@ -2208,8 +2770,6 @@ export default function NewPurchaseScreen() {
             );
           })}
         </View>
-      )}
-        </>
       )}
     </PremiumCard>
   );
@@ -3496,6 +4056,84 @@ const styles = StyleSheet.create({
   },
   totalLabel: { fontSize: 13, fontWeight: '600' },
   totalValue: { fontSize: 18, fontWeight: '800' },
+
+  /* ─── Mode Selector for Existing Product Repurchase ─── */
+  repurchaseModeSection: {
+    marginTop: 14,
+    marginBottom: 6,
+    gap: 8,
+  },
+  repurchaseModeHeader: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  repurchaseModeSectionTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  repurchaseBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  repurchaseBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  repurchaseCardsList: {
+    gap: 8,
+  },
+  repurchaseOptionCard: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 12,
+    alignItems: 'center',
+    gap: 4,
+  },
+  repurchaseOptionIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  repurchaseOptionTextWrap: {
+    flex: 1,
+    marginHorizontal: 8,
+    gap: 2,
+  },
+  repurchaseOptionTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  repurchaseOptionTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  repurchaseOptionTagText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  repurchaseOptionSub: {
+    fontSize: 11.5,
+    lineHeight: 16,
+  },
+  repurchaseOptionRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
 
   /* Existing Product Repurchase Locked Banner */
   existingProductBanner: {
