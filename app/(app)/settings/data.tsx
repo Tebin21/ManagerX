@@ -55,6 +55,7 @@ import { useLanguageStore }  from '@/store/languageStore';
 import { useQuotationStore } from '@/store/quotationStore';
 import { useManagementStore } from '@/store/managementStore';
 import { isAdminEmail } from '@/lib/adminNotificationService';
+import { GoogleDriveDataChart } from '@/components/settings/GoogleDriveDataChart';
 import {
   getGoogleDriveConfig,
   connectGoogleDrive,
@@ -62,6 +63,7 @@ import {
   uploadBackupToGoogleDrive,
   restoreBackupFromGoogleDrive,
   setAutoBackupEnabled,
+  fetchGoogleDriveBackupDetails,
   type GoogleDriveConfig,
 } from '@/lib/googleDriveBackup';
 
@@ -104,6 +106,8 @@ export default function DataScreen() {
     purchases: 0,
     suppliers: 0,
     expenses: 0,
+    debts: 0,
+    earliestDate: null as string | null,
   });
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [showResetModal,   setShowResetModal]   = useState(false);
@@ -128,6 +132,15 @@ export default function DataScreen() {
     try {
       const cfg = await getGoogleDriveConfig();
       setGdriveConfig(cfg);
+      if (cfg.isConnected && !cfg.backupDetails) {
+        fetchGoogleDriveBackupDetails()
+          .then((details) => {
+            if (details) {
+              setGdriveConfig((prev) => (prev ? { ...prev, backupDetails: details } : prev));
+            }
+          })
+          .catch(() => {});
+      }
     } catch {
       // Non-fatal
     }
@@ -201,6 +214,9 @@ export default function DataScreen() {
           text: t('settings.dataScreen.restoreConfirm'),
           onPress: async () => {
             setGdriveRestoring(true);
+            setRestoring(true);
+            setRestoreProgress(null);
+            setShowRestoreModal(true);
             try {
               const summary = await restoreBackupFromGoogleDrive((event) => {
                 setRestoreProgress({ table: event.table, index: event.index, total: event.total });
@@ -209,6 +225,7 @@ export default function DataScreen() {
               await loadGdriveConfig();
               setRestoreSummary(summary);
             } catch (err: unknown) {
+              setShowRestoreModal(false);
               const msg = err instanceof Error ? err.message : '';
               if (msg === 'NO_GDRIVE_BACKUP_FOUND') {
                 Alert.alert(t('common.error'), t('settings.dataScreen.googleDriveNoBackupFound'));
@@ -223,6 +240,7 @@ export default function DataScreen() {
               }
             } finally {
               setGdriveRestoring(false);
+              setRestoring(false);
               setRestoreProgress(null);
             }
           },
@@ -268,18 +286,26 @@ export default function DataScreen() {
           purchases: purCount,
           suppliers: supCount,
           expenses: expCount,
+          debts: 0,
+          earliestDate: null,
         });
         return;
       }
       const db = await getDatabase();
-      const [pRow, catRow, sRow, cRow, purRow, supRow, expRow] = await Promise.all([
-        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM products'),
-        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM categories'),
-        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM sales'),
-        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM customers'),
-        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM purchases'),
-        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM suppliers'),
-        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM expenses'),
+      const [pRow, catRow, sRow, cRow, purRow, supRow, expRow, debtRow, earliestRow] = await Promise.all([
+        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM products').catch(() => ({ cnt: 0 })),
+        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM categories').catch(() => ({ cnt: 0 })),
+        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM sales').catch(() => ({ cnt: 0 })),
+        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM customers').catch(() => ({ cnt: 0 })),
+        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM purchases').catch(() => ({ cnt: 0 })),
+        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM suppliers').catch(() => ({ cnt: 0 })),
+        db.getFirstAsync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM expenses').catch(() => ({ cnt: 0 })),
+        db.getFirstAsync<{ cnt: number }>(
+          'SELECT ((SELECT COUNT(*) FROM debts) + (SELECT COUNT(*) FROM purchase_debts)) AS cnt'
+        ).catch(() => ({ cnt: 0 })),
+        db.getFirstAsync<{ earliest: string }>(
+          'SELECT MIN(d) AS earliest FROM (SELECT created_at AS d FROM sales UNION ALL SELECT created_at AS d FROM purchases)'
+        ).catch(() => ({ earliest: '' })),
       ]);
       const pCount = pRow?.cnt ?? 0;
       const catCount = catRow?.cnt ?? 0;
@@ -288,6 +314,8 @@ export default function DataScreen() {
       const purCount = purRow?.cnt ?? 0;
       const supCount = supRow?.cnt ?? 0;
       const expCount = expRow?.cnt ?? 0;
+      const debtCount = debtRow?.cnt ?? 0;
+      const earliest = earliestRow?.earliest ? String(earliestRow.earliest).slice(0, 10) : null;
 
       setDbRecords(pCount + sCount + purCount + cCount);
       setBackupStats({
@@ -298,6 +326,8 @@ export default function DataScreen() {
         purchases: purCount,
         suppliers: supCount,
         expenses: expCount,
+        debts: debtCount,
+        earliestDate: earliest,
       });
     } catch {
       setDbRecords(0);
@@ -648,6 +678,15 @@ export default function DataScreen() {
 
           {gdriveConfig?.isConnected && (
             <>
+              <GoogleDriveDataChart
+                config={gdriveConfig}
+                localStats={backupStats}
+                onBackupNow={handleGDriveBackup}
+                onRestoreNow={handleGDriveRestore}
+                isSyncing={gdriveSyncing}
+                isRestoring={gdriveRestoring}
+              />
+
               <SettingRow
                 icon="sync"
                 label={t('settings.dataScreen.googleDriveAutoBackup')}
@@ -660,44 +699,6 @@ export default function DataScreen() {
                     trackColor={{ false: colors.gray200, true: colors.primary }}
                     thumbColor="#FFFFFF"
                   />
-                }
-              />
-
-              <SettingRow
-                icon="cloud-upload"
-                label={t('settings.dataScreen.googleDriveBackupNow')}
-                sub={
-                  gdriveConfig.lastBackupAt
-                    ? t('settings.dataScreen.googleDriveLastBackup', {
-                        time: new Date(gdriveConfig.lastBackupAt).toLocaleString(),
-                      })
-                    : t('settings.dataScreen.googleDriveNeverBackedUp')
-                }
-                onPress={handleGDriveBackup}
-                disabled={gdriveSyncing || gdriveRestoring}
-                rightElement={
-                  gdriveSyncing ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : undefined
-                }
-              />
-
-              <SettingRow
-                icon="cloud-download"
-                label={t('settings.dataScreen.googleDriveRestore')}
-                sub={
-                  gdriveConfig.lastBackupSize
-                    ? `${(gdriveConfig.lastBackupSize / 1024).toFixed(1)} KB · ${t(
-                        'settings.dataScreen.googleDriveRestoreSub'
-                      )}`
-                    : t('settings.dataScreen.googleDriveRestoreSub')
-                }
-                onPress={handleGDriveRestore}
-                disabled={gdriveSyncing || gdriveRestoring}
-                rightElement={
-                  gdriveRestoring ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : undefined
                 }
               />
             </>
@@ -1214,12 +1215,14 @@ export default function DataScreen() {
                 </Text>
 
                 <Text style={[styles.dialogMsg, { color: colors.gray500 }]}>
-                  {restoring && restoreProgress
-                    ? t('settings.dataScreen.restoreProgressLabel', {
-                        table: restoreProgress.table.replace(/_/g, ' '),
-                        index: restoreProgress.index,
-                        total: restoreProgress.total,
-                      })
+                  {restoring
+                    ? (restoreProgress
+                        ? t('settings.dataScreen.restoreProgressLabel', {
+                            table: restoreProgress.table.replace(/_/g, ' '),
+                            index: restoreProgress.index,
+                            total: restoreProgress.total,
+                          })
+                        : (isKuLanguage ? 'داگرتن و پشکنینی پاشەکەوت… تکایە کەمێک چاوەڕێبە' : 'Downloading & verifying backup… please wait'))
                     : t('settings.dataScreen.restoreMsg')}
                 </Text>
 

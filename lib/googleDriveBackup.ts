@@ -37,6 +37,24 @@ const GDRIVE_WEB_TOKEN_KEY = '@froshiar_gdrive_web_token';
 const BACKUP_FILENAME = 'froshiar_backup.json';
 const AUTO_BACKUP_COOLDOWN_MS = 45 * 1000; // 45 seconds debounce between auto-saves
 
+export interface GoogleDriveBackupDetails {
+  totalRecords: number;
+  productsCount: number;
+  salesCount: number;
+  purchasesCount: number;
+  customersCount: number;
+  suppliersCount: number;
+  debtsCount: number;
+  expensesCount: number;
+  mediaCount: number;
+  dataStartDate: string | null;
+  platform: string | null;
+  appVersion: string | null;
+  createdAt: string | null;
+  modifiedAt: string | null;
+  sizeBytes: number;
+}
+
 export interface GoogleDriveConfig {
   isConnected: boolean;
   email: string | null;
@@ -45,6 +63,7 @@ export interface GoogleDriveConfig {
   lastBackupAt: string | null;
   lastBackupSize: number | null;
   autoBackupEnabled: boolean;
+  backupDetails?: GoogleDriveBackupDetails | null;
 }
 
 const DEFAULT_CONFIG: GoogleDriveConfig = {
@@ -55,6 +74,7 @@ const DEFAULT_CONFIG: GoogleDriveConfig = {
   lastBackupAt: null,
   lastBackupSize: null,
   autoBackupEnabled: true,
+  backupDetails: null,
 };
 
 let lastAutoBackupAttempt = 0;
@@ -358,20 +378,23 @@ export async function disconnectGoogleDrive(): Promise<void> {
 
 // ─── Google Drive REST API Calls ───────────────────────────────────────────
 
-interface DriveFileRecord {
+export interface DriveFileRecord {
   id: string;
   name: string;
   modifiedTime?: string;
+  createdTime?: string;
   size?: string;
+  properties?: Record<string, string>;
+  description?: string;
 }
 
-async function findBackupFileOnDrive(
+export async function findBackupFileOnDrive(
   accessToken: string
 ): Promise<DriveFileRecord | null> {
   const query = encodeURIComponent(
     `name = '${BACKUP_FILENAME}' and trashed = false`
   );
-  const url = `https://www.googleapis.com/drive/v3/files?q=${query}&spaces=drive&fields=files(id,name,modifiedTime,size)`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${query}&spaces=drive&orderBy=modifiedTime%20desc&fields=files(id,name,modifiedTime,createdTime,size,description,properties)`;
 
   const res = await fetch(url, {
     method: 'GET',
@@ -390,6 +413,45 @@ async function findBackupFileOnDrive(
   return files.length > 0 ? files[0] : null;
 }
 
+export async function fetchGoogleDriveBackupDetails(): Promise<GoogleDriveBackupDetails | null> {
+  try {
+    const accessToken = await getValidAccessToken();
+    const existing = await findBackupFileOnDrive(accessToken);
+    if (!existing) return null;
+
+    const props = existing.properties || {};
+    const sizeBytes = existing.size ? parseInt(existing.size, 10) : 0;
+
+    const details: GoogleDriveBackupDetails = {
+      totalRecords: parseInt(props.totalRecords || '0', 10) || 0,
+      productsCount: parseInt(props.productsCount || '0', 10) || 0,
+      salesCount: parseInt(props.salesCount || '0', 10) || 0,
+      purchasesCount: parseInt(props.purchasesCount || '0', 10) || 0,
+      customersCount: parseInt(props.customersCount || '0', 10) || 0,
+      suppliersCount: parseInt(props.suppliersCount || '0', 10) || 0,
+      debtsCount: parseInt(props.debtsCount || '0', 10) || 0,
+      expensesCount: parseInt(props.expensesCount || '0', 10) || 0,
+      mediaCount: parseInt(props.mediaCount || '0', 10) || 0,
+      dataStartDate: props.dataStartDate || null,
+      platform: props.platform || null,
+      appVersion: props.appVersion || null,
+      createdAt: existing.createdTime || null,
+      modifiedAt: existing.modifiedTime || null,
+      sizeBytes,
+    };
+
+    await saveGoogleDriveConfig({
+      lastBackupAt: existing.modifiedTime || null,
+      lastBackupSize: sizeBytes,
+      backupDetails: details,
+    });
+
+    return details;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Upload / Save to Google Drive ─────────────────────────────────────────
 
 /**
@@ -400,9 +462,18 @@ export async function uploadBackupToGoogleDrive(): Promise<{
   success: boolean;
   timestamp: string;
   size: number;
+  details: GoogleDriveBackupDetails;
 }> {
   if (isBackupInProgress) {
-    throw new Error('GDRIVE_BACKUP_IN_PROGRESS');
+    // Wait briefly for ongoing background auto-save to finish
+    let waitCount = 0;
+    while (isBackupInProgress && waitCount < 8) {
+      await new Promise((r) => setTimeout(r, 400));
+      waitCount++;
+    }
+    if (isBackupInProgress) {
+      throw new Error('GDRIVE_BACKUP_IN_PROGRESS');
+    }
   }
 
   isBackupInProgress = true;
@@ -417,7 +488,31 @@ export async function uploadBackupToGoogleDrive(): Promise<{
         ? new Blob([backupJsonString]).size
         : backupJsonString.length;
 
-    // 2. Search if file already exists in Drive
+    // 2. Compute exact item & record breakdown for chart & history
+    const counts = {
+      products: backupData.database.products?.length || 0,
+      sales: backupData.database.sales?.length || 0,
+      purchases: backupData.database.purchases?.length || 0,
+      customers: backupData.database.customers?.length || 0,
+      suppliers: backupData.database.suppliers?.length || 0,
+      debts: (backupData.database.debts?.length || 0) + (backupData.database.purchase_debts?.length || 0),
+      expenses: backupData.database.expenses?.length || 0,
+      media: Object.keys((backupData as any).media || {}).length,
+    };
+    const totalRecords = Object.values(counts).reduce((a, b) => a + b, 0);
+
+    // Determine earliest data timestamp
+    let earliestDate: string | null = null;
+    const saleDates = (backupData.database.sales || []).map((s: any) => s.created_at || s.date).filter(Boolean);
+    const purchaseDates = (backupData.database.purchases || []).map((p: any) => p.date || p.created_at).filter(Boolean);
+    const allDates = [...saleDates, ...purchaseDates].sort();
+    if (allDates.length > 0 && allDates[0]) {
+      earliestDate = String(allDates[0]).slice(0, 10);
+    } else {
+      earliestDate = backupData.meta.backupDate ? backupData.meta.backupDate.slice(0, 10) : new Date().toISOString().slice(0, 10);
+    }
+
+    // 3. Search if file already exists in Drive
     const existingFile = await findBackupFileOnDrive(accessToken);
 
     const boundary = '-------FroshiarBoundary' + Date.now();
@@ -426,8 +521,22 @@ export async function uploadBackupToGoogleDrive(): Promise<{
 
     const metadata = {
       name: BACKUP_FILENAME,
-      description: 'Froshiar POS Complete System Backup (SQLite + Settings)',
+      description: `Froshiar POS Complete Backup - ${totalRecords} records`,
       mimeType: 'application/json',
+      properties: {
+        totalRecords: String(totalRecords),
+        productsCount: String(counts.products),
+        salesCount: String(counts.sales),
+        purchasesCount: String(counts.purchases),
+        customersCount: String(counts.customers),
+        suppliersCount: String(counts.suppliers),
+        debtsCount: String(counts.debts),
+        expensesCount: String(counts.expenses),
+        mediaCount: String(counts.media),
+        dataStartDate: String(earliestDate || ''),
+        platform: String(Platform.OS),
+        appVersion: String(backupData.meta.appVersion || '1.0.44'),
+      },
     };
 
     const multipartRequestBody =
@@ -435,7 +544,7 @@ export async function uploadBackupToGoogleDrive(): Promise<{
       'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
       JSON.stringify(metadata) +
       delimiter +
-      'Content-Type: application/json\r\n\r\n' +
+      'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
       backupJsonString +
       closeDelimiter;
 
@@ -450,7 +559,7 @@ export async function uploadBackupToGoogleDrive(): Promise<{
       method = 'POST';
     }
 
-    const uploadRes = await fetch(uploadUrl, {
+    let uploadRes = await fetch(uploadUrl, {
       method,
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -459,21 +568,55 @@ export async function uploadBackupToGoogleDrive(): Promise<{
       body: multipartRequestBody,
     });
 
+    // If PATCH failed because file was deleted on Google Drive by user or moved (404), fallback to POST
+    if (!uploadRes.ok && method === 'PATCH' && uploadRes.status === 404) {
+      uploadUrl = `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
+      method = 'POST';
+      uploadRes = await fetch(uploadUrl, {
+        method,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`,
+        },
+        body: multipartRequestBody,
+      });
+    }
+
     if (!uploadRes.ok) {
       if (uploadRes.status === 401) throw new Error('GDRIVE_AUTH_REQUIRED');
       throw new Error(`GDRIVE_UPLOAD_FAILED_${uploadRes.status}`);
     }
 
     const timestamp = new Date().toISOString();
+    const details: GoogleDriveBackupDetails = {
+      totalRecords,
+      productsCount: counts.products,
+      salesCount: counts.sales,
+      purchasesCount: counts.purchases,
+      customersCount: counts.customers,
+      suppliersCount: counts.suppliers,
+      debtsCount: counts.debts,
+      expensesCount: counts.expenses,
+      mediaCount: counts.media,
+      dataStartDate: earliestDate,
+      platform: Platform.OS,
+      appVersion: backupData.meta.appVersion || '1.0.44',
+      createdAt: existingFile?.createdTime || timestamp,
+      modifiedAt: timestamp,
+      sizeBytes: backupBytes,
+    };
+
     await saveGoogleDriveConfig({
       lastBackupAt: timestamp,
       lastBackupSize: backupBytes,
+      backupDetails: details,
     });
 
     return {
       success: true,
       timestamp,
       size: backupBytes,
+      details,
     };
   } finally {
     isBackupInProgress = false;
@@ -499,12 +642,23 @@ export async function restoreBackupFromGoogleDrive(
 
   // Download raw JSON
   const downloadUrl = `https://www.googleapis.com/drive/v3/files/${driveFile.id}?alt=media`;
-  const res = await fetch(downloadUrl, {
+  let res = await fetch(downloadUrl, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
   });
+
+  if (!res.ok && res.status === 401) {
+    // Retry once with refreshed token
+    const freshToken = await getValidAccessToken();
+    res = await fetch(downloadUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${freshToken}`,
+      },
+    });
+  }
 
   if (!res.ok) {
     if (res.status === 401) throw new Error('GDRIVE_AUTH_REQUIRED');
@@ -534,6 +688,49 @@ export async function restoreBackupFromGoogleDrive(
     useSettingsStore.persist.rehydrate(),
     useQuotationStore.persist.rehydrate(),
   ]);
+
+  // Also reload active stores from newly populated SQLite
+  try {
+    const { useInventoryStore } = await import('@/store/inventoryStore');
+    await useInventoryStore.getState().loadInventory();
+  } catch {}
+  try {
+    const { useCustomerStore } = await import('@/store/customerStore');
+    await useCustomerStore.getState().loadCustomers();
+  } catch {}
+  try {
+    const { useSupplierStore } = await import('@/store/supplierStore');
+    await useSupplierStore.getState().loadSuppliers();
+  } catch {}
+  try {
+    const { useDebtStore } = await import('@/store/debtStore');
+    await useDebtStore.getState().loadAll();
+  } catch {}
+
+  // Save latest backup details from Drive file
+  const props = driveFile.properties || {};
+  const sizeBytes = driveFile.size ? parseInt(driveFile.size, 10) : 0;
+  await saveGoogleDriveConfig({
+    lastBackupAt: driveFile.modifiedTime || new Date().toISOString(),
+    lastBackupSize: sizeBytes,
+    backupDetails: {
+      totalRecords: parseInt(props.totalRecords || '0', 10) || summary.inserted + summary.updated,
+      productsCount: parseInt(props.productsCount || '0', 10) || 0,
+      salesCount: parseInt(props.salesCount || '0', 10) || 0,
+      purchasesCount: parseInt(props.purchasesCount || '0', 10) || 0,
+      customersCount: parseInt(props.customersCount || '0', 10) || 0,
+      suppliersCount: parseInt(props.suppliersCount || '0', 10) || 0,
+      debtsCount: parseInt(props.debtsCount || '0', 10) || 0,
+      expensesCount: parseInt(props.expensesCount || '0', 10) || 0,
+      mediaCount: parseInt(props.mediaCount || '0', 10) || 0,
+      dataStartDate: props.dataStartDate || null,
+      platform: props.platform || null,
+      appVersion: props.appVersion || null,
+      createdAt: driveFile.createdTime || null,
+      modifiedAt: driveFile.modifiedTime || null,
+      sizeBytes,
+    },
+  });
 
   return summary;
 }
