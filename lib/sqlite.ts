@@ -123,22 +123,38 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 // account's records to the newly signed-in user.
 export async function wipeAllBusinessData(): Promise<void> {
   const database = await getDatabase();
+
+  // Temporarily disable foreign keys so table truncation order cannot fail
+  try {
+    await database.execAsync('PRAGMA foreign_keys = OFF;');
+  } catch {}
+
   // Transactional so an app kill mid-wipe can't leave the DB in a half-reset
   // state (some tables cleared, others not) — it either fully commits or the
   // whole wipe is rolled back and the next attempt starts clean.
   await database.withTransactionAsync(async () => {
-    for (const table of [
-      'purchase_audit_log', 'purchase_items', 'purchase_debts', 'debt_payments',
-      'sale_items', 'debts', 'sales', 'purchases',
-      'products', 'customers', 'suppliers', 'expenses',
-      'exchange_rates', 'reports_cache',
-      'invoice_counter', 'purchase_counter',
-      'inventory_history', 'categories',
-      'settings', 'businesses',
-      'sync_queue', 'discarded_products',
-    ]) {
-      await database.runAsync(`DELETE FROM ${table}`);
+    // 1. Dynamically discover all user tables in the SQLite database
+    const userTables = await database.getAllAsync<{ name: string }>(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`
+    );
+
+    // 2. Truncate every user table
+    for (const row of userTables) {
+      if (row.name) {
+        try {
+          await database.runAsync(`DELETE FROM "${row.name}"`);
+        } catch (e) {
+          console.warn(`[SQLite] wipeAllBusinessData failed deleting table ${row.name}:`, e);
+        }
+      }
     }
+
+    // 3. Reset all autoincrement primary key sequences back to 0
+    try {
+      await database.runAsync(`DELETE FROM sqlite_sequence`);
+    } catch {}
+
+    // 4. Seed minimal operational records so the app can function cleanly
     await database.runAsync(`INSERT OR REPLACE INTO invoice_counter (id, last_number, last_date) VALUES (1, 0, '')`);
     await database.runAsync(`INSERT OR REPLACE INTO purchase_counter (id, last_number, last_date) VALUES (1, 0, '')`);
     await database.runAsync(`INSERT OR REPLACE INTO exchange_rates (id, rate, note) VALUES (1, 1310, 'Initial rate')`);
@@ -148,9 +164,14 @@ export async function wipeAllBusinessData(): Promise<void> {
     // shape for a factory reset or account deletion — those flows delete the user's
     // entire Firestore users/{uid} subtree in one explicit cloud call instead (see
     // lib/cloudSync/pushEngine.ts's deleteAllCloudData) — so just discard the noise here.
-    await database.runAsync(`DELETE FROM cloud_sync_queue`);
-    await database.runAsync(`DELETE FROM cloud_tombstones`);
+    try { await database.runAsync(`DELETE FROM cloud_sync_queue`); } catch {}
+    try { await database.runAsync(`DELETE FROM cloud_tombstones`); } catch {}
   });
+
+  // Re-enable foreign keys and reclaim disk space
+  try {
+    await database.execAsync('PRAGMA foreign_keys = ON; VACUUM;');
+  } catch {}
 }
 
 // Cheap existence check for the "does this device already hold business data"

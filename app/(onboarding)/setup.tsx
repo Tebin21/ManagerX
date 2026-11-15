@@ -129,19 +129,19 @@ export default function SetupScreen() {
     }
   }, []);
 
-  // Pre-fill initial name and phone if available from auth profile
-  const derivedInitialName =
-    business.name?.trim() ||
-    user?.displayName?.trim() ||
-    (user?.email ? user.email.split('@')[0].replace(/[._]/g, ' ') : '') ||
-    '';
-  const derivedInitialPhone = business.phone?.trim() || '';
+  // Only pre-fill fields if business setup was already completed (e.g. editing profile),
+  // otherwise start 100% clean and blank (e.g. after a reset or fresh install).
+  const derivedInitialName = business.isSetupComplete ? (business.name?.trim() || '') : '';
+  const derivedInitialPhone = business.isSetupComplete ? (business.phone?.trim() || '') : '';
+  const derivedInitialAddress = business.isSetupComplete ? (business.address ?? '') : '';
+  const derivedInitialType = business.isSetupComplete ? (business.type || 'General') : 'General';
+  const derivedInitialLogo = business.isSetupComplete ? (business.logoUri ?? null) : null;
 
   const [name, setName] = useState(derivedInitialName);
-  const [businessType, setBusinessType] = useState(business.type || 'General');
+  const [businessType, setBusinessType] = useState(derivedInitialType);
   const [phone, setPhone] = useState(derivedInitialPhone);
-  const [address, setAddress] = useState(business.address ?? '');
-  const [logoUri, setLogoUri] = useState<string | null>(business.logoUri ?? null);
+  const [address, setAddress] = useState(derivedInitialAddress);
+  const [logoUri, setLogoUri] = useState<string | null>(derivedInitialLogo);
   const [showOnDashboard, setShowOnDashboard] = useState(business.showOnDashboard ?? true);
   const [saving, setSaving] = useState(false);
 

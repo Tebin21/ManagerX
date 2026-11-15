@@ -54,6 +54,18 @@ import { useSettingsStore }  from '@/store/settingsStore';
 import { useLanguageStore }  from '@/store/languageStore';
 import { useQuotationStore } from '@/store/quotationStore';
 import { useManagementStore } from '@/store/managementStore';
+import { useInventoryStore } from '@/store/inventoryStore';
+import { useSalesStore } from '@/store/salesStore';
+import { usePurchaseStore } from '@/store/purchaseStore';
+import { useDebtStore } from '@/store/debtStore';
+import { useCustomerStore } from '@/store/customerStore';
+import { useSupplierStore } from '@/store/supplierStore';
+import { useReportStore } from '@/store/reportStore';
+import { useCartStore } from '@/store/cartStore';
+import { useCapitalStore } from '@/store/capitalStore';
+import { useSavedProductStore } from '@/store/savedProductStore';
+import { useOnlineStoreStore } from '@/store/onlineStoreStore';
+import * as FileSystem from 'expo-file-system/legacy';
 import { isAdminEmail } from '@/lib/adminNotificationService';
 import { GoogleDriveDataChart } from '@/components/settings/GoogleDriveDataChart';
 import {
@@ -521,33 +533,107 @@ export default function DataScreen() {
   async function executeReset() {
     setResetting(true);
     try {
-      // Stop any live Firestore listeners/push timers before wiping local data —
+      // 1. Stop any live Firestore listeners/push timers before wiping local data —
       // otherwise a pull callback landing mid-wipe can re-insert rows into a
       // table that's supposed to end up empty (uuid-match upsert "resurrects"
       // data the user just asked to reset).
-      const { stopCloudSync } = await import('@/lib/cloudSync');
-      stopCloudSync();
+      try {
+        const { stopCloudSync } = await import('@/lib/cloudSync');
+        stopCloudSync();
+      } catch {}
+
+      // 2. Wipe ALL local SQLite tables & sequence counters
       await wipeAllBusinessData();
-      await AsyncStorage.multiRemove([
-        '@froshiar_business',
-        '@froshiar_settings',
-        '@froshiar_modules',
-        '@froshiar_language',
-        '@froshiar_onboarding',
-        // Pre-rebrand keys — harmless if already migrated/absent, but a "reset app to
-        // factory state" action should never leave old-brand data lingering on disk.
-        '@managerx_business',
-        '@managerx_settings',
-        '@managerx_modules',
-        '@managerx_language',
-        '@managerx_onboarding',
-      ]);
-      // Clear in-memory business state so isSetupComplete is false immediately.
-      useBusinessStore.getState().clearBusiness();
-      useOnboardingStore.getState().resetOnboarding();
-      await signOut();
+
+      // 3. Clear ALL local AsyncStorage keys EXCEPT Google Drive config/tokens
+      // (User requirement: "reset data must wipe everything to zero, even business info,
+      // but must NOT touch Google Drive, only local")
+      try {
+        const allKeys = await AsyncStorage.getAllKeys();
+        const keysToRemove = allKeys.filter(
+          (k) => k !== '@froshiar_gdrive_config' && k !== '@froshiar_gdrive_web_token'
+        );
+        if (keysToRemove.length > 0) {
+          await AsyncStorage.multiRemove(keysToRemove);
+        }
+      } catch (e) {
+        console.warn('[Reset] AsyncStorage multiRemove error:', e);
+      }
+
+      // 4. Wipe all local media files (product photos, logo images, presets, custom banners)
+      try {
+        if (FileSystem.documentDirectory) {
+          const mediaDirs = [
+            'product_images',
+            'saved_presets',
+            'logo_images',
+            'supplier_logos',
+            'dashboard_banners',
+            'header_videos',
+            'media',
+          ];
+          for (const dir of mediaDirs) {
+            try {
+              await FileSystem.deleteAsync(`${FileSystem.documentDirectory}${dir}/`, { idempotent: true });
+            } catch {}
+          }
+        }
+      } catch (e) {
+        console.warn('[Reset] Media wipe error:', e);
+      }
+
+      // 5. Reset all in-memory Zustand stores immediately so any subsequent screen sees blank state
+      try {
+        useBusinessStore.getState().clearBusiness();
+        useOnboardingStore.getState().resetOnboarding();
+        useInventoryStore.setState({
+          products: [],
+          stats: null,
+          categories: ['گشتی'],
+          managedCategories: [{ name: 'گشتی', productCount: 0, isDefault: true }],
+          inventoryHistory: [],
+        });
+        useSalesStore.setState({ sales: [], saleItemsIndex: {} });
+        usePurchaseStore.setState({ purchases: [] });
+        useDebtStore.setState({ salesDebts: [], purchaseDebts: [], summary: null });
+        useCustomerStore.setState({ customers: [] });
+        useSupplierStore.setState({ suppliers: [] });
+        useReportStore.setState({
+          financialCards: null,
+          salesData: null,
+          purchaseData: null,
+          plData: null,
+          inventoryData: null,
+          debtData: null,
+          installmentData: null,
+          topProfitable: [],
+          monthlyRevenue: [],
+          expenses: [],
+          cashBalance: null,
+          dashboardExpenseTotals: null,
+        });
+        useCartStore.getState().clearCart();
+        useQuotationStore.setState({ quotations: [] });
+        useCapitalStore.setState({ isEnabled: false, initialCapital: 0, activatedAt: null, deposits: [] });
+        useSavedProductStore.setState({ savedPresets: [] });
+        await useOnlineStoreStore.getState().resetStoreState();
+        useManagementStore.getState().resetAllManagementState();
+      } catch (e) {
+        console.warn('[Reset] Store reset error:', e);
+      }
+
+      // 6. Sign out without touching or disconnecting Google Drive
+      try {
+        await signOut({ preserveGoogleDrive: true });
+      } catch (e) {
+        console.warn('[Reset] SignOut error:', e);
+      }
+
+      setShowResetModal(false);
+      setResetting(false);
       router.replace('/(onboarding)/welcome' as never);
-    } catch {
+    } catch (err) {
+      console.error('[Reset] Execution failed:', err);
       Alert.alert(t('common.error'), t('common.tryAgain'));
       setResetting(false);
       setShowResetModal(false);

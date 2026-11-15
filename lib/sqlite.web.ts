@@ -65,7 +65,14 @@ export async function initializeDatabase(): Promise<void> {}
 export async function wipeAllBusinessData(): Promise<void> {
   try {
     if (typeof localStorage !== 'undefined') {
-      Object.values(KEYS).forEach((k) => localStorage.removeItem(k));
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && !k.startsWith('@froshiar_gdrive_')) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
     }
   } catch {}
 }

@@ -304,7 +304,7 @@ interface AuthState {
   verifyPasswordResetOtp: (code: string) => Promise<{ verified: boolean; error: string | null; locked?: boolean }>;
   completePasswordReset: (newPassword: string) => Promise<{ error: string | null }>;
   cancelPasswordReset: () => void;
-  signOut: () => Promise<void>;
+  signOut: (options?: { preserveGoogleDrive?: boolean }) => Promise<void>;
   deleteFirebaseAccount: () => Promise<{ error: string | null }>;
   setDeletingAccount: (value: boolean) => void;
   initialize: () => Promise<void>;
@@ -1121,7 +1121,7 @@ export const useAuthStore = create<AuthState>()(
         set({ pendingPasswordResetEmail: null, pendingPasswordResetToken: null });
       },
 
-      signOut: async () => {
+      signOut: async (options?: { preserveGoogleDrive?: boolean }) => {
         try {
           const { stopCloudSync } = await import('@/lib/cloudSync');
           stopCloudSync();
@@ -1147,16 +1147,18 @@ export const useAuthStore = create<AuthState>()(
           // Fully wipe all manager & employee state from memory and persistent store
           useManagementStore.getState().resetAllManagementState();
         } catch {}
-        try {
-          // Disconnect Google Drive on logout to eliminate account bleed across users
-          const { saveGoogleDriveConfig } = await import('@/lib/googleDriveBackup');
-          await saveGoogleDriveConfig({
-            isConnected: false,
-            email: null,
-            displayName: null,
-            photoUrl: null,
-          });
-        } catch {}
+        if (!options?.preserveGoogleDrive) {
+          try {
+            // Disconnect Google Drive on logout to eliminate account bleed across users
+            const { saveGoogleDriveConfig } = await import('@/lib/googleDriveBackup');
+            await saveGoogleDriveConfig({
+              isConnected: false,
+              email: null,
+              displayName: null,
+              photoUrl: null,
+            });
+          } catch {}
+        }
         try {
           // Reset expiry tracking so any new account starts strictly with expiry OFF
           const { useSettingsStore } = await import('@/store/settingsStore');
