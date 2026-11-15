@@ -121,7 +121,9 @@ export function ProductDetailsPage() {
               </p>
             )}
 
-            <p className="mt-3 text-base font-bold text-brand-600">{formatIQD(product.price)}</p>
+            {product.price != null && product.price > 0 && (
+              <p className="mt-3 text-base font-bold text-brand-600">{formatIQD(product.price)}</p>
+            )}
           </div>
         </div>
       </main>

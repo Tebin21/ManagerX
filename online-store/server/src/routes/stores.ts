@@ -138,6 +138,7 @@ storesRouter.get('/:slug', asyncHandler(async (req, res) => {
 
   // Return published products. If merchant enabled hideOutOfStock, filter out quantity <= 0 items
   const hideOutOfStock = Boolean(store.info?.hideOutOfStock);
+  const showPrices = store.info?.showPrices !== false;
   const products = store.products
     .filter((p) => p.isPublished !== false)
     .filter((p) => {
@@ -153,7 +154,7 @@ storesRouter.get('/:slug', asyncHandler(async (req, res) => {
       category: p.category ?? 'General',
       description: p.description ?? null,
       websiteDescription: p.websiteDescription ?? null,
-      price: p.price,
+      price: showPrices ? p.price : null,
       quantity: typeof p.quantity === 'number' ? p.quantity : 999,
       imageUrl: p.imageUrl,
     }));
@@ -175,6 +176,7 @@ storesRouter.get('/:slug/products/:productId', asyncHandler(async (req, res) => 
   }
   const targetId = parseInt(req.params.productId, 10);
   const hideOutOfStock = Boolean(store.info?.hideOutOfStock);
+  const showPrices = store.info?.showPrices !== false;
   const product = store.products.find(
     (p) => p.productId === targetId && p.isPublished !== false
   );
@@ -182,7 +184,10 @@ storesRouter.get('/:slug/products/:productId', asyncHandler(async (req, res) => 
     res.status(404).json({ error: 'Product not found in this store' });
     return;
   }
-  res.json(product);
+  res.json({
+    ...product,
+    price: showPrices ? product.price : null,
+  });
 }));
 
 // PATCH /api/stores/:slug/status — Enable/Disable, requires the store's API key.

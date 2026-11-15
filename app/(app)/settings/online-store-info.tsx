@@ -81,6 +81,7 @@ export default function OnlineStoreInfoScreen() {
   const [whatsappNumber, setWhatsappNumber] = useState(toLocalIraqiPhone(storeInfoFields.whatsappNumber || ''));
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>(storeInfoFields.themeMode === 'light' ? 'light' : 'dark');
   const [hideOutOfStock, setHideOutOfStock] = useState<boolean>(storeInfoFields.hideOutOfStock ?? false);
+  const [showPrices, setShowPrices] = useState<boolean>(storeInfoFields.showPrices ?? true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -101,6 +102,7 @@ export default function OnlineStoreInfoScreen() {
     setWhatsappNumber(toLocalIraqiPhone(storeInfoFields.whatsappNumber || ''));
     setThemeMode(storeInfoFields.themeMode === 'light' ? 'light' : 'dark');
     setHideOutOfStock(storeInfoFields.hideOutOfStock ?? false);
+    setShowPrices(storeInfoFields.showPrices ?? true);
   }, [storeInfoFields, business.name, business.phone, business.address]);
 
   const handlePickLogo = async () => {
@@ -160,6 +162,7 @@ export default function OnlineStoreInfoScreen() {
         whatsappNumber: toInternationalIraqiPhone(whatsappNumber.trim()),
         themeMode,
         hideOutOfStock,
+        showPrices,
       });
       if (Platform.OS === 'android') {
         ToastAndroid.show(t('settings.onlineStoreInfoScreen.saved'), ToastAndroid.SHORT);
@@ -411,6 +414,17 @@ export default function OnlineStoreInfoScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+
+            {/* Show Prices Toggle */}
+            <SettingSwitch
+              icon="pricetag-outline"
+              label={t('settings.onlineStoreInfoScreen.showPrices', 'پیشاندانی نرخی بەرهەمەکان لە وێب ستۆر')}
+              sub={t('settings.onlineStoreInfoScreen.showPricesSub', 'کاتێک ئۆف بێت نرخەکان لە ماڵپەڕ دەشاردرێنەوە و تەنها کاڵاکان و وەسفەکەیان پیشان دەدرێت')}
+              value={showPrices}
+              onToggle={setShowPrices}
+            />
+
+            <View style={{ height: 12 }} />
 
             {/* Hide Out of Stock Toggle */}
             <SettingSwitch

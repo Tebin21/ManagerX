@@ -24,6 +24,7 @@ export interface StoreInfo {
   themeColor?: string;
   themeMode?: 'dark' | 'light' | 'system';
   hideOutOfStock?: boolean;
+  showPrices?: boolean;
 }
 
 export interface StoreRecord {

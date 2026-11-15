@@ -16,7 +16,7 @@ export interface StoreProduct {
   category: string;
   description: string | null;
   websiteDescription: string | null;
-  price: number;
+  price: number | null;
   imageUrl: string | null;
 }
 
@@ -31,6 +31,8 @@ export interface StoreInfo {
   whatsappNumber?: string;
   themeColor?: string;
   themeMode?: 'dark' | 'light' | 'system';
+  hideOutOfStock?: boolean;
+  showPrices?: boolean;
 }
 
 export interface StoreResponse {

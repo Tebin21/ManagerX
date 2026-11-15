@@ -21,6 +21,7 @@ export interface StoreInfoFields {
   whatsappNumber: string;
   themeMode?: 'dark' | 'light';
   hideOutOfStock?: boolean;
+  showPrices?: boolean;
 }
 
 const FIELD_KEYS: Record<keyof StoreInfoFields, string> = {
@@ -36,6 +37,7 @@ const FIELD_KEYS: Record<keyof StoreInfoFields, string> = {
   whatsappNumber: 'online_store_whatsapp',
   themeMode: 'online_store_theme_mode',
   hideOutOfStock: 'online_store_hide_out_of_stock',
+  showPrices: 'online_store_show_prices',
 };
 
 export async function loadStoreInfoFields(): Promise<StoreInfoFields> {
@@ -58,6 +60,7 @@ export async function loadStoreInfoFields(): Promise<StoreInfoFields> {
     whatsappNumber: raw.whatsappNumber || '',
     themeMode: raw.themeMode === 'light' ? 'light' : 'dark',
     hideOutOfStock: raw.hideOutOfStock === '1' || raw.hideOutOfStock === 'true',
+    showPrices: raw.showPrices === '' ? true : (raw.showPrices === '1' || raw.showPrices === 'true'),
   };
   return result;
 }

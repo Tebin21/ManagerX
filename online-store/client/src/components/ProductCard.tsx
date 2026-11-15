@@ -38,7 +38,9 @@ export function ProductCard({ product }: { product: StoreProduct }) {
         {product.websiteDescription && (
           <p className="mt-1 line-clamp-2 text-xs leading-snug text-slate-500">{product.websiteDescription}</p>
         )}
-        <p className="mt-2 text-base font-bold text-brand-600">{formatIQD(product.price)}</p>
+        {product.price != null && product.price > 0 && (
+          <p className="mt-2 text-base font-bold text-brand-600">{formatIQD(product.price)}</p>
+        )}
       </div>
     </div>
   );

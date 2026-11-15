@@ -163,6 +163,7 @@ export const useOnlineStoreStore = create<OnlineStoreState>()(
         whatsappNumber: '',
         themeMode: 'dark',
         hideOutOfStock: false,
+        showPrices: true,
       },
       lastSyncError: null,
       bulkPublishEnabled: false,

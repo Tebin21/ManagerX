@@ -174,6 +174,7 @@ async function pushStoreInfoOpportunistically(slug: string, apiKey: string): Pro
       themeColor: accentColor ?? undefined,
       themeMode: storeThemeMode,
       hideOutOfStock: fields.hideOutOfStock ?? false,
+      showPrices: fields.showPrices ?? true,
     });
     await clearStoreInfoDirty();
   } catch (err) {

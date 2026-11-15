@@ -157,6 +157,7 @@ export interface StoreInfoPayload {
   themeColor?: string;
   themeMode?: 'dark' | 'light' | 'system';
   hideOutOfStock?: boolean;
+  showPrices?: boolean;
 }
 
 export async function pushStoreInfo(slug: string, apiKey: string, info: StoreInfoPayload): Promise<void> {
