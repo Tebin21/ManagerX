@@ -105,7 +105,7 @@ export default function LoginScreen() {
 
   const { language, setLanguage, isRTL } = useLanguageStore();
   const { signInWithGoogle, signInWithApple, signInWithEmail, isLoading } = useAuthStore();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { isTablet, isTabletLandscape } = useResponsive();
 
@@ -342,8 +342,15 @@ export default function LoginScreen() {
     router.replace('/(app)/dashboard');
   };
 
-  // Dimensions
-  const phoneSvgSize = Math.min(168, width * 0.44);
+  // Dimensions: dynamically scale illustration up to the exact threshold before scrolling triggers
+  const phoneSvgSize =
+    height >= 900
+      ? Math.min(280, width * 0.74)
+      : height >= 830
+      ? Math.min(260, width * 0.69)
+      : height >= 760
+      ? Math.min(215, width * 0.58)
+      : Math.min(165, width * 0.45);
   const tabletSvgSize = isTabletLandscape ? 360 : 300;
 
   // Render Top Header Controls (Dark Mode on Left, Language Flags on Right)
@@ -1278,7 +1285,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     borderRadius: 24,
     borderWidth: 1.5,
-    padding: 16,
+    padding: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
@@ -1288,24 +1295,24 @@ const styles = StyleSheet.create({
   mobileIllustrationCard: {
     borderRadius: 22,
     borderWidth: 1,
-    paddingVertical: 14,
+    paddingVertical: 10,
     paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    marginBottom: 10,
   },
   mobileIllustrationTitle: {
     fontSize: 16.5,
     lineHeight: 25,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 6,
   },
   mobileIllustrationSub: {
     fontSize: 12,
     lineHeight: 19,
     textAlign: 'center',
-    marginTop: 3,
+    marginTop: 2,
     paddingHorizontal: 8,
   },
   offlineDesktopBtn: {
