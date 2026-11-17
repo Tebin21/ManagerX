@@ -45,45 +45,45 @@ const VERIFY_RESET_STRINGS = {
     illustrationTitle: 'پشتڕاستکردنەوەی کۆد',
     illustrationSub: 'کۆدێکی دڵنیابوونەوەی ٦ ژمارەییمان بۆ ئیمەیڵەکەت ناردووە بۆ نوێکردنەوەی وشەی نهێنی',
     mobileSub: 'تکایە کۆدی ٦ ژمارەیی بنووسە بۆ نوێکردنەوەی وشەی نهێنی',
-    welcomeTitle: 'کۆدی نوێکردنەوە بنووسە',
-    welcomeSub: 'کۆدی 6 ژمارەیی کە بۆ {{email}} ناردمان بنووسە',
-    verifyBtn: 'پشتڕاستکردنەوە و بەردەوامبوون',
-    resendBtn: 'کۆد دووبارە بنێرەوە',
-    resendCooldown: 'دووبارە ناردنەوە لە {{seconds}} چرکەدا',
+    welcomeTitle: 'پشتڕاستکردنەوەی کۆد',
+    welcomeSubPrompt: 'کۆدی ٦ ژمارەیی نێردراو بۆ:',
+    verifyBtn: 'پشتڕاستکردنەوە',
+    resendBtn: 'دووبارە ناردنەوە',
+    resendCooldown: 'دووبارە ({{seconds}}چ)',
     backToLogin: 'گەڕانەوە بۆ چوونەژوورەوە',
     resendSuccess: 'کۆدێکی نوێ بە سەرکەوتوویی نێردرا.',
     devBypass: 'داشبۆرد ⚡',
-    infoHint: 'کۆدەکە بۆ ماوەی ١٠ خولەک کارایە. دوای پشتڕاستکردنەوە دەتوانیت وشەی نهێنی نوێ دابنێیت.',
+    infoHintCompact: 'کۆدەکە بۆ ١٠ خولەک کارایە • فۆڵدەری Spam بپشکنە',
     errorInvalidCode: 'کۆدی داخڵکراو هەڵەیە یان بەسەرچووە.',
   },
   ar: {
     illustrationTitle: 'تأكيد رمز الاستعادة',
     illustrationSub: 'أرسلنا رمز تحقق مكوّن من ٦ أرقام إلى بريدك الإلكتروني لإعادة تعيين كلمة المرور',
     mobileSub: 'يرجى إدخال الرمز المكوّن من ٦ أرقام لإعادة تعيين كلمة المرور',
-    welcomeTitle: 'أدخل رمز الاستعادة',
-    welcomeSub: 'أدخل الرمز المكوّن من ٦ أرقام المرسل إلى {{email}}',
-    verifyBtn: 'تأكيد ومتابعة',
-    resendBtn: 'إعادة إرسال الرمز',
-    resendCooldown: 'إعادة الإرسال خلال {{seconds}} ثانية',
+    welcomeTitle: 'تأكيد رمز الاستعادة',
+    welcomeSubPrompt: 'رمز التحقق المرسل إلى:',
+    verifyBtn: 'تأكيد',
+    resendBtn: 'إعادة إرسال',
+    resendCooldown: 'إعادة ({{seconds}}ث)',
     backToLogin: 'العودة لتسجيل الدخول',
     resendSuccess: 'تم إرسال رمز جديد بنجاح.',
     devBypass: 'لوحة التحكم ⚡',
-    infoHint: 'الرمز صالح لمدة ١٠ دقائق. بعد التحقق يمكنك تعيين كلمة مرور جديدة.',
+    infoHintCompact: 'الرمز صالح لمدة ١٠ دقائق • تفقد البريد غير الهام (Spam)',
     errorInvalidCode: 'الرمز المدخل غير صحيح أو انتهت صلاحيته.',
   },
   en: {
     illustrationTitle: 'Verify Reset Code',
     illustrationSub: 'We sent a 6-digit verification code to your email to reset your password',
     mobileSub: 'Please enter the 6-digit code to reset your password',
-    welcomeTitle: 'Enter Reset Code',
-    welcomeSub: 'Enter the 6-digit code we sent to {{email}}',
-    verifyBtn: 'Verify and Continue',
-    resendBtn: 'Resend Code',
-    resendCooldown: 'Resend in {{seconds}}s',
+    welcomeTitle: 'Verify Reset Code',
+    welcomeSubPrompt: 'Enter 6-digit code sent to:',
+    verifyBtn: 'Verify',
+    resendBtn: 'Resend',
+    resendCooldown: 'Resend ({{seconds}}s)',
     backToLogin: 'Back to Log In',
     resendSuccess: 'A new code has been sent successfully.',
     devBypass: 'Dashboard ⚡',
-    infoHint: 'The code is valid for 10 minutes. After verification, you can set a new password.',
+    infoHintCompact: 'Code is valid for 10 min • Check your Spam folder',
     errorInvalidCode: 'The code entered is invalid or has expired.',
   },
 };
@@ -193,7 +193,7 @@ export default function VerifyResetOtpScreen() {
   };
 
   // Dimensions - optimized for mobile screen height
-  const phoneSvgSize = Math.min(185, width * 0.48);
+  const phoneSvgSize = Math.min(215, width * 0.54);
   const tabletSvgSize = isTabletLandscape ? 360 : 290;
 
   // Render Top Header Controls
@@ -274,7 +274,7 @@ export default function VerifyResetOtpScreen() {
   // Render Form Fields & Buttons
   const renderFormFields = (isTabletLayout: boolean) => (
     <View style={styles.formContainer}>
-      {/* Title & Subtitle */}
+      {/* Title & Email Prompt (Responsive, RTL/LTR isolated, short & concise) */}
       <View
         style={[
           styles.welcomeBox,
@@ -293,48 +293,83 @@ export default function VerifyResetOtpScreen() {
         >
           {strings.welcomeTitle}
         </Text>
-        <Text
+
+        <View
           style={[
-            isTabletLayout ? styles.tabletWelcomeSub : styles.mobileWelcomeSub,
-            curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
-            {
-              color: isDark ? '#94A3B8' : '#64748B',
-              textAlign: isRTL ? 'right' : 'left',
-            },
+            styles.emailPromptRow,
+            { flexDirection: isRTL ? 'row-reverse' : 'row' },
           ]}
         >
-          {strings.welcomeSub.replace('{{email}}', maskedEmailStr)}
-        </Text>
+          <Text
+            style={[
+              styles.emailPromptLabel,
+              curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+              {
+                color: isDark ? '#94A3B8' : '#64748B',
+                textAlign: isRTL ? 'right' : 'left',
+              },
+            ]}
+          >
+            {strings.welcomeSubPrompt}
+          </Text>
+          <View
+            style={[
+              styles.emailPill,
+              {
+                backgroundColor: isDark ? 'rgba(248, 198, 30, 0.12)' : 'rgba(248, 198, 30, 0.14)',
+                borderColor: isDark ? 'rgba(248, 198, 30, 0.3)' : 'rgba(217, 119, 6, 0.28)',
+              },
+            ]}
+          >
+            <Ionicons
+              name="mail-outline"
+              size={12}
+              color={isDark ? '#F8C61E' : '#B45309'}
+              style={{ marginHorizontal: 3 }}
+            />
+            <Text
+              style={[
+                styles.emailPillText,
+                {
+                  color: isDark ? '#F8C61E' : '#92400E',
+                  writingDirection: 'ltr',
+                },
+              ]}
+            >
+              {maskedEmailStr}
+            </Text>
+          </View>
+        </View>
       </View>
 
-      {/* Info Notice Box */}
+      {/* Compact Info Notice Box */}
       <View
         style={[
-          styles.infoNoticeBox,
+          styles.compactInfoBox,
           {
             backgroundColor: isDark ? 'rgba(248, 198, 30, 0.08)' : '#FEFCE8',
-            borderColor: isDark ? 'rgba(248, 198, 30, 0.25)' : '#FEF08A',
+            borderColor: isDark ? 'rgba(248, 198, 30, 0.22)' : '#FEF08A',
             flexDirection: isRTL ? 'row-reverse' : 'row',
           },
         ]}
       >
         <Ionicons
-          name="information-circle"
-          size={20}
+          name="time-outline"
+          size={14}
           color="#F8C61E"
-          style={{ marginHorizontal: 6, marginTop: 1 }}
+          style={{ marginHorizontal: 4 }}
         />
         <Text
           style={[
-            styles.infoNoticeText,
+            styles.compactInfoText,
             curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
             {
-              color: isDark ? '#E2E8F0' : '#854D0E',
+              color: isDark ? '#CBD5E1' : '#854D0E',
               textAlign: isRTL ? 'right' : 'left',
             },
           ]}
         >
-          {strings.infoHint}
+          {strings.infoHintCompact}
         </Text>
       </View>
 
@@ -353,7 +388,7 @@ export default function VerifyResetOtpScreen() {
       </View>
 
       {/* Error Banners */}
-      {verifyError && <AuthErrorBanner message={verifyError} style={{ marginVertical: 8 }} />}
+      {verifyError && <AuthErrorBanner message={verifyError} style={{ marginVertical: 6 }} />}
 
       {/* Success Box if Resent */}
       {resendMessage && (
@@ -369,9 +404,9 @@ export default function VerifyResetOtpScreen() {
         >
           <Ionicons
             name="checkmark-circle"
-            size={18}
+            size={16}
             color="#10B981"
-            style={{ marginHorizontal: 6 }}
+            style={{ marginHorizontal: 4 }}
           />
           <Text
             style={[
@@ -388,81 +423,85 @@ export default function VerifyResetOtpScreen() {
         </View>
       )}
 
-      {resendError && <AuthErrorBanner message={resendError} style={{ marginVertical: 8 }} />}
+      {resendError && <AuthErrorBanner message={resendError} style={{ marginVertical: 6 }} />}
 
-      {/* Gold Verify Button */}
-      <TouchableOpacity
-        onPress={() => handleVerify()}
-        activeOpacity={0.88}
-        disabled={code.length !== 6 || inputLocked || verifying}
-        style={[
-          styles.goldVerifyBtn,
-          {
-            height: isTabletLayout ? 60 : 54,
-            opacity: code.length !== 6 || inputLocked || verifying ? 0.6 : 1,
-          },
-        ]}
-      >
-        {verifying ? (
-          <ActivityIndicator color="#0F172A" size="small" />
-        ) : (
-          <View style={[styles.buttonContentRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <Ionicons
-              name="checkmark-done-circle-outline"
-              size={21}
-              color="#0F172A"
-              style={{ marginHorizontal: 8 }}
-            />
-            <Text
-              style={[
-                styles.goldVerifyText,
-                curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              ]}
-            >
-              {strings.verifyBtn}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
+      {/* Side-by-Side Action Buttons: Compact, Responsive, One-row */}
+      <View style={[styles.compactButtonsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        {/* Verify Button (Gold) */}
+        <TouchableOpacity
+          onPress={() => handleVerify()}
+          activeOpacity={0.88}
+          disabled={code.length !== 6 || inputLocked || verifying}
+          style={[
+            styles.compactVerifyBtn,
+            {
+              opacity: code.length !== 6 || inputLocked || verifying ? 0.55 : 1,
+            },
+          ]}
+        >
+          {verifying ? (
+            <ActivityIndicator color="#0F172A" size="small" />
+          ) : (
+            <View style={[styles.compactBtnContent, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Ionicons
+                name="checkmark-done-circle-outline"
+                size={17}
+                color="#0F172A"
+                style={{ marginHorizontal: 4 }}
+              />
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.compactVerifyText,
+                  curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {strings.verifyBtn}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
-      {/* Resend Code Button (Outline Pill) */}
-      <TouchableOpacity
-        onPress={() => handleResend()}
-        activeOpacity={0.8}
-        disabled={cooldown > 0 || resending}
-        style={[
-          styles.resendOutlineBtn,
-          {
-            borderColor: isDark ? '#334155' : '#CBD5E1',
-            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.6)' : '#F8FAFC',
-            opacity: cooldown > 0 || resending ? 0.6 : 1,
-          },
-        ]}
-      >
-        {resending ? (
-          <ActivityIndicator size="small" color="#F8C61E" />
-        ) : (
-          <View style={[styles.buttonContentRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <Ionicons
-              name="refresh-outline"
-              size={18}
-              color={isDark ? '#F8C61E' : '#D97706'}
-              style={{ marginHorizontal: 6 }}
-            />
-            <Text
-              style={[
-                styles.resendBtnText,
-                curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                { color: isDark ? '#F8C61E' : '#B45309' },
-              ]}
-            >
-              {cooldown > 0
-                ? strings.resendCooldown.replace('{{seconds}}', String(cooldown))
-                : strings.resendBtn}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
+        {/* Resend Button (Outline Pill) */}
+        <TouchableOpacity
+          onPress={() => handleResend()}
+          activeOpacity={0.8}
+          disabled={cooldown > 0 || resending}
+          style={[
+            styles.compactResendBtn,
+            {
+              borderColor: isDark ? '#334155' : '#CBD5E1',
+              backgroundColor: isDark ? 'rgba(30, 41, 59, 0.7)' : '#F8FAFC',
+              opacity: cooldown > 0 || resending ? 0.6 : 1,
+            },
+          ]}
+        >
+          {resending ? (
+            <ActivityIndicator size="small" color="#F8C61E" />
+          ) : (
+            <View style={[styles.compactBtnContent, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Ionicons
+                name="refresh-outline"
+                size={16}
+                color={isDark ? '#F8C61E' : '#B45309'}
+                style={{ marginHorizontal: 4 }}
+              />
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.compactResendText,
+                  curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  { color: isDark ? '#F8C61E' : '#B45309' },
+                ]}
+              >
+                {cooldown > 0
+                  ? strings.resendCooldown.replace('{{seconds}}', String(cooldown))
+                  : strings.resendBtn}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
 
       {/* Back to Login link */}
       <TouchableOpacity
@@ -473,9 +512,9 @@ export default function VerifyResetOtpScreen() {
         <View style={[styles.backToLoginContent, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Ionicons
             name={isRTL ? 'arrow-forward-outline' : 'arrow-back-outline'}
-            size={18}
+            size={16}
             color="#F8C61E"
-            style={{ marginHorizontal: 6 }}
+            style={{ marginHorizontal: 5 }}
           />
           <Text
             style={[
@@ -601,11 +640,11 @@ export default function VerifyResetOtpScreen() {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              {/* Top Illustration Area */}
+              {/* Top Illustration Area (Clean, Prominent, Compact) */}
               <MotiView
-                from={{ opacity: 0, translateY: 15 }}
+                from={{ opacity: 0, translateY: 10 }}
                 animate={{ opacity: 1, translateY: 0 }}
-                transition={{ type: 'timing', duration: 400 }}
+                transition={{ type: 'timing', duration: 350 }}
                 style={styles.mobileIllustrationSection}
               >
                 <View
@@ -617,27 +656,8 @@ export default function VerifyResetOtpScreen() {
                     },
                   ]}
                 >
-                  <SvgXml xml={AUTHENTICATION_CUATE_SVG} width={phoneSvgSize} height={phoneSvgSize} />
+                  <SvgXml xml={AUTHENTICATION_CUATE_SVG} width={phoneSvgSize} height={phoneSvgSize * 0.86} />
                 </View>
-
-                <Text
-                  style={[
-                    styles.mobileAppTitle,
-                    curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    { color: isDark ? '#FFFFFF' : '#0F172A' },
-                  ]}
-                >
-                  {strings.illustrationTitle}
-                </Text>
-                <Text
-                  style={[
-                    styles.mobileAppSub,
-                    curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
-                    { color: isDark ? '#94A3B8' : '#64748B' },
-                  ]}
-                >
-                  {strings.mobileSub}
-                </Text>
               </MotiView>
 
               {/* Bottom Card: Form Fields */}
@@ -724,53 +744,54 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mobileTopBar: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 2,
   },
   mobileScrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 32,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     justifyContent: 'space-between',
   },
   mobileIllustrationSection: {
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   mobileSvgCircle: {
-    borderRadius: 28,
-    padding: 8,
+    borderRadius: 24,
+    padding: 6,
     borderWidth: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 3,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   mobileAppTitle: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 2,
   },
   mobileAppSub: {
-    fontSize: 12.5,
+    fontSize: 12,
     textAlign: 'center',
-    maxWidth: 320,
+    maxWidth: 300,
   },
   mobileCardContainer: {
-    borderRadius: 28,
-    padding: 20,
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderWidth: 1.5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 6,
-    marginTop: 4,
-    marginBottom: 12,
+    shadowRadius: 18,
+    elevation: 5,
+    marginTop: 2,
+    marginBottom: 8,
   },
 
   // Top Controls
@@ -779,7 +800,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    paddingVertical: 4,
+    paddingVertical: 2,
     zIndex: 100,
   },
   unifiedPillBar: {
@@ -808,10 +829,10 @@ const styles = StyleSheet.create({
   },
   backBtnAbsolute: {
     position: 'absolute',
-    top: 3,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    top: 1,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -828,7 +849,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   welcomeBox: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   tabletWelcomeTitle: {
     fontSize: 24,
@@ -840,87 +861,112 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   mobileWelcomeTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: 3,
   },
-  mobileWelcomeSub: {
-    fontSize: 13,
-    lineHeight: 20,
+  emailPromptRow: {
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 2,
+  },
+  emailPromptLabel: {
+    fontSize: 12.5,
+    lineHeight: 18,
+  },
+  emailPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  emailPillText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 
-  // Info Notice Box
-  infoNoticeBox: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 16,
+  // Compact Info Notice Box
+  compactInfoBox: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 16,
+    marginBottom: 8,
     alignItems: 'center',
   },
-  infoNoticeText: {
+  compactInfoText: {
     flex: 1,
-    fontSize: 12.5,
-    lineHeight: 19,
+    fontSize: 11.5,
+    lineHeight: 16,
   },
 
   // OTP Block
   otpBlock: {
-    marginVertical: 12,
+    marginVertical: 6,
     alignItems: 'center',
   },
 
   // Success Box
   successBox: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
     borderWidth: 1,
-    marginVertical: 8,
+    marginVertical: 4,
     alignItems: 'center',
   },
   successText: {
     flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: '600',
   },
 
-  // Gold Button
-  goldVerifyBtn: {
+  // Compact Side-by-Side Buttons Row
+  compactButtonsRow: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  compactVerifyBtn: {
+    flex: 1,
+    height: 46,
     backgroundColor: '#F8C61E',
-    borderRadius: 30,
+    borderRadius: 23,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#F8C61E',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 6,
-    marginTop: 8,
-    marginBottom: 12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4,
+    paddingHorizontal: 6,
   },
-  buttonContentRow: {
+  compactResendBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  compactBtnContent: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  goldVerifyText: {
+  compactVerifyText: {
     color: '#0F172A',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
   },
-
-  // Resend Outline Button
-  resendOutlineBtn: {
-    borderRadius: 30,
-    borderWidth: 1.5,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  resendBtnText: {
-    fontSize: 14,
+  compactResendText: {
+    fontSize: 12.5,
     fontWeight: '700',
   },
 
@@ -928,14 +974,14 @@ const styles = StyleSheet.create({
   signInRow: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   backToLoginContent: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   signInLinkText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
 });
