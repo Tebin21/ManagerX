@@ -582,6 +582,81 @@ export default function SignUpScreen() {
             <AppleSignInButton onPress={handleApple} loading={isLoading} />
           </View>
         </>
+      ) : Platform.OS === 'android' ? (
+        /* Android Mobile: Dedicated Email Signup + Divider + Full-Width Google Sign-In */
+        <>
+          {/* Main Email Sign Up Button */}
+          <TouchableOpacity
+            onPress={handleSignUp}
+            activeOpacity={0.88}
+            disabled={isLoading}
+            style={[styles.goldSignupBtn, { height: 48, marginTop: 4 }]}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#0F172A" size="small" />
+            ) : (
+              <View style={[styles.buttonContentRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Ionicons
+                  name="person-add-outline"
+                  size={19}
+                  color="#0F172A"
+                  style={{ marginHorizontal: 8 }}
+                />
+                <Text
+                  style={[
+                    styles.goldSignupText,
+                    curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    { fontSize: 16 },
+                  ]}
+                >
+                  {strings.signUpBtn}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={[styles.dividerRow, { marginVertical: 8 }]}>
+            <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
+            <Text
+              style={[
+                styles.dividerText,
+                curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+                { color: isDark ? '#64748B' : '#94A3B8', fontSize: 13 },
+              ]}
+            >
+              {strings.or}
+            </Text>
+            <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
+          </View>
+
+          {/* Full-width Google Sign-In Button on Android */}
+          <TouchableOpacity
+            onPress={handleGoogle}
+            activeOpacity={0.85}
+            disabled={isLoading}
+            style={[
+              styles.androidGoogleBtn,
+              {
+                backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                borderColor: isDark ? '#334155' : '#CBD5E1',
+              },
+            ]}
+          >
+            <View style={[styles.buttonContentRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <SvgXml xml={GOOGLE_ICON_SVG} width={22} height={22} style={{ marginHorizontal: 10 }} />
+              <Text
+                style={[
+                  styles.androidGoogleBtnText,
+                  curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  { color: isDark ? '#F1F5F9' : '#1E293B' },
+                ]}
+              >
+                {strings.googleBtn}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </>
       ) : (
         /* Mobile: Unified Row with 50% Signup Button + Google & Apple Buttons */
         <View style={[styles.mobileActionsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -1074,6 +1149,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
+  },
+  androidGoogleBtn: {
+    width: '100%',
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  androidGoogleBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   goldSignupBtn: {
     width: '100%',

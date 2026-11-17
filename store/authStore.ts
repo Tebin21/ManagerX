@@ -251,10 +251,14 @@ function mapPasswordResetError(e: any): string {
 let googleSigninConfigured = false;
 async function getGoogleSignin() {
   const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
-  GoogleSignin.configure({
-    webClientId: WEB_CLIENT_ID,
-    offlineAccess: false,
-  });
+  if (!googleSigninConfigured) {
+    GoogleSignin.configure({
+      webClientId: WEB_CLIENT_ID,
+      scopes: ['profile', 'email'],
+      offlineAccess: false,
+    });
+    googleSigninConfigured = true;
+  }
   return GoogleSignin;
 }
 

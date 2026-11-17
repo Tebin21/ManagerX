@@ -343,14 +343,20 @@ export default function LoginScreen() {
   };
 
   // Dimensions: dynamically scale illustration up to the exact threshold before scrolling triggers
-  const phoneSvgSize =
-    height >= 900
-      ? Math.min(280, width * 0.74)
-      : height >= 830
-      ? Math.min(260, width * 0.69)
-      : height >= 760
-      ? Math.min(215, width * 0.58)
-      : Math.min(165, width * 0.45);
+  const isAndroid = Platform.OS === 'android';
+  const phoneSvgSize = isAndroid
+    ? height >= 850
+      ? Math.min(220, width * 0.58)
+      : height >= 750
+      ? Math.min(180, width * 0.50)
+      : Math.min(140, width * 0.40)
+    : height >= 900
+    ? Math.min(280, width * 0.74)
+    : height >= 830
+    ? Math.min(260, width * 0.69)
+    : height >= 760
+    ? Math.min(215, width * 0.58)
+    : Math.min(165, width * 0.45);
   const tabletSvgSize = isTabletLandscape ? 360 : 300;
 
   // Render Top Header Controls (Dark Mode on Left, Language Flags on Right)
@@ -642,8 +648,83 @@ export default function LoginScreen() {
             </TouchableOpacity>
           )}
         </>
+      ) : Platform.OS === 'android' ? (
+        /* Android Mobile: Dedicated Email Login + Divider + Full-Width Google Sign-In */
+        <>
+          {/* Main Email Login Button */}
+          <TouchableOpacity
+            onPress={handleEmailSignIn}
+            activeOpacity={0.88}
+            disabled={isLoading}
+            style={[styles.goldLoginBtn, { height: 48, marginTop: 4 }]}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#0F172A" size="small" />
+            ) : (
+              <View style={[styles.buttonContentRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Ionicons
+                  name="log-in-outline"
+                  size={20}
+                  color="#0F172A"
+                  style={{ marginHorizontal: 8 }}
+                />
+                <Text
+                  style={[
+                    styles.goldLoginText,
+                    curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    { fontSize: 16 },
+                  ]}
+                >
+                  {strings.loginBtn}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={[styles.dividerRow, { marginVertical: 8 }]}>
+            <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
+            <Text
+              style={[
+                styles.dividerText,
+                curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+                { color: isDark ? '#64748B' : '#94A3B8', fontSize: 13 },
+              ]}
+            >
+              {strings.or}
+            </Text>
+            <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
+          </View>
+
+          {/* Full-width Google Sign-In Button on Android */}
+          <TouchableOpacity
+            onPress={handleGoogle}
+            activeOpacity={0.85}
+            disabled={isLoading}
+            style={[
+              styles.androidGoogleBtn,
+              {
+                backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                borderColor: isDark ? '#334155' : '#CBD5E1',
+              },
+            ]}
+          >
+            <View style={[styles.buttonContentRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <SvgXml xml={GOOGLE_ICON_SVG} width={22} height={22} style={{ marginHorizontal: 10 }} />
+              <Text
+                style={[
+                  styles.androidGoogleBtnText,
+                  curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  { color: isDark ? '#F1F5F9' : '#1E293B' },
+                ]}
+              >
+                {strings.googleBtn}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </>
       ) : (
-        /* Mobile: Unified Row with 50% Login Button + Google & Apple Buttons */
+        /* iOS Mobile: Unified Row with 50% Login Button + Google & Apple Buttons */
         <View style={[styles.mobileActionsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           {/* Main Login Button (takes ~50%) */}
           <TouchableOpacity
@@ -1163,6 +1244,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
+  },
+  androidGoogleBtn: {
+    width: '100%',
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  androidGoogleBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   goldLoginBtn: {
     width: '100%',
