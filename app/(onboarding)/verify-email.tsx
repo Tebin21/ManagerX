@@ -498,6 +498,8 @@ export default function VerifyEmailScreen() {
               />
               <Text
                 numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
                 style={[
                   styles.compactVerifyText,
                   curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
@@ -526,26 +528,40 @@ export default function VerifyEmailScreen() {
           {resending ? (
             <ActivityIndicator size="small" color="#F8C61E" />
           ) : (
-            <View style={[styles.compactBtnContent, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <Ionicons
-                name="refresh-outline"
-                size={16}
-                color={isDark ? '#F8C61E' : '#B45309'}
-                style={{ marginHorizontal: 4 }}
-              />
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.compactResendText,
-                  curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                  { color: isDark ? '#F8C61E' : '#B45309' },
-                ]}
-              >
-                {cooldown > 0
-                  ? strings.resendCooldown.replace('{{seconds}}', String(cooldown))
-                  : strings.resendBtn}
-              </Text>
-            </View>
+              <View style={[styles.compactBtnContent, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Ionicons
+                  name="refresh-outline"
+                  size={16}
+                  color={isDark ? '#F8C61E' : '#B45309'}
+                  style={{ marginHorizontal: 3 }}
+                />
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                  style={[
+                    styles.compactResendText,
+                    curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    { color: isDark ? '#F8C61E' : '#B45309' },
+                  ]}
+                >
+                  {cooldown > 0 ? (curLang === 'en' ? 'Resend' : curLang === 'ar' ? 'إعادة' : 'دووبارە') : strings.resendBtn}
+                </Text>
+                {cooldown > 0 && (
+                  <Text
+                    style={[
+                      styles.compactResendText,
+                      {
+                        color: isDark ? '#F8C61E' : '#B45309',
+                        writingDirection: 'ltr',
+                        marginHorizontal: 2,
+                      },
+                    ]}
+                  >
+                    {`(${cooldown}s)`}
+                  </Text>
+                )}
+              </View>
           )}
         </TouchableOpacity>
       </View>
