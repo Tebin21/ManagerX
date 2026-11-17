@@ -27,6 +27,10 @@ export function ManagerBannerButton({
   const router = useRouter();
   const isEmployee = useManagementStore((s) => s.isEmployee);
   const user = useAuthStore((s) => s.user);
+  const { isDark } = useAppTheme();
+  const { isRTL, flexDirection } = useRTL();
+  const { isTablet, isTabletLandscape } = useResponsive();
+  const currentLang = useLanguageStore((s) => s.language);
   const isAdmin = isAdminEmail(user?.email);
 
   const count = employees?.length || 0;
@@ -42,10 +46,6 @@ export function ManagerBannerButton({
     return null;
   }
 
-  const { colors, isDark } = useAppTheme();
-  const { isRTL, flexDirection } = useRTL();
-  const { isTablet, isTabletLandscape } = useResponsive();
-  const currentLang = useLanguageStore((s) => s.language);
   const isKu = currentLang === 'ku';
   const isAr = currentLang === 'ar';
 

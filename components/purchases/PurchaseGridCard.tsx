@@ -10,7 +10,6 @@ import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { getStatusTint, getBlueTint } from '@/constants/statusTints';
 import { useRTL } from '@/lib/rtl';
-import { useResponsive } from '@/hooks/useResponsive';
 import { isDirectSupplierName } from '@/lib/sqlite';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
@@ -23,10 +22,9 @@ interface Props {
   onDelete: () => void;
 }
 
-export function PurchaseGridCard({ purchase, onPress, onDelete }: Props) {
+function PurchaseGridCardImpl({ purchase, onPress, onDelete }: Props) {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const { isTablet } = useResponsive();
   const currentLang = useLanguageStore((s) => s.language);
   const isKuLanguage = currentLang === 'ku';
   const isAr = currentLang === 'ar';
@@ -37,7 +35,7 @@ export function PurchaseGridCard({ purchase, onPress, onDelete }: Props) {
     () => isFib ? getBlueTint(isDark) : getStatusTint(isPaid ? 'success' : 'warning', colors, isDark),
     [colors, isDark, isPaid, isFib]
   );
-  const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
+  const { textAlign, flexDirection, alignEnd, isRTL } = useRTL();
   const isDirectSupplier = isDirectSupplierName(purchase.supplierName);
 
   return (
@@ -197,6 +195,8 @@ export function PurchaseGridCard({ purchase, onPress, onDelete }: Props) {
     </TouchableOpacity>
   );
 }
+
+export const PurchaseGridCard = React.memo(PurchaseGridCardImpl);
 
 const styles = StyleSheet.create({
   card: {

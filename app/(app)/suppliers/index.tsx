@@ -8,6 +8,7 @@ import {
   Keyboard,
   StyleSheet,
   Image,
+  Platform,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
@@ -29,7 +30,13 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { isDirectSupplierName } from '@/lib/sqlite';
 import { resolveImageUri } from '@/lib/imageStorage';
 
-function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPress: () => void }) {
+const SupplierCard = React.memo(function SupplierCard({
+  supplier,
+  onPress,
+}: {
+  supplier: SupplierWithStats;
+  onPress: (supplierId: number) => void;
+}) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const currentLang = useLanguageStore((s) => s.language);
@@ -55,7 +62,7 @@ function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPr
           flex: isTablet ? 1 : undefined,
         },
       ]}
-      onPress={onPress}
+      onPress={() => onPress(supplier.id)}
       activeOpacity={0.85}
     >
       <View
@@ -112,7 +119,7 @@ function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPr
       <Ionicons name={chevronForward as never} size={isTabletLandscape ? 24 : isTablet ? 22 : 18} color={colors.gray300} style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 0 }} />
     </TouchableOpacity>
   );
-}
+});
 
 export default function SuppliersScreen() {
   const router = useRouter();
@@ -133,8 +140,14 @@ export default function SuppliersScreen() {
     setRefreshing(false);
   }, [loadSuppliers]);
 
-  const visible = query.trim() ? searchSuppliers(query) : suppliers;
-  const totalSpent = suppliers.reduce((s, sup) => s + sup.totalSpent, 0);
+  const visible = useMemo(
+    () => (query.trim() ? searchSuppliers(query) : suppliers),
+    [query, suppliers, searchSuppliers]
+  );
+  const totalSpent = useMemo(
+    () => suppliers.reduce((s, sup) => s + sup.totalSpent, 0),
+    [suppliers]
+  );
 
   const renderEmpty = () => (
     <MotiView
@@ -165,25 +178,24 @@ type SupplierOrFiller = SupplierWithStats | { id: string | number; isFiller: tru
     return [...visible, ...fillers];
   }, [visible, cardColumns]);
 
-  const renderItem = ({ item, index }: { item: SupplierOrFiller; index: number }) => {
+  const handleSupplierPress = useCallback((supplierId: number) => {
+    router.push(`/(app)/suppliers/${supplierId}` as never);
+  }, [router]);
+
+  const renderItem = useCallback(({ item }: { item: SupplierOrFiller }) => {
     if ('isFiller' in item && item.isFiller) {
       return <View style={isTablet ? { flex: 1, backgroundColor: 'transparent' } : undefined} />;
     }
     const sup = item as SupplierWithStats;
     return (
-      <MotiView
-        from={{ opacity: 0, translateY: 10 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 35, 350) }}
-        style={{ flex: isTablet ? 1 : undefined }}
-      >
+      <View style={{ flex: isTablet ? 1 : undefined }}>
         <SupplierCard
           supplier={sup}
-          onPress={() => router.push(`/(app)/suppliers/${sup.id}` as never)}
+          onPress={handleSupplierPress}
         />
-      </MotiView>
+      </View>
     );
-  };
+  }, [handleSupplierPress, isTablet]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -264,7 +276,7 @@ type SupplierOrFiller = SupplierWithStats | { id: string | number; isFiller: tru
         }
         contentContainerStyle={[styles.list, isTablet && contentContainerStyle, visible.length === 0 && styles.listEmpty]}
         ListEmptyComponent={renderEmpty}
-        removeClippedSubviews
+        removeClippedSubviews={Platform.OS === 'android'}
         initialNumToRender={15}
         maxToRenderPerBatch={10}
         windowSize={5}

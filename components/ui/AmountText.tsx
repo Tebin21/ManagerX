@@ -39,7 +39,7 @@ interface Props extends Omit<TextProps, 'children'> {
  * weight/size + LTR + tabular digits for every currency amount in the app.
  * Automatically adapts between IQD and USD based on system baseCurrency!
  */
-export function AmountText({
+function AmountTextImpl({
   value,
   currency,
   variant = 'default',
@@ -59,7 +59,7 @@ export function AmountText({
   const showCurrency = Boolean(effectiveCurrency && effectiveCurrency !== 'none');
 
   const preset = isTablet ? TABLET_PRESET[variant] : PRESET[variant];
-  const flat = StyleSheet.flatten(style);
+  const flat = style && !Array.isArray(style) && typeof style === 'object' ? style : StyleSheet.flatten(style);
   const customFontSize = flat?.fontSize;
   const customLineHeight = flat?.lineHeight;
   const safeLineHeight =
@@ -81,6 +81,8 @@ export function AmountText({
     </Text>
   );
 }
+
+export const AmountText = React.memo(AmountTextImpl);
 
 const styles = StyleSheet.create({
   ltrTabular: { writingDirection: 'ltr', fontVariant: ['tabular-nums'] },

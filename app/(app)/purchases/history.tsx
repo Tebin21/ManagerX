@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
@@ -89,7 +90,7 @@ export default function PurchaseHistoryScreen() {
     setRefreshing(false);
   }, [loadPurchases]);
 
-  function confirmDelete(purchase: Purchase) {
+  const confirmDelete = useCallback((purchase: Purchase) => {
     Alert.alert(
       t('purchases.deleteConfirmTitle'),
       t('purchases.deleteConfirmMsg'),
@@ -114,7 +115,7 @@ export default function PurchaseHistoryScreen() {
         },
       ]
     );
-  }
+  }, [deletePurchase, t]);
 
   // Filter purchases by selected period bounds
   const periodFilteredPurchases = useMemo(() => {
@@ -304,34 +305,32 @@ type PurchaseOrFiller = Purchase | { id: string | number; isFiller: true };
     return [...visible, ...fillers];
   }, [visible, numColumns]);
 
-  const renderItem = ({ item, index }: { item: PurchaseOrFiller; index: number }) => {
-    if ('isFiller' in item && item.isFiller) {
-      return <View style={{ flex: 1, marginBottom: 12, backgroundColor: 'transparent' }} />;
-    }
-    const purch = item as Purchase;
-    return (
-      <MotiView
-        from={{ opacity: 0, translateY: 12 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 25, 250) }}
-        style={{ flex: 1 }}
-      >
-        {viewMode === 'grid' ? (
-          <PurchaseGridCard
-            purchase={purch}
-            onPress={() => router.push({ pathname: '/(app)/invoices', params: { tab: 'purchases', id: String(purch.id) } } as never)}
-            onDelete={() => confirmDelete(purch)}
-          />
-        ) : (
-          <PurchaseHistoryItem
-            purchase={purch}
-            onPress={() => router.push({ pathname: '/(app)/invoices', params: { tab: 'purchases', id: String(purch.id) } } as never)}
-            onDelete={() => confirmDelete(purch)}
-          />
-        )}
-      </MotiView>
-    );
-  };
+  const renderItem = useCallback(
+    ({ item }: { item: PurchaseOrFiller }) => {
+      if ('isFiller' in item && item.isFiller) {
+        return <View style={{ flex: 1, marginBottom: 12, backgroundColor: 'transparent' }} />;
+      }
+      const purch = item as Purchase;
+      return (
+        <View style={{ flex: 1 }}>
+          {viewMode === 'grid' ? (
+            <PurchaseGridCard
+              purchase={purch}
+              onPress={() => router.push({ pathname: '/(app)/invoices', params: { tab: 'purchases', id: String(purch.id) } } as never)}
+              onDelete={() => confirmDelete(purch)}
+            />
+          ) : (
+            <PurchaseHistoryItem
+              purchase={purch}
+              onPress={() => router.push({ pathname: '/(app)/invoices', params: { tab: 'purchases', id: String(purch.id) } } as never)}
+              onDelete={() => confirmDelete(purch)}
+            />
+          )}
+        </View>
+      );
+    },
+    [confirmDelete, router, viewMode]
+  );
 
   const filterKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
   const filterLabels: Record<PeriodKey, string> = {
@@ -630,7 +629,7 @@ type PurchaseOrFiller = Purchase | { id: string | number; isFiller: true };
           visible.length === 0 && styles.listEmpty,
         ]}
         ListEmptyComponent={renderEmpty}
-        removeClippedSubviews
+        removeClippedSubviews={Platform.OS === 'android'}
         initialNumToRender={15}
         maxToRenderPerBatch={10}
         windowSize={5}

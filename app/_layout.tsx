@@ -1,12 +1,7 @@
 import '../global.css';
 import '../lib/i18n';
-import { installAutoEnglishDigits } from '@/lib/autoEnglishDigits';
-
-// Auto-converts any Eastern/Persian numerals typed into TextInput to English digits across the system (except login)
-installAutoEnglishDigits();
-
 import React, { useEffect } from 'react';
-import { ActivityIndicator, I18nManager, Platform, View, Text, Image } from 'react-native';
+import { AppState, I18nManager, Platform, View, Image } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -20,6 +15,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { useFonts } from 'expo-font';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { installAutoEnglishDigits } from '@/lib/autoEnglishDigits';
 import { initializeDatabase } from '@/lib/sqlite';
 import { useAuthStore } from '@/store/authStore';
 import { useLanguageStore } from '@/store/languageStore';
@@ -27,13 +23,14 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useLicenseStore } from '@/store/licenseStore';
 import { ThemeProvider, useAppTheme } from '@/contexts/ThemeContext';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
-import { generateThemeColors } from '@/lib/colorUtils';
-import { Colors } from '@/constants/colors';
 import { useRTL } from '@/lib/rtl';
 import { AdminNotificationBanner } from '@/components/admin/AdminNotificationBanner';
 import { UsageLimitModal } from '@/components/ui/UsageLimitModal';
 import { AccountUpgradeReceiptModal } from '@/components/ui/AccountUpgradeReceiptModal';
 import { SplashScreenOverlay } from '@/components/splash/SplashScreenOverlay';
+
+// Auto-converts any Eastern/Persian numerals typed into TextInput to English digits across the system (except login)
+installAutoEnglishDigits();
 
 if (Platform.OS !== 'web') {
   SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -155,7 +152,6 @@ export default function RootLayout() {
       .then((m) => m.startStoreActivationRealtimeListener())
       .catch(() => {});
 
-    const { AppState } = require('react-native');
     const appStateSub = AppState.addEventListener('change', (state: string) => {
       if (Platform.OS !== 'web') {
         setIsObscured(state === 'background' || state === 'inactive');
@@ -177,7 +173,7 @@ export default function RootLayout() {
     return () => {
       appStateSub?.remove?.();
     };
-  }, []);
+  }, [initialize]);
 
   useEffect(() => {
     // Safety fallback: if anything prevents the overlay from mounting within 3.5s, drop native splash
@@ -188,11 +184,6 @@ export default function RootLayout() {
     }, 3500);
     return () => clearTimeout(timer);
   }, []);
-
-  const accentColor = useSettingsStore((s) => s.accentColor);
-  const loadingBg = accentColor
-    ? (generateThemeColors(accentColor, false).gradientStart ?? Colors.gradientStart)
-    : Colors.gradientStart;
 
   if (!fontsLoaded && !fontError) {
     return (

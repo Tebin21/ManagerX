@@ -34,35 +34,33 @@ function OnlineStoreCardImpl() {
   const [isAdminActivated, setIsAdminActivated] = useState<boolean | null>(null);
 
   const isEmployee = useManagementStore((s) => s.isEmployee);
-  const currentEmployeeAccount = useManagementStore((s) => s.currentEmployeeAccount);
   const currentPermissions = useManagementStore((s) => s.currentPermissions);
-  const user = useAuthStore((s) => s.user);
-  const isAdmin = isAdminEmail(user?.email);
 
-  const isRealEmployee = Boolean(
-    isEmployee &&
-    currentEmployeeAccount?.email &&
-    user?.email &&
-    currentEmployeeAccount.email.trim().toLowerCase() === user.email.trim().toLowerCase() &&
-    !isAdmin
-  );
+  const enabled = useOnlineStoreStore((s) => s.enabled);
+  const storeUrl = useOnlineStoreStore((s) => s.storeUrl);
+  const lastSyncAt = useOnlineStoreStore((s) => s.lastSyncAt);
+  const pendingCount = useOnlineStoreStore((s) => s.pendingCount);
+  const isLoading = useOnlineStoreStore((s) => s.isLoading);
+  const isSyncingNow = useOnlineStoreStore((s) => s.isSyncingNow);
+  const load = useOnlineStoreStore((s) => s.load);
+  const enable = useOnlineStoreStore((s) => s.enable);
+  const disable = useOnlineStoreStore((s) => s.disable);
+  const refreshPendingCount = useOnlineStoreStore((s) => s.refreshPendingCount);
+  const copyLink = useOnlineStoreStore((s) => s.copyLink);
+  const openWebsite = useOnlineStoreStore((s) => s.openWebsite);
+  const syncNow = useOnlineStoreStore((s) => s.syncNow);
 
-  const {
-    enabled, storeUrl, lastSyncAt, pendingCount, isLoading, isSyncingNow,
-    load, enable, disable, refreshPendingCount, copyLink, openWebsite, syncNow,
-  } = useOnlineStoreStore();
-
-  const {
-    isActive: subscriptionActive, expired: subscriptionExpired, isLegacyActiveStore,
-    expiresAt: subscriptionExpiresAt, remainingDays, loadSubscription,
-  } = useOnlineStoreSubscriptionStore();
+  const subscriptionActive = useOnlineStoreSubscriptionStore((s) => s.isActive);
+  const subscriptionExpiresAt = useOnlineStoreSubscriptionStore((s) => s.expiresAt);
+  const remainingDays = useOnlineStoreSubscriptionStore((s) => s.remainingDays);
+  const loadSubscription = useOnlineStoreSubscriptionStore((s) => s.loadSubscription);
 
   useFocusEffect(
     useCallback(() => {
       let mounted = true;
       isOnlineStoreActivatedByAdmin().then(async (active) => {
         if (mounted) setIsAdminActivated(active);
-        if (active) {
+        if (active && !useOnlineStoreStore.getState().enabled) {
           await useOnlineStoreStore.getState().syncWithSubscription(true);
         }
       });
@@ -72,7 +70,7 @@ function OnlineStoreCardImpl() {
       return () => {
         mounted = false;
       };
-    }, [])
+    }, [load, refreshPendingCount, loadSubscription])
   );
 
   // Hidden entirely if employee permissions have onlineStore === 'hidden'

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
@@ -168,17 +169,12 @@ export default function SalesHistoryScreen() {
   }, [results, numColumns]);
 
   const renderItem = useCallback(
-    ({ item, index }: { item: SaleOrFiller; index: number }) => {
+    ({ item }: { item: SaleOrFiller }) => {
       if ('isFiller' in item && item.isFiller) {
         return <View style={{ flex: 1, marginBottom: 12, backgroundColor: 'transparent' }} />;
       }
       return (
-        <MotiView
-          from={{ opacity: 0, translateY: 12 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 25, 250) }}
-          style={{ flex: 1 }}
-        >
+        <View style={{ flex: 1 }}>
           {viewMode === 'grid' ? (
             <SaleGridCard
               sale={item as Sale}
@@ -190,7 +186,7 @@ export default function SalesHistoryScreen() {
               onPress={() => router.push({ pathname: '/(app)/invoices', params: { tab: 'sales', id: String(item.id) } } as never)}
             />
           )}
-        </MotiView>
+        </View>
       );
     },
     [router, viewMode]
@@ -473,7 +469,7 @@ export default function SalesHistoryScreen() {
             : undefined
         }
         contentContainerStyle={[styles.list, isTablet && contentContainerStyle, results.length === 0 && styles.listEmpty]}
-        removeClippedSubviews
+        removeClippedSubviews={Platform.OS === 'android'}
         initialNumToRender={15}
         maxToRenderPerBatch={10}
         windowSize={5}

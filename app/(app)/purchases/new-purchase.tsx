@@ -9,12 +9,12 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { MotiView } from 'moti';
 import { useSavedProductStore, SavedProductPreset } from '@/store/savedProductStore';
@@ -37,8 +37,6 @@ import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import { hexToRgba } from '@/lib/colorUtils';
 import type { PurchaseIdType, PurchasePaymentStatus } from '@/types/purchases';
-
-export type RepurchaseIdMode = 'custom' | 'restock' | 'new_shared';
 import { getProductCategories } from '@/lib/sqlite';
 import { DIRECT_SUPPLIER_NAME, isDirectSupplierName } from '@/lib/supplierUtils';
 import { generateUniqueProductId, generateMultipleUniqueProductIds } from '@/lib/generateId';
@@ -67,6 +65,8 @@ import { useLanguageStore } from '@/store/languageStore';
 import { useResponsive } from '@/hooks/useResponsive';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 import { BarcodeScannerModal } from '@/components/shared/BarcodeScannerModal';
+
+export type RepurchaseIdMode = 'custom' | 'restock' | 'new_shared';
 
 function round(n: number, decimals: number) {
   const f = Math.pow(10, decimals);
@@ -849,7 +849,11 @@ export default function NewPurchaseScreen() {
   function setCustomGenerating(idx: number, on: boolean) {
     setGeneratingCustomIdxs((prev) => {
       const next = new Set(prev);
-      on ? next.add(idx) : next.delete(idx);
+      if (on) {
+        next.add(idx);
+      } else {
+        next.delete(idx);
+      }
       return next;
     });
   }

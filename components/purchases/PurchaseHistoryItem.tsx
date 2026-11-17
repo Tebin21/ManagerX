@@ -21,14 +21,13 @@ interface Props {
   onDelete: () => void;
 }
 
-export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
+function PurchaseHistoryItemImpl({ purchase, onPress, onDelete }: Props) {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isTablet } = useResponsive();
   const currentLang = useLanguageStore((s) => s.language);
   const isKuLanguage = currentLang === 'ku';
   const isAr = currentLang === 'ar';
-  const isKuOrAr = isKuLanguage || isAr;
   const styles = useMemo(() => getStyles(colors, isDark, isTablet), [colors, isDark, isTablet]);
   const isPaid = purchase.paymentStatus === 'paid';
   const isFib = purchase.paymentStatus === 'fib';
@@ -126,6 +125,8 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
     </TouchableOpacity>
   );
 }
+
+export const PurchaseHistoryItem = React.memo(PurchaseHistoryItemImpl);
 
 function getStyles(colors: AppColors, isDark: boolean, isTablet: boolean) {
   return StyleSheet.create({

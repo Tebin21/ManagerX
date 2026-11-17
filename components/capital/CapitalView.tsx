@@ -14,7 +14,6 @@ import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
@@ -23,14 +22,13 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
 import { useCapitalStore, type DrawerFullStats } from '@/store/capitalStore';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
+import { toEnglishDigits, sanitizeNumericInput, formatDateShort } from '@/utils/formatters';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
-import { formatDateShort } from '@/utils/formatters';
 
 export function CapitalView() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const { isRTL, textAlign, flexDirection } = useRTL();
+  const { isRTL, textAlign } = useRTL();
   const { isTablet, isTabletLandscape } = useResponsive();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
 

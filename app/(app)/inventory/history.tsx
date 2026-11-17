@@ -239,29 +239,16 @@ export default function InventoryHistoryScreen() {
     );
   };
 
-  const renderItem = ({
+  const renderItem = useCallback(({
     item,
-    index,
   }: {
     item: HistoryItem;
-    index: number;
   }) => (
-    <MotiView
-      from={{ opacity: 0, translateY: 8 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{
-        type: 'spring',
-        damping: 18,
-        stiffness: 200,
-        delay: Math.min(index * 25, 250),
-      }}
-    >
-      <InventoryHistoryItem
-        item={item}
-        onRestore={() => handleRestore(item)}
-      />
-    </MotiView>
-  );
+    <InventoryHistoryItem
+      item={item}
+      onRestore={() => handleRestore(item)}
+    />
+  ), [handleRestore]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>

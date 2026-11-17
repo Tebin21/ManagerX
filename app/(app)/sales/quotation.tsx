@@ -14,10 +14,6 @@ import {
   UIManager,
   ActivityIndicator,
 } from 'react-native';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { AmountText } from '@/components/ui/AmountText';
@@ -61,10 +57,13 @@ import { hexToRgba } from '@/lib/colorUtils';
 import { SETTINGS_KURDISH_FONT_REGULAR, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import type { Quotation, QuotationItem, QuotationCurrencyMode } from '@/types/quotation';
 import type { InventoryProduct } from '@/types/inventory';
-import type { Product } from '@/types/sales';
+import type { Product, GlobalDiscountType } from '@/types/sales';
 import type { Customer } from '@/types/customers';
-import type { GlobalDiscountType } from '@/types/sales';
 import * as Haptics from 'expo-haptics';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 type Step = 1 | 2 | 3;
 

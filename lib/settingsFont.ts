@@ -39,7 +39,11 @@ export function applyKurdishFont<T extends TextStyle | TextStyle[] | undefined>(
   isKurdish: boolean,
   style?: T
 ): TextStyle | T {
-  const flat = (StyleSheet.flatten(style) ?? {}) as TextStyle;
+  const flat = (
+    style && !Array.isArray(style) && typeof style === 'object'
+      ? style
+      : (StyleSheet.flatten(style) ?? {})
+  ) as TextStyle;
 
   if (!isKurdish) {
     return [

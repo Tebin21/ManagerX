@@ -240,6 +240,10 @@ async function runInitializeDatabase(): Promise<void> {
 
   await database.execAsync(`
     PRAGMA journal_mode = WAL;
+    PRAGMA synchronous = NORMAL;
+    PRAGMA busy_timeout = 5000;
+    PRAGMA temp_store = MEMORY;
+    PRAGMA cache_size = -8000;
     PRAGMA recursive_triggers = ON;
 
     CREATE TABLE IF NOT EXISTS businesses (
@@ -806,19 +810,44 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     `ALTER TABLE sales ADD COLUMN installment_monthly_amount REAL`,
     `ALTER TABLE debts ADD COLUMN installment_months INTEGER`,
     `ALTER TABLE debts ADD COLUMN installment_monthly_amount REAL`,
+    // High-performance composite & expression indexes for hot queries
+    `CREATE INDEX IF NOT EXISTS idx_purchases_product_name_norm ON purchases(LOWER(TRIM(product_name)))`,
+    `CREATE INDEX IF NOT EXISTS idx_purchases_active_created ON purchases(archived_at, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_purchase_items_purchase ON purchase_items(purchase_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_debts_remaining ON debts(remaining_amount, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_purchase_debts_remaining ON purchase_debts(remaining_amount, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_debt_payments_lookup ON debt_payments(debt_id, debt_type, event_type)`,
+    `CREATE INDEX IF NOT EXISTS idx_sales_payment_method ON sales(payment_method)`,
+    `CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(date)`,
   ];
-  for (const sql of migrations) {
-    // Most failures here are the expected "column/table already exists" from a
-    // re-run — but the catch is intentionally broad (idempotent statements can
-    // fail for other reasons too, e.g. a locked DB), so a genuine typo in a
-    // future migration would otherwise fail completely silently. Log it instead
-    // of swallowing it outright; still non-fatal so one bad statement can't
-    // block every migration after it or the app boot itself.
-    try { await database.execAsync(sql); } catch (e) {
-      if (__DEV__) console.warn('[Froshiar] migration statement failed (may be expected):', sql.slice(0, 80), e);
+
+  const CURRENT_SCHEMA_VERSION = 16;
+  let currentVersion = 0;
+  try {
+    const versionRow = await database.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+    currentVersion = versionRow?.user_version ?? 0;
+  } catch {}
+
+  if (currentVersion < CURRENT_SCHEMA_VERSION) {
+    for (const sql of migrations) {
+      // Most failures here are the expected "column/table already exists" from a
+      // re-run — but the catch is intentionally broad (idempotent statements can
+      // fail for other reasons too, e.g. a locked DB), so a genuine typo in a
+      // future migration would otherwise fail completely silently.
+      try {
+        await database.execAsync(sql);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (__DEV__ && !msg.includes('duplicate column name')) {
+          console.warn('[Froshiar] migration statement failed (may be expected):', sql.slice(0, 80), e);
+        }
+      }
     }
+    await backfillUuids(database);
+    try {
+      await database.execAsync(`PRAGMA user_version = ${CURRENT_SCHEMA_VERSION}`);
+    } catch {}
   }
-  await backfillUuids(database);
 }
 
 // Tables that need a stable `uuid` identity for merge-restore. Excludes the

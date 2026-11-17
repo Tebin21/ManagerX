@@ -1,23 +1,27 @@
+import { useMemo } from 'react';
 import { TextStyle, ViewStyle } from 'react-native';
 import { useLanguageStore } from '@/store/languageStore';
 
 export function useRTL() {
   const isRTL = useLanguageStore((s) => s.isRTL);
-  return {
-    isRTL,
-    textAlign:        (isRTL ? 'right'       : 'left')       as TextStyle['textAlign'],
-    // For standalone value text (prices, IDs, dates...) paired with a label
-    // rendered in its own Text node — values dock to the opposite edge from
-    // labels, so they stay visually anchored to the same side in both
-    // directions. Don't use this on a Text that mixes a label and a value
-    // together (e.g. "Remaining: 1,000 IQD") — textAlign already handles
-    // that correctly via Unicode bidi.
-    valueAlign:       (isRTL ? 'left'        : 'right')      as TextStyle['textAlign'],
-    writingDirection: (isRTL ? 'rtl'         : 'ltr')        as TextStyle['writingDirection'],
-    flexDirection:    (isRTL ? 'row-reverse' : 'row')        as ViewStyle['flexDirection'],
-    alignEnd:         (isRTL ? 'flex-start'  : 'flex-end')   as ViewStyle['alignItems'],
-    alignStart:       (isRTL ? 'flex-end'    : 'flex-start') as ViewStyle['alignItems'],
-  };
+  return useMemo(
+    () => ({
+      isRTL,
+      textAlign:        (isRTL ? 'right'       : 'left')       as TextStyle['textAlign'],
+      // For standalone value text (prices, IDs, dates...) paired with a label
+      // rendered in its own Text node — values dock to the opposite edge from
+      // labels, so they stay visually anchored to the same side in both
+      // directions. Don't use this on a Text that mixes a label and a value
+      // together (e.g. "Remaining: 1,000 IQD") — textAlign already handles
+      // that correctly via Unicode bidi.
+      valueAlign:       (isRTL ? 'left'        : 'right')      as TextStyle['textAlign'],
+      writingDirection: (isRTL ? 'rtl'         : 'ltr')        as TextStyle['writingDirection'],
+      flexDirection:    (isRTL ? 'row-reverse' : 'row')        as ViewStyle['flexDirection'],
+      alignEnd:         (isRTL ? 'flex-start'  : 'flex-end')   as ViewStyle['alignItems'],
+      alignStart:       (isRTL ? 'flex-end'    : 'flex-start') as ViewStyle['alignItems'],
+    }),
+    [isRTL]
+  );
 }
 
 // Extra breathing room for Kurdish (RTL) screens only — Kurdish script/labels
@@ -47,10 +51,13 @@ export const RTL_SPACING = {
 // Do NOT use for home/settings/product/brand icons.
 export function useDirectionalChevron() {
   const isRTL = useLanguageStore((s) => s.isRTL);
-  return {
-    chevronForward:       (isRTL ? 'chevron-back'          : 'chevron-forward')         as string,
-    chevronBack:          (isRTL ? 'chevron-forward'       : 'chevron-back')             as string,
-    arrowForward:         (isRTL ? 'arrow-back'            : 'arrow-forward')            as string,
-    arrowForwardOutline:  (isRTL ? 'arrow-back-outline'    : 'arrow-forward-outline')    as string,
-  };
+  return useMemo(
+    () => ({
+      chevronForward:       (isRTL ? 'chevron-back'          : 'chevron-forward')         as string,
+      chevronBack:          (isRTL ? 'chevron-forward'       : 'chevron-back')             as string,
+      arrowForward:         (isRTL ? 'arrow-back'            : 'arrow-forward')            as string,
+      arrowForwardOutline:  (isRTL ? 'arrow-back-outline'    : 'arrow-forward-outline')    as string,
+    }),
+    [isRTL]
+  );
 }

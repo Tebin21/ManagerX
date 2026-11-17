@@ -8,10 +8,6 @@ import {
   Platform,
   UIManager,
 } from 'react-native';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { AmountText } from '@/components/ui/AmountText';
@@ -31,6 +27,10 @@ import { hexToRgba } from '@/lib/colorUtils';
 import { BatchPickerModal } from '@/components/sales/BatchPickerModal';
 import { getProductBatches } from '@/lib/sqlite';
 import type { CartItem, DiscountType, ProductBatch } from '@/types/sales';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 interface Props {
   item: CartItem;

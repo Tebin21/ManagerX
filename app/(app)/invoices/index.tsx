@@ -26,10 +26,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
@@ -86,6 +82,10 @@ import type { PurchaseDebt, DebtPaymentReceiptData } from '@/types/debt';
 import type { Quotation } from '@/types/quotation';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 import type { ReceiptPaperSize } from '@/store/settingsStore';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 type TabKey = 'reports' | 'purchases' | 'sales' | 'installments' | 'quotations' | 'debts';
 

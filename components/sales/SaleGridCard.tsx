@@ -19,9 +19,9 @@ interface Props {
   onPress: () => void;
 }
 
-export function SaleGridCard({ sale, onPress }: Props) {
+function SaleGridCardImpl({ sale, onPress }: Props) {
   const { colors, isDark } = useAppTheme();
-  const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
+  const { flexDirection, textAlign, alignEnd, isRTL } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const currentLang = useLanguageStore((s) => s.language);
   const isKuLanguage = currentLang === 'ku';
@@ -173,6 +173,8 @@ export function SaleGridCard({ sale, onPress }: Props) {
     </TouchableOpacity>
   );
 }
+
+export const SaleGridCard = React.memo(SaleGridCardImpl);
 
 const styles = StyleSheet.create({
   card: {

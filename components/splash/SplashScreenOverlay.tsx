@@ -54,14 +54,20 @@ export function SplashScreenOverlay() {
     }
 
     let fadeTriggered = false;
+    let prevK = -1;
+    let prevE = -1;
+    let prevA = -1;
 
     const interval = setInterval(() => {
       const elapsed = Date.now() - splashGlobalStartTime;
 
       if (elapsed < START_TYPING_MS) {
-        setKurdish('');
-        setEnglish('');
-        setArabic('');
+        if (prevK !== 0) {
+          prevK = 0; prevE = 0; prevA = 0;
+          setKurdish('');
+          setEnglish('');
+          setArabic('');
+        }
       } else if (elapsed < START_TYPING_MS + TYPING_DURATION_MS) {
         const progress = Math.min(1, (elapsed - START_TYPING_MS) / TYPING_DURATION_MS);
         const kCount = Math.min(
@@ -77,13 +83,18 @@ export function SplashScreenOverlay() {
           Math.max(1, Math.floor(progress * ARABIC_TEXT.length))
         );
 
-        setKurdish(KURDISH_TEXT.slice(0, kCount));
-        setEnglish(ENGLISH_TEXT.slice(0, eCount));
-        setArabic(ARABIC_TEXT.slice(0, aCount));
+        if (kCount !== prevK) { prevK = kCount; setKurdish(KURDISH_TEXT.slice(0, kCount)); }
+        if (eCount !== prevE) { prevE = eCount; setEnglish(ENGLISH_TEXT.slice(0, eCount)); }
+        if (aCount !== prevA) { prevA = aCount; setArabic(ARABIC_TEXT.slice(0, aCount)); }
       } else {
-        setKurdish(KURDISH_TEXT);
-        setEnglish(ENGLISH_TEXT);
-        setArabic(ARABIC_TEXT);
+        if (prevK !== KURDISH_TEXT.length) {
+          prevK = KURDISH_TEXT.length;
+          prevE = ENGLISH_TEXT.length;
+          prevA = ARABIC_TEXT.length;
+          setKurdish(KURDISH_TEXT);
+          setEnglish(ENGLISH_TEXT);
+          setArabic(ARABIC_TEXT);
+        }
       }
 
       // At 4.0s: trigger buttery-soft crossfade transition into dashboard

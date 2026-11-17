@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Keyboard,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { CompactAmount } from '@/components/shared/CompactAmount';
@@ -108,20 +109,15 @@ type CustomerOrFiller = CustomerWithStats | { id: string | number; isFiller: tru
     return [...visible, ...fillers];
   }, [visible, cardColumns]);
 
-  const renderItem = useCallback(({ item, index }: { item: CustomerOrFiller; index: number }) => {
+  const renderItem = useCallback(({ item }: { item: CustomerOrFiller }) => {
     if ('isFiller' in item && item.isFiller) {
       return <View style={isTablet ? { flex: 1, backgroundColor: 'transparent' } : undefined} />;
     }
     const cust = item as CustomerWithStats;
     return (
-      <MotiView
-        from={{ opacity: 0, translateY: 10 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 35 : 0 }}
-        style={isTablet ? { flex: 1 } : undefined}
-      >
+      <View style={isTablet ? { flex: 1 } : undefined}>
         <CustomerCard customer={cust} onPress={handleCustomerPress} />
-      </MotiView>
+      </View>
     );
   }, [handleCustomerPress, isTablet]);
 
@@ -234,7 +230,7 @@ type CustomerOrFiller = CustomerWithStats | { id: string | number; isFiller: tru
         }
         contentContainerStyle={[styles.list, isTablet && contentContainerStyle, visible.length === 0 && styles.listEmpty]}
         ListEmptyComponent={renderEmpty}
-        removeClippedSubviews
+        removeClippedSubviews={Platform.OS === 'android'}
         initialNumToRender={15}
         maxToRenderPerBatch={10}
         windowSize={11}

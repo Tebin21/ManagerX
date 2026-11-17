@@ -11,12 +11,13 @@ import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscription
 import { runLegacyMigrationCheckOnce } from '@/lib/onlineStoreSubscription/subscription';
 import { useBusinessStore } from '@/store/businessStore';
 import { useManagementStore } from '@/store/managementStore';
-import { isAdminEmail } from '@/lib/adminNotificationService';
 
 export default function AppLayout() {
   const { isRTL } = useRTL();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const userId = user?.id ?? null;
+  const userEmail = user?.email ?? null;
   const isDeletingAccount = useAuthStore((s) => s.isDeletingAccount);
   const authHydrated = useHasHydrated(useAuthStore);
   const pendingCloudConflict = useBusinessStore((s) => s.pendingCloudConflict);
@@ -45,12 +46,12 @@ export default function AppLayout() {
         router.replace('/(onboarding)/setup' as never);
       }
     }
-  }, [authHydrated, user, isDeletingAccount, pendingCloudConflict, isSetupComplete, isReconciling]);
+  }, [authHydrated, user, isDeletingAccount, pendingCloudConflict, isSetupComplete, isReconciling, router]);
 
   // Online Store auto-sync — starts the NetInfo/AppState listeners once and loads
   // the current store status so the dashboard card has data immediately.
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     startAutoSync();
     useOnlineStoreStore.getState().load().then(async () => {
       try {
@@ -84,16 +85,16 @@ export default function AppLayout() {
 
     // Live account limits subscription for current logged-in user (demo, registered owner, or manager)
     let unsubCurrentUser: (() => void) | undefined;
-    if (user?.email) {
-      unsubCurrentUser = initCurrentUserLiveSubscription(user.email);
+    if (userEmail) {
+      unsubCurrentUser = initCurrentUserLiveSubscription(userEmail);
     }
 
     // Verification check: Only genuine employee accounts should retain employee state
     const isRealEmployee = Boolean(
       isEmployee &&
       currentEmployeeAccount?.email &&
-      user?.email &&
-      currentEmployeeAccount.email.trim().toLowerCase() === user.email.trim().toLowerCase()
+      userEmail &&
+      currentEmployeeAccount.email.trim().toLowerCase() === userEmail.trim().toLowerCase()
     );
 
     if (isEmployee && !isRealEmployee) {
@@ -109,8 +110,8 @@ export default function AppLayout() {
     // Manager Live Listener (detects if user manages any employee accounts)
     // Strictly forbidden for employee accounts — employees never manage staff
     let unsubManager: (() => void) | undefined;
-    if (user?.email && !isRealEmployee) {
-      unsubManager = initManagerSubscription(user.email);
+    if (userEmail && !isRealEmployee) {
+      unsubManager = initManagerSubscription(userEmail);
     }
 
     return () => {
@@ -119,7 +120,7 @@ export default function AppLayout() {
       unsubEmployee?.();
       unsubManager?.();
     };
-  }, [user]);
+  }, [userId, userEmail]);
 
   return (
     <ErrorBoundary>

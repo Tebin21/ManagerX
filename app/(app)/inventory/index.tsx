@@ -16,10 +16,6 @@ import {
   Platform,
   UIManager,
 } from 'react-native';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import { Text } from '@/components/ui/AppText';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,7 +28,6 @@ import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { useTranslation } from 'react-i18next';
 import { ProductCard } from '@/components/inventory/ProductCard';
 import { ProductGridCard } from '@/components/inventory/ProductGridCard';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { InventoryReportView } from '@/components/inventory/InventoryReportView';
 import {
@@ -62,6 +57,10 @@ import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
 import { toEnglishDigits } from '@/utils/formatters';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 type InventoryNavTab = 'report' | 'products';
 type ActiveCategoryTab = 'all' | 'categories';
@@ -120,7 +119,6 @@ export default function InventoryScreen() {
   useFocusEffect(
     useCallback(() => {
       loadInventory();
-      loadManagedCategories();
       if (params.tab === 'products') {
         setActiveNavTab('products');
       } else {
@@ -129,7 +127,7 @@ export default function InventoryScreen() {
       if (params.filter) {
         setStockStatusFilter(params.filter);
       }
-    }, [params.tab, params.filter, loadInventory, loadManagedCategories])
+    }, [params.tab, params.filter, loadInventory])
   );
 
   const activeTabTextColor = useMemo(() => {
@@ -233,16 +231,10 @@ export default function InventoryScreen() {
   }, [viewMode, isTablet, isTabletLandscape]);
 
   useEffect(() => {
-    loadInventory();
-    loadManagedCategories();
-  }, []);
-
-  useEffect(() => {
     if (catModalVisible) {
       loadInventory();
-      loadManagedCategories();
     }
-  }, [catModalVisible, loadInventory, loadManagedCategories]);
+  }, [catModalVisible, loadInventory]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -729,7 +721,7 @@ export default function InventoryScreen() {
   );
 
   const renderItem = useCallback(
-    ({ item, index }: { item: ProductOrFiller; index: number }) => {
+    ({ item }: { item: ProductOrFiller }) => {
       if ('isFiller' in item && item.isFiller) {
         return <View style={{ flex: 1, marginBottom: 12, backgroundColor: 'transparent' }} />;
       }
@@ -740,17 +732,7 @@ export default function InventoryScreen() {
         globalLowStockThreshold
       );
       return (
-        <MotiView
-          from={{ opacity: 0, translateY: 10 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{
-            type: 'spring',
-            damping: 18,
-            stiffness: 200,
-            delay: index < 10 ? index * 35 : 0,
-          }}
-          style={{ flex: 1 }}
-        >
+        <View style={{ flex: 1 }}>
           {viewMode === 'grid' ? (
             <ProductGridCard
               product={prod}
@@ -764,7 +746,7 @@ export default function InventoryScreen() {
               isLowStock={isLowStock}
             />
           )}
-        </MotiView>
+        </View>
       );
     },
     [globalLowStockEnabled, globalLowStockThreshold, handleProductPress, viewMode]
@@ -1332,7 +1314,7 @@ export default function InventoryScreen() {
               visible.length === 0 && styles.listEmpty,
             ]}
             ListEmptyComponent={renderEmpty}
-            removeClippedSubviews
+            removeClippedSubviews={Platform.OS === 'android'}
             initialNumToRender={15}
             maxToRenderPerBatch={10}
             windowSize={11}

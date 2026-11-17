@@ -41,13 +41,12 @@ import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { SalesDebtDetail, PurchaseDebt, DebtPaymentReceiptData } from '@/types/debt';
 import { fmtIQD, toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
 import { roundToNearest250, roundUSD } from '@/utils/rounding';
-import { useRTL, useDirectionalChevron, RTL_SPACING } from '@/lib/rtl';
-import { isDateWithinRange, getPeriodBounds, formatDateShort, type PeriodKey } from '@/utils/dateRanges';
+import { useRTL, useDirectionalChevron } from '@/lib/rtl';
+import { isDateWithinRange, getPeriodBounds, type PeriodKey } from '@/utils/dateRanges';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
-import { shareDebtsAuditReport, shareSalesDebtReport } from '@/lib/generateInvoice';
-import { getSalesDebtById, getDebtPayments, getSaleById } from '@/lib/sqlite';
+import { shareDebtsAuditReport } from '@/lib/generateInvoice';
 import { DebtPdfExportModal } from '@/components/debt/DebtPdfExportModal';
 import { DebtPaymentReceiptModal } from '@/components/debt/DebtPaymentReceiptModal';
 import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
@@ -816,15 +815,16 @@ export default function DebtScreen() {
   const { colors, isDark } = useAppTheme();
   const { isTablet, isTabletLandscape, contentContainerStyle, cardColumns } = useResponsive();
   const styles = useMemo(() => getStyles(colors, isTablet, isTabletLandscape), [colors, isTablet, isTabletLandscape]);
-  const toneStyles = useMemo(() => getToneStyles(colors, isDark), [colors, isDark]);
-  const { flexDirection, textAlign, writingDirection, isRTL } = useRTL();
+  const { isRTL } = useRTL();
   const currentLang = useLanguageStore((s) => s.language) || 'ku';
   const isAr = currentLang === 'ar';
   const isKuLanguage = currentLang === 'ku';
-  const {
-    summary, isLoading, salesDebts, purchaseDebts,
-    loadAll, paySalesDebt, payPurchaseDebt,
-  } = useDebtStore();
+  const isLoading = useDebtStore((s) => s.isLoading);
+  const salesDebts = useDebtStore((s) => s.salesDebts);
+  const purchaseDebts = useDebtStore((s) => s.purchaseDebts);
+  const loadAll = useDebtStore((s) => s.loadAll);
+  const paySalesDebt = useDebtStore((s) => s.paySalesDebt);
+  const payPurchaseDebt = useDebtStore((s) => s.payPurchaseDebt);
 
   // Tab state — ALWAYS defaults to 'report' (ڕاپۆرت) on open!
   const [tab, setTab] = useState<Tab>('report');
@@ -874,8 +874,6 @@ export default function DebtScreen() {
   const [periodKey, setPeriodKey] = useState<PeriodKey>('today');
   const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
-  const [fromVal, setFromVal] = useState('');
-  const [toVal, setToVal] = useState('');
 
   const [payTarget, setPayTarget] = useState<{
     id: number; name: string; remaining: number; type: 'sales' | 'purchase';
@@ -885,10 +883,6 @@ export default function DebtScreen() {
   useEffect(() => {
     setPayTarget(null);
   }, [tab, periodKey]);
-
-  useEffect(() => {
-    loadAll();
-  }, [loadAll]);
 
   useFocusEffect(
     useCallback(() => {
@@ -976,7 +970,7 @@ export default function DebtScreen() {
     if (periodKey === 'year') return isAr ? 'هذه السنة' : isKuLanguage ? 'ئەمساڵ' : 'This Year';
     if (customRange) return `${customRange.from} → ${customRange.to}`;
     return isAr ? 'مخصص' : isKuLanguage ? 'دیاریکراو' : 'Custom';
-  }, [periodKey, customRange, isKuLanguage]);
+  }, [periodKey, customRange, isKuLanguage, isAr]);
 
   // Payment handler
   const handlePay = useCallback(async (amount: number, paymentMethod: 'cash' | 'fib' = 'cash', openPrintModal: boolean = true) => {
@@ -1376,8 +1370,6 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
                 ]}
                 onPress={() => {
                   if (key === 'custom') {
-                    setFromVal(customRange?.from || '');
-                    setToVal(customRange?.to || '');
                     setCustomOpen(true);
                   } else {
                     setPeriodKey(key);

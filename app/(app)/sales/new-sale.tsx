@@ -76,10 +76,14 @@ export default function NewSaleScreen() {
   const { colors, isDark } = useAppTheme();
   const { isTablet, isTabletLandscape, cardColumns, contentContainerStyle, headerButtonSize, headerIconSize, width: screenWidth } = useResponsive();
   const errorTint = getStatusTint('error', colors, isDark);
-  const inventory = useInventoryStore();
+  const inventoryProducts = useInventoryStore((s) => s.products);
+  const inventoryCategories = useInventoryStore((s) => s.categories);
+  const inventoryIsLoading = useInventoryStore((s) => s.isLoading);
+  const loadInventory = useInventoryStore((s) => s.loadInventory);
+  const searchProducts = useInventoryStore((s) => s.searchProducts);
   const cart = useCartStore();
-  const { createSale } = useSalesStore();
-  const { getCustomerById } = useCustomerStore();
+  const createSale = useSalesStore((s) => s.createSale);
+  const getCustomerById = useCustomerStore((s) => s.getCustomerById);
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const baseCurrency = useSettingsStore((s) => s.baseCurrency);
   const salesProductGridLayout = useSettingsStore((s) => s.salesProductGridLayout);
@@ -114,7 +118,10 @@ export default function NewSaleScreen() {
   const [targetMonthlyInput, setTargetMonthlyInput] = useState('');
 
   // Derived
-  const visibleProducts = inventory.searchProducts(query, selectedCategory);
+  const visibleProducts = useMemo(
+    () => searchProducts(query, selectedCategory),
+    [inventoryProducts, query, selectedCategory, searchProducts]
+  );
   type ProductItem = (typeof visibleProducts)[number];
   type ProductOrFiller = ProductItem | { id: string; isFiller: true };
 
@@ -174,7 +181,7 @@ export default function NewSaleScreen() {
   const grandTotalUsd = grandTotal / exchangeRate;
 
   useEffect(() => {
-    inventory.loadInventory();
+    loadInventory();
     cart.clearCart();
   }, []);
 
@@ -231,19 +238,19 @@ export default function NewSaleScreen() {
     // 4. Partial match on itemId
     // 5. Partial match on name
     const found =
-      inventory.products.find(
+      inventoryProducts.find(
         (p) => p.isActive && p.itemId && p.itemId.trim().toLowerCase() === lowerCode
       ) ||
-      inventory.products.find(
+      inventoryProducts.find(
         (p) => p.isActive && String(p.id) === cleanCode
       ) ||
-      inventory.products.find(
+      inventoryProducts.find(
         (p) => p.isActive && p.name.trim().toLowerCase() === lowerCode
       ) ||
-      inventory.products.find(
+      inventoryProducts.find(
         (p) => p.isActive && p.itemId && p.itemId.toLowerCase().includes(lowerCode)
       ) ||
-      inventory.products.find(
+      inventoryProducts.find(
         (p) => p.isActive && p.name.toLowerCase().includes(lowerCode)
       );
 
@@ -615,7 +622,7 @@ export default function NewSaleScreen() {
           onQueryChange={setQuery}
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
-          categories={inventory.categories}
+          categories={inventoryCategories}
         />
 
         <FlatList
@@ -623,6 +630,10 @@ export default function NewSaleScreen() {
           data={gridFormattedProducts}
           keyExtractor={(item) => String(item.id)}
           numColumns={numColumns}
+          removeClippedSubviews={Platform.OS === 'android'}
+          initialNumToRender={15}
+          maxToRenderPerBatch={10}
+          windowSize={7}
           columnWrapperStyle={
             numColumns > 1
               ? {
@@ -670,9 +681,9 @@ export default function NewSaleScreen() {
             <View style={styles.empty}>
               <Ionicons name="cube-outline" size={48} color={colors.gray300} style={styles.emptyIcon} />
               <Text style={[styles.emptyTitle, { color: colors.gray500, textAlign }]}>
-                {inventory.isLoading ? t('common.loading') : query ? t('inventory.noResults') : t('sales.noProducts')}
+                {inventoryIsLoading ? t('common.loading') : query ? t('inventory.noResults') : t('sales.noProducts')}
               </Text>
-              {!inventory.isLoading && !query && (
+              {!inventoryIsLoading && !query && (
                 <Text style={[styles.emptySub, { color: colors.gray400, textAlign }]}>{t('sales.noInventoryMsg')}</Text>
               )}
             </View>

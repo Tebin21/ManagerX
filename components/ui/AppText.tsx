@@ -1,7 +1,5 @@
 import React from 'react';
 import { StyleSheet, Text as RNText, TextProps, TextStyle } from 'react-native';
-import { useLanguageStore } from '@/store/languageStore';
-import i18n from '@/lib/i18n';
 import { applyKurdishFont, withSystemFontLatin, hasKurdishScript } from '@/lib/settingsFont';
 import { toEnglishDigits } from '@/utils/formatters';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -24,15 +22,17 @@ function convertDigitsInNode(node: React.ReactNode): React.ReactNode {
 // Bahij Janna is applied to the Kurdish text, while numbers and Latin letters
 // strictly remain in Inter/system fonts.
 // Also reactively applies user-selected global UI scaling (1-10 levels).
-function AppText({ style, children, ...props }: TextProps) {
-  const lang = useLanguageStore((s) => s.language);
-  const isKurdishLang = lang === 'ku' || (!lang && (i18n.language === 'ku' || !i18n.language));
+function AppTextImpl({ style, children, ...props }: TextProps) {
   const normalizedChildren = convertDigitsInNode(children);
   const hasKurdish = hasKurdishScript(normalizedChildren);
   const appScaleLevel = useSettingsStore((s) => s.appScaleLevel ?? 5);
   const scale = getScaleFactor(appScaleLevel);
 
-  const parentStyle = (StyleSheet.flatten(style) ?? {}) as TextStyle;
+  const parentStyle = (
+    style && !Array.isArray(style) && typeof style === 'object'
+      ? style
+      : (StyleSheet.flatten(style) ?? {})
+  ) as TextStyle;
   const baseFontSize = typeof parentStyle.fontSize === 'number' ? parentStyle.fontSize : 14;
   const scaledStyle: TextStyle = scale !== 1.0
     ? {
@@ -57,4 +57,4 @@ function AppText({ style, children, ...props }: TextProps) {
 
 // Explicit const — avoids TypeScript confusing the export alias `Text`
 // with the local RNText import when consumers do `import { Text }`.
-export const Text = AppText;
+export const Text = React.memo(AppTextImpl);

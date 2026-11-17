@@ -18,7 +18,7 @@ interface Props {
   onPress: () => void;
 }
 
-export function SaleHistoryItem({ sale, onPress }: Props) {
+function SaleHistoryItemImpl({ sale, onPress }: Props) {
   const { colors, isDark } = useAppTheme();
   const { isTablet } = useResponsive();
   const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
@@ -27,7 +27,6 @@ export function SaleHistoryItem({ sale, onPress }: Props) {
   const currentLang = useLanguageStore((s) => s.language);
   const isKuLanguage = currentLang === 'ku';
   const isAr = currentLang === 'ar';
-  const isKuOrAr = isKuLanguage || isAr;
 
   const isDirectCustomer = !sale.customerName ||
     !sale.customerId ||
@@ -95,6 +94,8 @@ export function SaleHistoryItem({ sale, onPress }: Props) {
     </TouchableOpacity>
   );
 }
+
+export const SaleHistoryItem = React.memo(SaleHistoryItemImpl);
 
 function getStyles(colors: AppColors, isTablet: boolean) {
   return StyleSheet.create({

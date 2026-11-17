@@ -44,6 +44,17 @@ function unifyCategories(
 } {
   const map = new Map<string, { name: string; productCount: number; isDefault: boolean }>();
 
+  // Precompute active product counts by normalized category in a single O(N) pass
+  const activeCountByCat = new Map<string, number>();
+  for (let i = 0; i < (products || []).length; i++) {
+    const prod = products[i];
+    if (!prod?.isActive) continue;
+    const catKey = prod.category?.trim().toLowerCase();
+    if (catKey) {
+      activeCountByCat.set(catKey, (activeCountByCat.get(catKey) || 0) + 1);
+    }
+  }
+
   // 1. Add all from managedCategories
   (managed || []).forEach((m) => {
     const trimmed = m?.name?.trim();
@@ -62,12 +73,9 @@ function unifyCategories(
     if (!trimmed) return;
     const key = trimmed.toLowerCase();
     if (!map.has(key)) {
-      const prodCount = (products || []).filter(
-        (p) => p?.isActive && p?.category?.trim().toLowerCase() === key
-      ).length;
       map.set(key, {
         name: trimmed,
-        productCount: prodCount,
+        productCount: activeCountByCat.get(key) || 0,
         isDefault: trimmed === 'گشتی' || trimmed === 'General' || trimmed === 'بنەڕەت',
       });
     }
@@ -78,10 +86,8 @@ function unifyCategories(
     const trimmed = p?.category?.trim();
     if (!trimmed) return;
     const key = trimmed.toLowerCase();
+    const prodCount = activeCountByCat.get(key) || 0;
     if (!map.has(key)) {
-      const prodCount = products.filter(
-        (prod) => prod?.isActive && prod?.category?.trim().toLowerCase() === key
-      ).length;
       map.set(key, {
         name: trimmed,
         productCount: prodCount,
@@ -89,13 +95,8 @@ function unifyCategories(
       });
     } else {
       const existing = map.get(key)!;
-      if (existing.productCount === 0) {
-        const prodCount = products.filter(
-          (prod) => prod?.isActive && prod?.category?.trim().toLowerCase() === key
-        ).length;
-        if (prodCount > 0) {
-          existing.productCount = prodCount;
-        }
+      if (existing.productCount === 0 && prodCount > 0) {
+        existing.productCount = prodCount;
       }
     }
   });
@@ -166,6 +167,8 @@ interface InventoryState {
   searchProducts: (query: string, category?: string) => Product[];
 }
 
+let inflightLoadInventory: Promise<void> | null = null;
+
 export const useInventoryStore = create<InventoryState>((set, get) => ({
   products: [],
   stats: null,
@@ -178,30 +181,36 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   inventoryHistory: [],
 
   loadInventory: async () => {
-    set({ isLoading: true });
-    try {
-      const [products, rawStats, categories, managedCategories, inventoryHistory] = await Promise.all([
-        getAllInventoryProducts(),
-        getInventoryStats(),
-        getProductCategories(),
-        getAllManagedCategories(),
-        getAllInventoryHistory(),
-      ]);
-      const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
-      const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
-      const unified = unifyCategories(categories, managedCategories, products);
-      set({
-        products,
-        stats,
-        categories: unified.categories,
-        managedCategories: unified.managedCategories,
-        inventoryHistory,
-        isLoading: false,
-      });
-    } catch (err) {
-      console.error('Failed to load inventory:', err);
-      set({ isLoading: false });
-    }
+    if (inflightLoadInventory) return inflightLoadInventory;
+    inflightLoadInventory = (async () => {
+      set({ isLoading: true });
+      try {
+        const [products, rawStats, categories, managedCategories, inventoryHistory] = await Promise.all([
+          getAllInventoryProducts(),
+          getInventoryStats(),
+          getProductCategories(),
+          getAllManagedCategories(),
+          getAllInventoryHistory(),
+        ]);
+        const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
+        const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
+        const unified = unifyCategories(categories, managedCategories, products);
+        set({
+          products,
+          stats,
+          categories: unified.categories,
+          managedCategories: unified.managedCategories,
+          inventoryHistory,
+          isLoading: false,
+        });
+      } catch (err) {
+        console.error('Failed to load inventory:', err);
+        set({ isLoading: false });
+      } finally {
+        inflightLoadInventory = null;
+      }
+    })();
+    return inflightLoadInventory;
   },
 
   reloadAfterSale: async () => {

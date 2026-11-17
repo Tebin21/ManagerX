@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { CompactAmount } from '@/components/shared/CompactAmount';
+import { useSettingsStore } from '@/store/settingsStore';
 
 type Filter = 'today' | 'weekly' | 'monthly' | 'yearly';
 
@@ -16,8 +17,6 @@ interface Props {
   index?: number;
   showLink?: boolean;
 }
-
-import { useSettingsStore } from '@/store/settingsStore';
 
 export function ExpensesCard({ totals, index = 0, showLink = true }: Props) {
   const { t } = useTranslation();
