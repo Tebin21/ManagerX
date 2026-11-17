@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -29,6 +29,7 @@ import { DEV_FORCE_ONBOARDING_PREVIEW } from '@/constants/devPreview';
 import { LanguageToggleSwitch } from '@/components/settings/LanguageToggleSwitch';
 import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
 import { EMAIL_RE } from '@/lib/validation';
+import { warmUpAuthServer } from '@/lib/authWarmup';
 
 // Localized strings for Kurdish, Arabic, and English
 const FORGOT_STRINGS = {
@@ -91,6 +92,10 @@ export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    warmUpAuthServer();
+  }, []);
 
   // Large screen vs phone breakpoint
   const isLargeScreen = isTablet || width >= 720;

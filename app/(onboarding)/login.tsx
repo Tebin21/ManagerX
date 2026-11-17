@@ -32,6 +32,7 @@ import { LanguageToggleSwitch } from '@/components/settings/LanguageToggleSwitch
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
 import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
+import { warmUpAuthServer } from '@/lib/authWarmup';
 
 // Official multi-color Google 'G' icon SVG for compact mobile social login button
 const GOOGLE_ICON_SVG = `<svg viewBox="0 0 24 24" width="22" height="22">
@@ -112,6 +113,10 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    warmUpAuthServer();
+  }, []);
 
   // Large screen vs phone breakpoint
   const isLargeScreen = isTablet || width >= 720;

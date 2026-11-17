@@ -1,8 +1,10 @@
 import express from 'express';
+import type { Request, Response } from 'express';
 import cors from 'cors';
 import { config } from './config';
 import { otpRouter } from './routes/otp';
 import { passwordResetRouter } from './routes/passwordReset';
+import { auth, firestore } from './firebaseAdmin';
 
 const app = express();
 
@@ -20,7 +22,24 @@ app.use(express.json());
 
 app.use('/api/otp', otpRouter);
 app.use('/api/password-reset', passwordResetRouter);
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+// Health check with optional proactive warmup
+app.get('/api/health', (req: Request, res: Response) => {
+  if (req.query.warm === '1') {
+    Promise.allSettled([
+      firestore.collection('otpVerifications').limit(1).get(),
+      auth.listUsers(1),
+    ]).catch(() => {});
+  }
+  res.json({ ok: true, timestamp: Date.now() });
+});
+
+// Eager warm-up of Firestore and Auth connections on server start so the first
+// real request doesn't pay connection initialization penalties.
+Promise.allSettled([
+  firestore.collection('otpVerifications').limit(1).get(),
+  auth.listUsers(1),
+]).catch(() => {});
 
 app.listen(config.port, () => {
   console.log(`Froshiar Auth API listening on http://localhost:${config.port}`);

@@ -56,13 +56,19 @@ passwordResetRouter.post('/request', passwordResetRequestLimiter, async (req: Re
 
     // Only actually send an email when the account exists — result.code exists
     // only in this local variable either way, never logged, never returned.
+    // Dispatch email asynchronously so client does not suffer Resend HTTP latency (~1.5s - 3s).
     if (uid !== null) {
-      const sendResult = await sendPasswordResetOtpEmail(normalized, result.code);
-      if (!sendResult.ok) {
-        console.error('password_reset_request', { status: 'email_send_failed', reason: sendResult.reason });
-        res.status(502).json({ error: 'email_send_failed' });
-        return;
-      }
+      sendPasswordResetOtpEmail(normalized, result.code)
+        .then((sendResult) => {
+          if (!sendResult.ok) {
+            console.error('password_reset_request: background email send failed', { reason: sendResult.reason });
+          } else {
+            console.log('password_reset_request: email sent successfully');
+          }
+        })
+        .catch((err) => {
+          console.error('password_reset_request: background email exception', { err: err instanceof Error ? err.message : String(err) });
+        });
     }
 
     // Identical response whether or not the account exists — this is the

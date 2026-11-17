@@ -29,6 +29,7 @@ import { LanguageToggleSwitch } from '@/components/settings/LanguageToggleSwitch
 import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
 import { OtpCodeInput } from '@/components/auth/OtpCodeInput';
 import { SupportFooter } from '@/components/ui/SupportFooter';
+import { warmUpAuthServer } from '@/lib/authWarmup';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -146,6 +147,7 @@ export default function VerifyEmailScreen() {
   };
 
   useEffect(() => {
+    warmUpAuthServer();
     if (!pendingVerificationEmail) return;
     if (didInitForEmail.current === pendingVerificationEmail) return;
     didInitForEmail.current = pendingVerificationEmail;
@@ -198,6 +200,7 @@ export default function VerifyEmailScreen() {
     setCode('');
     setVerifyError(null);
     setInputLocked(false);
+    startCooldown();
     const { error } = await resendEmailOtp();
     if (!silent) {
       setResending(false);
@@ -209,7 +212,6 @@ export default function VerifyEmailScreen() {
     } else if (error) {
       setResendError(error);
     }
-    startCooldown();
   };
 
   const handleBackToLogin = async () => {

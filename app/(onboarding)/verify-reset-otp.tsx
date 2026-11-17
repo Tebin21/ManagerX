@@ -29,6 +29,7 @@ import { LanguageToggleSwitch } from '@/components/settings/LanguageToggleSwitch
 import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
 import { OtpCodeInput } from '@/components/auth/OtpCodeInput';
 import { SupportFooter } from '@/components/ui/SupportFooter';
+import { warmUpAuthServer } from '@/lib/authWarmup';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -121,6 +122,7 @@ export default function VerifyResetOtpScreen() {
   const maskedEmailStr = maskEmail(pendingPasswordResetEmail);
 
   useEffect(() => {
+    warmUpAuthServer();
     startCooldown();
     return () => {
       if (cooldownTimer.current) clearInterval(cooldownTimer.current);
@@ -167,6 +169,7 @@ export default function VerifyResetOtpScreen() {
     setCode('');
     setVerifyError(null);
     setInputLocked(false);
+    startCooldown();
     const { error } = await resendPasswordResetOtp();
     setResending(false);
     if (error) {
@@ -174,7 +177,6 @@ export default function VerifyResetOtpScreen() {
     } else {
       setResendMessage(strings.resendSuccess);
     }
-    startCooldown();
   };
 
   const handleBackToLogin = () => {

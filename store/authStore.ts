@@ -19,6 +19,7 @@ import {
 } from '@/lib/firebase';
 import type { User, AuthCredential } from '@react-native-firebase/auth';
 import i18n from '@/lib/i18n';
+import { getAuthServerUrl } from '@/lib/authWarmup';
 
 const WEB_CLIENT_ID =
   '1097351210121-glmjp9ul4vfa45hhsvemnmmpajff8eh6.apps.googleusercontent.com';
@@ -33,10 +34,8 @@ const WEB_CLIENT_ID =
 const APP_REVIEW_DEMO_EMAIL = 'demo@froshiar.store';
 
 // Base URL of the standalone auth-server/ backend (see that folder's README) that
-// generates/verifies the 6-digit email OTP. Never falls back to a hardcoded prod
-// URL — an unset var should fail loudly (every OTP call rejects) rather than
-// silently point at nothing.
-const AUTH_SERVER_URL = process.env.EXPO_PUBLIC_AUTH_SERVER_URL ?? '';
+// generates/verifies the 6-digit email OTP. Defaults to production URL if env is unset.
+const getBaseAuthUrl = () => getAuthServerUrl();
 
 type OtpErrorCode =
   | 'network'
@@ -65,16 +64,18 @@ async function callAuthServer(
   path: string,
   opts: { idToken: string; body?: Record<string, unknown> }
 ): Promise<Record<string, any>> {
-  if (!AUTH_SERVER_URL) throw new OtpRequestError('not_configured');
+  const baseUrl = getBaseAuthUrl();
+  if (!baseUrl) throw new OtpRequestError('not_configured');
 
   let res: Response;
   try {
-    res = await fetch(`${AUTH_SERVER_URL}${path}`, {
+    res = await fetch(`${baseUrl}${path}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${opts.idToken}`,
       },
+      signal: AbortSignal.timeout(15000),
       body: JSON.stringify(opts.body ?? {}),
     });
   } catch {
@@ -174,13 +175,15 @@ class PasswordResetRequestError extends Error {
 // caller isn't signed in during this flow. The backend derives everything from the
 // email (and, for /complete, the server-issued reset token) in the body instead.
 async function callPasswordResetServer(path: string, body: Record<string, unknown>): Promise<Record<string, any>> {
-  if (!AUTH_SERVER_URL) throw new PasswordResetRequestError('not_configured');
+  const baseUrl = getBaseAuthUrl();
+  if (!baseUrl) throw new PasswordResetRequestError('not_configured');
 
   let res: Response;
   try {
-    res = await fetch(`${AUTH_SERVER_URL}${path}`, {
+    res = await fetch(`${baseUrl}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(15000),
       body: JSON.stringify(body),
     });
   } catch {

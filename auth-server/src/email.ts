@@ -30,6 +30,7 @@ export async function sendOtpEmail(to: string, code: string): Promise<{ ok: true
         Authorization: `Bearer ${config.resendApiKey}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(10000),
       body: JSON.stringify({
         from: config.resendFromAddress,
         to: [to],
@@ -83,6 +84,7 @@ export async function sendPasswordResetOtpEmail(to: string, code: string): Promi
         Authorization: `Bearer ${config.resendApiKey}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(10000),
       body: JSON.stringify({
         from: config.resendFromAddress,
         to: [to],

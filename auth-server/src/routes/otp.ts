@@ -26,12 +26,19 @@ otpRouter.post('/request', otpRequestLimiter, verifyFirebaseToken, async (req: A
 
     // result.code exists only in this local variable — never logged, never
     // included in any response.
-    const sendResult = await sendOtpEmail(email, result.code);
-    if (!sendResult.ok) {
-      console.error('otp_request', { uid, status: 'email_send_failed', reason: sendResult.reason });
-      res.status(502).json({ error: 'email_send_failed' });
-      return;
-    }
+    // Dispatch email asynchronously so client does not suffer Resend HTTP latency (~1.5s - 3s).
+    // The OTP is already cryptographically saved in Firestore; the client receives immediate ack.
+    sendOtpEmail(email, result.code)
+      .then((sendResult) => {
+        if (!sendResult.ok) {
+          console.error('otp_request: background email send failed', { uid, reason: sendResult.reason });
+        } else {
+          console.log('otp_request: email sent successfully', { uid });
+        }
+      })
+      .catch((err) => {
+        console.error('otp_request: background email exception', { uid, err: err instanceof Error ? err.message : String(err) });
+      });
 
     console.log('otp_request', { uid, status: 'sent' });
     res.json({ success: true, expiresInSeconds: 600, cooldownSeconds: 60 });
