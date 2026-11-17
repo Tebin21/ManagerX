@@ -11,6 +11,7 @@ import {
   Alert,
   ActivityIndicator,
   LayoutAnimation,
+  PanResponder,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/ui/AppText';
@@ -146,33 +147,144 @@ export default function NewSaleScreen() {
   const maxDownPayment = cart.maxDownPayment();
   const rawPaidNum = parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0;
 
+  const mobileCardWidth = Math.min(screenWidth - 44, 380);
+  const [verticalScrollEnabled, setVerticalScrollEnabled] = useState(true);
+  const currentScrollXRef = React.useRef(0);
+  const panStartScrollXRef = React.useRef(0);
+  const panStartIndexRef = React.useRef(0);
+  const isHorizontalDraggingRef = React.useRef(false);
+  const activeCartIndexRef = React.useRef(activeCartIndex);
+  const cartItemsCountRef = React.useRef(cart.items.length);
+  const mobileCardWidthRef = React.useRef(mobileCardWidth);
+  const isRTLRef = React.useRef(isRTL);
+
+  activeCartIndexRef.current = activeCartIndex;
+  cartItemsCountRef.current = cart.items.length;
+  mobileCardWidthRef.current = mobileCardWidth;
+  isRTLRef.current = isRTL;
+
   // Clamp active cart index on item removal
   useEffect(() => {
     if (activeCartIndex >= cart.items.length && cart.items.length > 0) {
-      setActiveCartIndex(cart.items.length - 1);
+      const clamped = cart.items.length - 1;
+      activeCartIndexRef.current = clamped;
+      setActiveCartIndex(clamped);
+      const targetX = clamped * (mobileCardWidth + 10);
+      currentScrollXRef.current = targetX;
+      cartScrollRef.current?.scrollTo({ x: targetX, animated: true });
     }
-  }, [cart.items.length, activeCartIndex]);
-
-  const mobileCardWidth = Math.min(screenWidth - 44, 380);
+  }, [cart.items.length, activeCartIndex, mobileCardWidth]);
 
   const onCartScroll = (e: any) => {
     const offsetX = Math.abs(e.nativeEvent?.contentOffset?.x ?? 0);
-    const itemFullWidth = mobileCardWidth + 10;
+    currentScrollXRef.current = offsetX;
+    const itemFullWidth = mobileCardWidthRef.current + 10;
     const index = Math.round(offsetX / itemFullWidth);
-    const clamped = Math.max(0, Math.min(index, cart.items.length - 1));
-    if (clamped !== activeCartIndex) {
+    const clamped = Math.max(0, Math.min(index, cartItemsCountRef.current - 1));
+    if (clamped !== activeCartIndexRef.current) {
+      activeCartIndexRef.current = clamped;
       setActiveCartIndex(clamped);
     }
   };
 
   const scrollToCartIndex = (index: number) => {
-    const target = Math.max(0, Math.min(index, cart.items.length - 1));
+    const count = cartItemsCountRef.current;
+    if (count <= 0) return;
+    const target = Math.max(0, Math.min(index, count - 1));
+    const itemFullWidth = mobileCardWidthRef.current + 10;
+    const targetX = target * itemFullWidth;
+    currentScrollXRef.current = targetX;
+    activeCartIndexRef.current = target;
     setActiveCartIndex(target);
     cartScrollRef.current?.scrollTo({
-      x: target * (mobileCardWidth + 10),
+      x: targetX,
       animated: true,
     });
   };
+
+  const cartPanResponder = React.useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponderCapture: () => false,
+      onStartShouldSetPanResponder: () => cartItemsCountRef.current > 1,
+      onMoveShouldSetPanResponder: (_evt, gs) =>
+        cartItemsCountRef.current > 1 &&
+        Math.abs(gs.dx) > 6 &&
+        Math.abs(gs.dx) > Math.abs(gs.dy) * 1.1,
+      onMoveShouldSetPanResponderCapture: (_evt, gs) =>
+        cartItemsCountRef.current > 1 &&
+        Math.abs(gs.dx) > 6 &&
+        Math.abs(gs.dx) > Math.abs(gs.dy) * 1.1,
+      onPanResponderTerminationRequest: (_evt, gs) => {
+        if (isHorizontalDraggingRef.current) return false;
+        return Math.abs(gs.dy) > Math.abs(gs.dx) * 1.2;
+      },
+      onShouldBlockNativeResponder: () => true,
+      onPanResponderGrant: () => {
+        const itemFullWidth = mobileCardWidthRef.current + 10;
+        panStartIndexRef.current = activeCartIndexRef.current;
+        panStartScrollXRef.current = activeCartIndexRef.current * itemFullWidth;
+        isHorizontalDraggingRef.current = false;
+      },
+      onPanResponderMove: (_evt, gs) => {
+        const count = cartItemsCountRef.current;
+        if (count <= 1) return;
+        if (!isHorizontalDraggingRef.current) {
+          if (Math.abs(gs.dx) > 5 && Math.abs(gs.dx) >= Math.abs(gs.dy)) {
+            isHorizontalDraggingRef.current = true;
+            Keyboard.dismiss();
+            setVerticalScrollEnabled(false);
+          } else {
+            return;
+          }
+        }
+        const itemFullWidth = mobileCardWidthRef.current + 10;
+        const maxScrollX = Math.max(0, (count - 1) * itemFullWidth);
+        const delta = isRTLRef.current ? gs.dx : -gs.dx;
+        const rawX = panStartScrollXRef.current + delta;
+        const clampedX = Math.max(0, Math.min(maxScrollX, rawX));
+        currentScrollXRef.current = clampedX;
+        cartScrollRef.current?.scrollTo({ x: clampedX, animated: false });
+        const liveIdx = Math.max(0, Math.min(count - 1, Math.round(clampedX / itemFullWidth)));
+        if (liveIdx !== activeCartIndexRef.current) {
+          activeCartIndexRef.current = liveIdx;
+          setActiveCartIndex(liveIdx);
+        }
+      },
+      onPanResponderRelease: (_evt, gs) => {
+        const wasDragging = isHorizontalDraggingRef.current;
+        isHorizontalDraggingRef.current = false;
+        setVerticalScrollEnabled(true);
+        const count = cartItemsCountRef.current;
+        if (!wasDragging || count <= 1) return;
+        const cardW = mobileCardWidthRef.current;
+        const itemFullWidth = cardW + 10;
+        const delta = isRTLRef.current ? gs.dx : -gs.dx;
+        const vel = isRTLRef.current ? gs.vx : -gs.vx;
+        let targetIdx = panStartIndexRef.current;
+        if (Math.abs(delta) > cardW * 0.14 || Math.abs(vel) > 0.20) {
+          const steps = Math.max(1, Math.round(Math.abs(delta) / itemFullWidth));
+          if (delta > 0 || vel > 0.20) {
+            targetIdx = panStartIndexRef.current + steps;
+          } else if (delta < 0 || vel < -0.20) {
+            targetIdx = panStartIndexRef.current - steps;
+          }
+        } else {
+          targetIdx = Math.round(currentScrollXRef.current / itemFullWidth);
+        }
+        scrollToCartIndex(targetIdx);
+      },
+      onPanResponderTerminate: () => {
+        const wasDragging = isHorizontalDraggingRef.current;
+        isHorizontalDraggingRef.current = false;
+        setVerticalScrollEnabled(true);
+        if (wasDragging && cartItemsCountRef.current > 1) {
+          const itemFullWidth = mobileCardWidthRef.current + 10;
+          const nearest = Math.round(currentScrollXRef.current / itemFullWidth);
+          scrollToCartIndex(nearest);
+        }
+      },
+    })
+  ).current;
   const isPaidExceeded = (cart.paymentMethod === 'debt' || cart.paymentMethod === 'installment') && rawPaidNum > maxDownPayment;
   const maxDownPaymentDisplay = isUSD ? `$${maxDownPayment}` : `${maxDownPayment.toLocaleString()} IQD`;
   const remainingDebt = cart.remainingDebt();
@@ -882,7 +994,12 @@ export default function NewSaleScreen() {
           </View>
         </View>
       ) : (
-        <KeyboardAwareScrollView contentContainerStyle={[styles.step2Body, isTablet && contentContainerStyle]}>
+        <KeyboardAwareScrollView
+          wrapForTapDismiss={false}
+          scrollEnabled={verticalScrollEnabled}
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={[styles.step2Body, isTablet && contentContainerStyle]}
+        >
           {/* Quick Actions: Scan More / Add Items */}
           <View style={[styles.step2ActionRow, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTablet ? 12 : 10 }]}>
             {Platform.OS !== 'web' && (
@@ -973,7 +1090,7 @@ export default function NewSaleScreen() {
               ))}
             </View>
           ) : (
-            <View style={styles.cartCarouselContainer}>
+            <View style={styles.cartCarouselContainer} {...cartPanResponder.panHandlers}>
               {/* Prominent Fixed Top Navigation Bar for Cart Items */}
               <View
                 style={[
@@ -1107,6 +1224,7 @@ export default function NewSaleScreen() {
                 <ScrollView
                   ref={cartScrollRef}
                   horizontal
+                  scrollEnabled={false}
                   showsHorizontalScrollIndicator={false}
                   nestedScrollEnabled={true}
                   directionalLockEnabled={true}
@@ -1119,6 +1237,7 @@ export default function NewSaleScreen() {
                   overScrollMode="never"
                   bounces={false}
                   scrollEventThrottle={16}
+                  onScroll={onCartScroll}
                   onMomentumScrollEnd={onCartScroll}
                   onScrollEndDrag={onCartScroll}
                   style={[
