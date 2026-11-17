@@ -240,7 +240,7 @@ export default function VerifyEmailScreen() {
   };
 
   // Dimensions - optimized for mobile screen height
-  const phoneSvgSize = Math.min(215, width * 0.54);
+  const phoneSvgSize = Math.min(295, width * 0.74);
   const tabletSvgSize = isTabletLandscape ? 360 : 290;
 
   // Render Top Header Controls (Unified Centered Pill: Language Toggle + Dark/Light Mode)
@@ -734,7 +734,7 @@ export default function VerifyEmailScreen() {
                     },
                   ]}
                 >
-                  <SvgXml xml={AUTHENTICATION_CUATE_SVG} width={phoneSvgSize} height={phoneSvgSize * 0.86} />
+                  <SvgXml xml={AUTHENTICATION_CUATE_SVG} width={phoneSvgSize} height={phoneSvgSize * 0.88} />
                 </View>
               </MotiView>
 
@@ -753,8 +753,6 @@ export default function VerifyEmailScreen() {
               >
                 {renderFormFields(false)}
               </MotiView>
-
-              <SupportFooter />
             </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
@@ -829,23 +827,25 @@ const styles = StyleSheet.create({
   mobileScrollContent: {
     flexGrow: 1,
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingTop: 2,
+    paddingBottom: 24,
     justifyContent: 'space-between',
   },
   mobileIllustrationSection: {
     alignItems: 'center',
-    paddingVertical: 2,
+    justifyContent: 'center',
+    paddingVertical: 4,
   },
   mobileSvgCircle: {
-    borderRadius: 24,
-    padding: 6,
-    borderWidth: 1,
+    borderRadius: 28,
+    padding: 8,
+    borderWidth: 1.5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
     elevation: 3,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   mobileAppTitle: {
     fontSize: 18,
