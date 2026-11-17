@@ -36,6 +36,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { hexToRgba } from '@/lib/colorUtils';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { useRTL } from '@/lib/rtl';
+import { useResponsive } from '@/hooks/useResponsive';
 import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
 import { getDatabase, wipeAllBusinessData, saveBusiness } from '@/lib/sqlite';
 import {
@@ -89,8 +90,8 @@ export default function DataScreen() {
   const { t }              = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, flexDirection } = useRTL();
+  const { contentContainerStyle, horizontalPadding } = useResponsive();
   const router             = useRouter();
-  const signOut            = useAuthStore((s) => s.signOut);
   const user               = useAuthStore((s) => s.user);
   const isKuLanguage       = useLanguageStore((s) => s.language === 'ku');
   const isEmployee         = useManagementStore((s) => s.isEmployee);
@@ -744,7 +745,14 @@ export default function DataScreen() {
       <SettingsBackground />
       <AppHeader title={t('settings.dataScreen.title')} showBack />
 
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.body,
+          contentContainerStyle,
+          { paddingHorizontal: horizontalPadding },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
 
         {/* ── Google Drive Personal Cloud Backup (Managers / Owners Only) ── */}
         {!isRealEmployee && (
@@ -849,33 +857,33 @@ export default function DataScreen() {
             }
           />
 
-          {gdriveConfig?.isConnected && (
-            <>
-              <GoogleDriveDataChart
-                config={gdriveConfig}
-                localStats={backupStats}
-                onBackupNow={handleGDriveBackup}
-                onRestoreNow={handleGDriveRestore}
-                isSyncing={gdriveSyncing}
-                isRestoring={gdriveRestoring}
-              />
+          {gdriveConfig?.isConnected ? (
+            <GoogleDriveDataChart
+              config={gdriveConfig}
+              localStats={backupStats}
+              onBackupNow={handleGDriveBackup}
+              onRestoreNow={handleGDriveRestore}
+              isSyncing={gdriveSyncing}
+              isRestoring={gdriveRestoring}
+            />
+          ) : null}
 
-              <SettingRow
-                icon="sync"
-                label={t('settings.dataScreen.googleDriveAutoBackup')}
-                sub={t('settings.dataScreen.googleDriveAutoBackupSub')}
-                chevron={false}
-                rightElement={
-                  <Switch
-                    value={gdriveConfig.autoBackupEnabled}
-                    onValueChange={handleToggleGDriveAuto}
-                    trackColor={{ false: colors.gray200, true: colors.primary }}
-                    thumbColor="#FFFFFF"
-                  />
-                }
-              />
-            </>
-          )}
+          {gdriveConfig?.isConnected ? (
+            <SettingRow
+              icon="sync"
+              label={t('settings.dataScreen.googleDriveAutoBackup')}
+              sub={t('settings.dataScreen.googleDriveAutoBackupSub')}
+              chevron={false}
+              rightElement={
+                <Switch
+                  value={gdriveConfig.autoBackupEnabled}
+                  onValueChange={handleToggleGDriveAuto}
+                  trackColor={{ false: colors.gray200, true: colors.primary }}
+                  thumbColor="#FFFFFF"
+                />
+              }
+            />
+          ) : null}
         </SettingSection>
         )}
 

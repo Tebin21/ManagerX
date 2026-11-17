@@ -69,17 +69,20 @@ export function SettingSection({ title, children }: Props) {
             pointerEvents="none"
           />
         )}
-        {React.Children.map(children, (child, i) => {
-          const isLast = i === React.Children.count(children) - 1;
-          return (
-            <View key={i}>
-              {child}
-              {!isLast ? (
-                <View style={[styles.divider, { backgroundColor: dividerColor, marginStart: dividerOffset }]} />
-              ) : null}
-            </View>
-          );
-        })}
+        {(() => {
+          const validChildren = React.Children.toArray(children).filter(Boolean);
+          return validChildren.map((child, i) => {
+            const isLast = i === validChildren.length - 1;
+            return (
+              <View key={i}>
+                {child}
+                {!isLast ? (
+                  <View style={[styles.divider, { backgroundColor: dividerColor, marginStart: dividerOffset }]} />
+                ) : null}
+              </View>
+            );
+          });
+        })()}
       </View>
     </View>
   );

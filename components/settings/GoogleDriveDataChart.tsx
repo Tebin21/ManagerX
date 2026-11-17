@@ -6,11 +6,12 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Text } from '@/components/settings/SettingsText';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
+import { useResponsive } from '@/hooks/useResponsive';
 import { useLanguageStore } from '@/store/languageStore';
 import { hexToRgba } from '@/lib/colorUtils';
 import {
@@ -48,7 +49,9 @@ export function GoogleDriveDataChart({
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, flexDirection } = useRTL();
+  const { width, isTablet, uiScaleFactor } = useResponsive();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isCompactPhone = !isTablet && (width < 380 || uiScaleFactor > 1.1);
 
   // Must only render when Google Drive is connected
   if (!config.isConnected) {
@@ -189,6 +192,9 @@ export function GoogleDriveDataChart({
     platformIcon = 'desktop-outline';
   }
 
+  const legendItemWidth = isTablet ? '32%' : '48.6%';
+  const metricCardWidth = !isTablet && width < 345 ? '48.6%' : '31.6%';
+
   return (
     <View
       style={[
@@ -196,28 +202,64 @@ export function GoogleDriveDataChart({
         {
           backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
           borderColor: isDark ? colors.gray200 : hexToRgba(colors.primary, 0.25),
+          padding: isTablet ? 20 : isCompactPhone ? 12 : 14,
         },
       ]}
     >
       {/* ── Top Header Banner ── */}
       <View style={[styles.headerBanner, { flexDirection }]}>
-        <View style={[styles.iconBox, { backgroundColor: hexToRgba(colors.primary, 0.15) }]}>
-          <Ionicons name="cloud-done" size={22} color={colors.primary} />
+        <View
+          style={[
+            styles.iconBox,
+            {
+              backgroundColor: hexToRgba(colors.primary, 0.15),
+              width: isTablet ? 48 : 40,
+              height: isTablet ? 48 : 40,
+            },
+          ]}
+        >
+          <Ionicons name="cloud-done" size={isTablet ? 24 : 20} color={colors.primary} />
         </View>
-        <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-          <View style={{ flexDirection, alignItems: 'center', gap: 6 }}>
+        <View style={{ flex: 1, minWidth: 0, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+          <View
+            style={{
+              width: '100%',
+              flexDirection,
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+            }}
+          >
             <Text
               style={[
                 styles.titleText,
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                { color: colors.black },
+                {
+                  color: colors.black,
+                  flex: 1,
+                  minWidth: 0,
+                  textAlign: isRTL ? 'right' : 'left',
+                  writingDirection: isRTL ? 'rtl' : 'ltr',
+                  fontSize: isTablet ? 16.5 : isCompactPhone ? 13.5 : 14.5,
+                },
               ]}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.82}
             >
               {t('settings.dataScreen.gdriveChartTitle')}
             </Text>
-            <View style={[styles.liveBadge, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : '#ECFDF5' }]}>
+            <View
+              style={[
+                styles.liveBadge,
+                {
+                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : '#ECFDF5',
+                  flexShrink: 0,
+                },
+              ]}
+            >
               <View style={styles.liveDot} />
-              <Text style={[styles.liveText, { color: '#10B981' }]}>
+              <Text style={[styles.liveText, { color: '#10B981' }]} numberOfLines={1}>
                 {isKuLanguage ? 'چالاکە' : 'Active'}
               </Text>
             </View>
@@ -226,8 +268,14 @@ export function GoogleDriveDataChart({
             style={[
               styles.subtitleText,
               isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
-              { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
+              {
+                color: colors.gray500,
+                width: '100%',
+                textAlign: isRTL ? 'right' : 'left',
+                writingDirection: isRTL ? 'rtl' : 'ltr',
+              },
             ]}
+            numberOfLines={2}
           >
             {t('settings.dataScreen.gdriveChartSub')}
           </Text>
@@ -242,17 +290,26 @@ export function GoogleDriveDataChart({
             {
               backgroundColor: isDark ? hexToRgba(colors.primary, 0.12) : hexToRgba(colors.primary, 0.06),
               borderColor: isDark ? hexToRgba(colors.primary, 0.28) : hexToRgba(colors.primary, 0.18),
+              alignItems: isRTL ? 'flex-end' : 'flex-start',
             },
           ]}
         >
-          <View style={{ flexDirection, alignItems: 'center', gap: 6 }}>
-            <Ionicons name="pie-chart" size={16} color={colors.primary} />
+          <View style={{ width: '100%', flexDirection, alignItems: 'center', gap: 5 }}>
+            <Ionicons name="pie-chart" size={15} color={colors.primary} style={{ flexShrink: 0 }} />
             <Text
               style={[
                 styles.highlightLabel,
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
-                { color: colors.gray600 },
+                {
+                  color: colors.gray600,
+                  flex: 1,
+                  minWidth: 0,
+                  textAlign: isRTL ? 'right' : 'left',
+                },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
             >
               {t('settings.dataScreen.gdriveStorageUsed')}
             </Text>
@@ -261,8 +318,15 @@ export function GoogleDriveDataChart({
             style={[
               styles.highlightValue,
               isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              { color: colors.primary },
+              {
+                color: colors.primary,
+                width: '100%',
+                textAlign: isRTL ? 'right' : 'left',
+              },
             ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
           >
             {formattedSize}
           </Text>
@@ -274,46 +338,87 @@ export function GoogleDriveDataChart({
             {
               backgroundColor: isDark ? 'rgba(59, 130, 246, 0.10)' : '#EFF6FF',
               borderColor: isDark ? 'rgba(59, 130, 246, 0.25)' : '#DBEAFE',
+              alignItems: isRTL ? 'flex-end' : 'flex-start',
             },
           ]}
         >
-          <View style={{ flexDirection, alignItems: 'center', gap: 6 }}>
-            <Ionicons name="layers-outline" size={16} color="#3B82F6" />
+          <View style={{ width: '100%', flexDirection, alignItems: 'center', gap: 5 }}>
+            <Ionicons name="layers-outline" size={15} color="#3B82F6" style={{ flexShrink: 0 }} />
             <Text
               style={[
                 styles.highlightLabel,
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
-                { color: colors.gray600 },
+                {
+                  color: colors.gray600,
+                  flex: 1,
+                  minWidth: 0,
+                  textAlign: isRTL ? 'right' : 'left',
+                },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
             >
               {t('settings.dataScreen.gdriveTotalRecords')}
             </Text>
           </View>
-          <Text
-            style={[
-              styles.highlightValue,
-              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              { color: '#3B82F6' },
-            ]}
-          >
-            {totalRecords.toLocaleString()} {t('settings.dataScreen.records')}
-          </Text>
+          <View style={{ width: '100%', flexDirection, alignItems: 'baseline', gap: 4, marginTop: 4 }}>
+            <Text
+              style={[
+                styles.highlightValue,
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                { color: '#3B82F6', marginTop: 0 },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              {totalRecords.toLocaleString()}
+            </Text>
+            <Text
+              style={[
+                styles.highlightUnit,
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                { color: '#3B82F6' },
+              ]}
+              numberOfLines={1}
+            >
+              {t('settings.dataScreen.records')}
+            </Text>
+          </View>
         </View>
       </View>
 
       {/* ── Visual Distribution Bar (Chart / هێڵکاریی دابەشبوونی داتا) ── */}
       <View style={styles.chartSection}>
-        <View style={{ flexDirection, justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <View
+          style={{
+            width: '100%',
+            flexDirection,
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 8,
+            marginBottom: 8,
+          }}
+        >
           <Text
             style={[
               styles.sectionMiniTitle,
               isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              { color: colors.gray700 },
+              {
+                color: colors.gray700,
+                flex: 1,
+                minWidth: 0,
+                textAlign: isRTL ? 'right' : 'left',
+              },
             ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.78}
           >
             {isKuLanguage ? 'هێڵکاریی دابەشبوونی داتاکان بەپێی بەشەکان' : 'Data Distribution by Category'}
           </Text>
-          <Text style={[styles.sectionMiniSub, { color: colors.gray400 }]}>
+          <Text style={[styles.sectionMiniSub, { color: colors.gray400, flexShrink: 0 }]}>
             100%
           </Text>
         </View>
@@ -341,7 +446,7 @@ export function GoogleDriveDataChart({
           })}
         </View>
 
-        {/* Legend Grid */}
+        {/* Responsive 2-Column (Phone) / 3-Column (Tablet) Legend Grid */}
         <View style={[styles.legendGrid, { flexDirection, flexWrap: 'wrap' }]}>
           {segments.map((seg) => {
             const pct = Math.round((seg.count / safeTotal) * 100);
@@ -350,32 +455,49 @@ export function GoogleDriveDataChart({
                 key={seg.key}
                 style={[
                   styles.legendItem,
-                  { flexDirection, backgroundColor: isDark ? colors.gray50 : '#F8FAFC' },
+                  {
+                    width: legendItemWidth,
+                    flexDirection,
+                    backgroundColor: isDark ? colors.gray50 : '#F8FAFC',
+                    borderColor: isDark ? colors.gray200 : '#E2E8F0',
+                  },
                 ]}
               >
-                <View style={[styles.legendDot, { backgroundColor: seg.color }]} />
-                <Text
-                  style={[
-                    styles.legendLabel,
-                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
-                    { color: colors.gray700 },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {seg.label}:
-                </Text>
-                <Text
-                  style={[
-                    styles.legendValue,
-                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    { color: colors.black },
-                  ]}
-                >
-                  {seg.count.toLocaleString()}
-                </Text>
-                <Text style={[styles.legendPct, { color: colors.gray400 }]}>
-                  ({pct}%)
-                </Text>
+                <View style={{ flexDirection, alignItems: 'center', gap: 5, flex: 1, minWidth: 0 }}>
+                  <View style={[styles.legendDot, { backgroundColor: seg.color, flexShrink: 0 }]} />
+                  <Text
+                    style={[
+                      styles.legendLabel,
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
+                      {
+                        color: colors.gray700,
+                        flex: 1,
+                        minWidth: 0,
+                        textAlign: isRTL ? 'right' : 'left',
+                      },
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.72}
+                  >
+                    {seg.label}:
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                  <Text
+                    style={[
+                      styles.legendValue,
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      { color: colors.black },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {seg.count.toLocaleString()}
+                  </Text>
+                  <Text style={[styles.legendPct, { color: colors.gray400 }]} numberOfLines={1}>
+                    ({pct}%)
+                  </Text>
+                </View>
               </View>
             );
           })}
@@ -390,21 +512,30 @@ export function GoogleDriveDataChart({
             style={[
               styles.metricCard,
               {
+                width: metricCardWidth,
                 backgroundColor: isDark ? colors.gray50 : '#F8FAFC',
                 borderColor: isDark ? colors.gray200 : '#E2E8F0',
               },
             ]}
           >
-            <View style={{ flexDirection, alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <View style={[styles.metricIconWrap, { backgroundColor: hexToRgba(seg.color, 0.15) }]}>
-                <Ionicons name={seg.icon as any} size={16} color={seg.color} />
+            <View style={{ flexDirection, alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 4 }}>
+              <View style={[styles.metricIconWrap, { backgroundColor: hexToRgba(seg.color, 0.15), flexShrink: 0 }]}>
+                <Ionicons name={seg.icon as any} size={15} color={seg.color} />
               </View>
               <Text
                 style={[
                   styles.metricCount,
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                  { color: colors.black },
+                  {
+                    color: colors.black,
+                    flex: 1,
+                    minWidth: 0,
+                    textAlign: isRTL ? 'left' : 'right',
+                  },
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.72}
               >
                 {seg.count.toLocaleString()}
               </Text>
@@ -413,9 +544,15 @@ export function GoogleDriveDataChart({
               style={[
                 styles.metricLabel,
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
-                { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' },
+                {
+                  color: colors.gray600,
+                  width: '100%',
+                  textAlign: isRTL ? 'right' : 'left',
+                },
               ]}
               numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.68}
             >
               {seg.label}
             </Text>
@@ -445,188 +582,255 @@ export function GoogleDriveDataChart({
 
         {/* Row 1: Account */}
         <View style={[styles.tableRow, { flexDirection }]}>
-          <View style={{ flexDirection, alignItems: 'center', gap: 6 }}>
-            <Ionicons name="logo-google" size={14} color="#4285F4" />
+          <View style={[styles.tableRowLabelWrap, { flexDirection }]}>
+            <Ionicons name="logo-google" size={14} color="#4285F4" style={{ flexShrink: 0 }} />
             <Text
               style={[
                 styles.tableRowLabel,
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
-                { color: colors.gray500 },
+                { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
             >
               {t('settings.dataScreen.gdriveAccount')}
             </Text>
           </View>
-          <Text
-            style={[
-              styles.tableRowValue,
-              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              { color: colors.black },
-            ]}
-            numberOfLines={1}
-          >
-            {config.email || 'Google Drive'}
-          </Text>
+          <View style={[styles.tableRowValueWrap, { alignItems: isRTL ? 'flex-start' : 'flex-end' }]}>
+            <Text
+              style={[
+                styles.tableRowValue,
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                { color: colors.black, textAlign: isRTL ? 'left' : 'right', width: '100%' },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.70}
+            >
+              {config.email || 'Google Drive'}
+            </Text>
+          </View>
         </View>
 
         {/* Row 2: Origin Platform & Device */}
         <View style={[styles.tableRow, { flexDirection }]}>
-          <View style={{ flexDirection, alignItems: 'center', gap: 6 }}>
-            <Ionicons name={platformIcon} size={14} color={colors.primary} />
+          <View style={[styles.tableRowLabelWrap, { flexDirection }]}>
+            <Ionicons name={platformIcon} size={14} color={colors.primary} style={{ flexShrink: 0 }} />
             <Text
               style={[
                 styles.tableRowLabel,
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
-                { color: colors.gray500 },
+                { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
             >
               {t('settings.dataScreen.gdriveSourceDevice')}
             </Text>
           </View>
-          <Text
-            style={[
-              styles.tableRowValue,
-              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              { color: colors.black },
-            ]}
-          >
-            {platformLabel}
-          </Text>
+          <View style={[styles.tableRowValueWrap, { alignItems: isRTL ? 'flex-start' : 'flex-end' }]}>
+            <Text
+              style={[
+                styles.tableRowValue,
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                { color: colors.black, textAlign: isRTL ? 'left' : 'right', width: '100%' },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.72}
+            >
+              {platformLabel}
+            </Text>
+          </View>
         </View>
 
         {/* Row 3: App Version */}
         <View style={[styles.tableRow, { flexDirection }]}>
-          <View style={{ flexDirection, alignItems: 'center', gap: 6 }}>
-            <Ionicons name="code-working" size={14} color="#10B981" />
+          <View style={[styles.tableRowLabelWrap, { flexDirection }]}>
+            <Ionicons name="code-working" size={14} color="#10B981" style={{ flexShrink: 0 }} />
             <Text
               style={[
                 styles.tableRowLabel,
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
-                { color: colors.gray500 },
+                { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
             >
               {t('settings.dataScreen.gdriveAppVersion')}
             </Text>
           </View>
-          <Text
-            style={[
-              styles.tableRowValue,
-              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              { color: colors.black },
-            ]}
-          >
-            v{details.appVersion || '1.0.44'}
-          </Text>
+          <View style={[styles.tableRowValueWrap, { alignItems: isRTL ? 'flex-start' : 'flex-end' }]}>
+            <Text
+              style={[
+                styles.tableRowValue,
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                { color: colors.black, textAlign: isRTL ? 'left' : 'right', width: '100%' },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              v{details.appVersion || '1.0.44'}
+            </Text>
+          </View>
         </View>
 
         {/* Row 4: Earliest Recorded Date (لە کەیەوە سەڤ کراوە) */}
         <View style={[styles.tableRow, { flexDirection }]}>
-          <View style={{ flexDirection, alignItems: 'center', gap: 6 }}>
-            <Ionicons name="calendar-outline" size={14} color="#8B5CF6" />
+          <View style={[styles.tableRowLabelWrap, { flexDirection }]}>
+            <Ionicons name="calendar-outline" size={14} color="#8B5CF6" style={{ flexShrink: 0 }} />
             <Text
               style={[
                 styles.tableRowLabel,
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
-                { color: colors.gray500 },
+                { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
             >
               {t('settings.dataScreen.gdriveStartDate')}
             </Text>
           </View>
-          <Text
-            style={[
-              styles.tableRowValue,
-              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              { color: colors.black },
-            ]}
-          >
-            {formatDateOnly(details.dataStartDate)}
-          </Text>
+          <View style={[styles.tableRowValueWrap, { alignItems: isRTL ? 'flex-start' : 'flex-end' }]}>
+            <Text
+              style={[
+                styles.tableRowValue,
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                { color: colors.black, textAlign: isRTL ? 'left' : 'right', width: '100%' },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              {formatDateOnly(details.dataStartDate)}
+            </Text>
+          </View>
         </View>
 
         {/* Row 5: Upload Timestamp (کەی دانراوە) */}
         <View style={[styles.tableRow, { flexDirection }]}>
-          <View style={{ flexDirection, alignItems: 'center', gap: 6 }}>
-            <Ionicons name="time-outline" size={14} color="#F59E0B" />
+          <View style={[styles.tableRowLabelWrap, { flexDirection }]}>
+            <Ionicons name="time-outline" size={14} color="#F59E0B" style={{ flexShrink: 0 }} />
             <Text
               style={[
                 styles.tableRowLabel,
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
-                { color: colors.gray500 },
+                { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
             >
               {t('settings.dataScreen.gdriveLastUploaded')}
             </Text>
           </View>
-          <Text
-            style={[
-              styles.tableRowValue,
-              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              { color: colors.black },
-            ]}
-          >
-            {formatDateTime(details.modifiedAt || config.lastBackupAt)}
-          </Text>
+          <View style={[styles.tableRowValueWrap, { alignItems: isRTL ? 'flex-start' : 'flex-end' }]}>
+            <Text
+              style={[
+                styles.tableRowValue,
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                { color: colors.black, textAlign: isRTL ? 'left' : 'right', width: '100%' },
+              ]}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.72}
+            >
+              {formatDateTime(details.modifiedAt || config.lastBackupAt)}
+            </Text>
+          </View>
         </View>
 
         {/* Row 6: File Name */}
         <View style={[styles.tableRow, { flexDirection }]}>
-          <View style={{ flexDirection, alignItems: 'center', gap: 6 }}>
-            <Ionicons name="document-text-outline" size={14} color={colors.primary} />
+          <View style={[styles.tableRowLabelWrap, { flexDirection }]}>
+            <Ionicons name="document-text-outline" size={14} color={colors.primary} style={{ flexShrink: 0 }} />
             <Text
               style={[
                 styles.tableRowLabel,
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
-                { color: colors.gray500 },
+                { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
             >
               {t('settings.dataScreen.gdriveFileName')}
             </Text>
           </View>
-          <Text
-            style={[
-              styles.tableRowValue,
-              { color: colors.gray700, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 12 },
-            ]}
-          >
-            froshiar_backup.json
-          </Text>
+          <View style={[styles.tableRowValueWrap, { alignItems: isRTL ? 'flex-start' : 'flex-end' }]}>
+            <Text
+              style={[
+                styles.tableRowValue,
+                {
+                  color: colors.gray700,
+                  fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+                  fontSize: 11.5,
+                  textAlign: isRTL ? 'left' : 'right',
+                  width: '100%',
+                },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.70}
+            >
+              froshiar_backup.json
+            </Text>
+          </View>
         </View>
 
         {/* Row 7: Security & Encryption */}
         <View style={[styles.tableRow, { flexDirection, borderBottomWidth: 0, paddingBottom: 0 }]}>
-          <View style={{ flexDirection, alignItems: 'center', gap: 6 }}>
-            <Ionicons name="shield-checkmark" size={14} color="#10B981" />
+          <View style={[styles.tableRowLabelWrap, { flexDirection }]}>
+            <Ionicons name="shield-checkmark" size={14} color="#10B981" style={{ flexShrink: 0 }} />
             <Text
               style={[
                 styles.tableRowLabel,
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
-                { color: colors.gray500 },
+                { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
             >
               {t('settings.dataScreen.gdriveSecurity')}
             </Text>
           </View>
-          <Text
-            style={[
-              styles.tableRowValue,
-              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              { color: '#10B981', fontSize: 12 },
-            ]}
-          >
-            OAuth2 + TLS 1.3
-          </Text>
+          <View style={[styles.tableRowValueWrap, { alignItems: isRTL ? 'flex-start' : 'flex-end' }]}>
+            <Text
+              style={[
+                styles.tableRowValue,
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                {
+                  color: '#10B981',
+                  fontSize: 11.5,
+                  textAlign: isRTL ? 'left' : 'right',
+                  width: '100%',
+                },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.72}
+            >
+              OAuth2 + TLS 1.3
+            </Text>
+          </View>
         </View>
       </View>
 
       {/* ── Action Buttons (پاشەکەوتکردن لە درایڤ / گەڕاندنەوە لە درایڤ) ── */}
-      <View style={[styles.actionButtonsRow, { flexDirection, gap: 10 }]}>
+      <View style={[styles.actionButtonsRow, { flexDirection, gap: 8 }]}>
         <TouchableOpacity
           style={[
             styles.actionButton,
             {
               backgroundColor: colors.primary,
               flex: 1,
+              minWidth: 0,
               flexDirection,
             },
           ]}
@@ -638,12 +842,16 @@ export function GoogleDriveDataChart({
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
             <>
-              <Ionicons name="cloud-upload" size={16} color="#FFFFFF" />
+              <Ionicons name="cloud-upload" size={16} color="#FFFFFF" style={{ flexShrink: 0 }} />
               <Text
                 style={[
                   styles.actionButtonText,
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  { flexShrink: 1 },
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
               >
                 {t('settings.dataScreen.gdriveSyncNow')}
               </Text>
@@ -659,6 +867,7 @@ export function GoogleDriveDataChart({
               borderColor: isDark ? 'rgba(59, 130, 246, 0.35)' : '#BFDBFE',
               borderWidth: 1,
               flex: 1,
+              minWidth: 0,
               flexDirection,
             },
           ]}
@@ -670,13 +879,16 @@ export function GoogleDriveDataChart({
             <ActivityIndicator size="small" color="#3B82F6" />
           ) : (
             <>
-              <Ionicons name="cloud-download-outline" size={16} color="#3B82F6" />
+              <Ionicons name="cloud-download-outline" size={16} color="#3B82F6" style={{ flexShrink: 0 }} />
               <Text
                 style={[
                   styles.actionButtonText,
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                  { color: isDark ? '#60A5FA' : '#2563EB' },
+                  { color: isDark ? '#60A5FA' : '#2563EB', flexShrink: 1 },
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
               >
                 {t('settings.dataScreen.gdriveRestoreData')}
               </Text>
@@ -693,8 +905,9 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 16,
     borderWidth: 1,
-    padding: 16,
-    marginVertical: 12,
+    padding: 14,
+    marginVertical: 10,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
@@ -702,30 +915,34 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   headerBanner: {
-    alignItems: 'center',
-    gap: 12,
+    width: '100%',
+    alignItems: 'flex-start',
+    gap: 10,
     marginBottom: 14,
   },
   iconBox: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   titleText: {
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '700',
+    lineHeight: 21,
   },
   subtitleText: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 11.5,
+    lineHeight: 17,
+    marginTop: 3,
   },
   liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 10,
     gap: 4,
   },
@@ -736,16 +953,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
   },
   liveText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
   },
   highlightRow: {
-    gap: 10,
+    width: '100%',
+    gap: 8,
     marginBottom: 14,
   },
   highlightCard: {
     flex: 1,
-    padding: 10,
+    minWidth: 0,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
   },
@@ -758,7 +978,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 4,
   },
+  highlightUnit: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
   chartSection: {
+    width: '100%',
     marginBottom: 14,
   },
   sectionMiniTitle: {
@@ -770,21 +995,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   distributionBar: {
-    height: 12,
+    height: 11,
     borderRadius: 6,
     overflow: 'hidden',
     width: '100%',
     marginBottom: 10,
   },
   legendGrid: {
-    gap: 6,
+    width: '100%',
+    justifyContent: 'space-between',
+    rowGap: 6,
   },
   legendItem: {
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 8,
-    gap: 5,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 4,
   },
   legendDot: {
     width: 8,
@@ -802,13 +1031,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   metricsGrid: {
-    gap: 8,
+    width: '100%',
+    justifyContent: 'space-between',
+    rowGap: 8,
     marginBottom: 14,
   },
   metricCard: {
-    width: '31%',
-    flexGrow: 1,
-    padding: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
     gap: 4,
@@ -832,33 +1062,49 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 12,
     borderWidth: 1,
-    padding: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 11,
     marginBottom: 14,
   },
   tableTitle: {
     fontSize: 12,
     fontWeight: '700',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   tableRow: {
+    width: '100%',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 6,
+    gap: 8,
+    paddingVertical: 7,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(150, 150, 150, 0.15)',
   },
+  tableRowLabelWrap: {
+    alignItems: 'center',
+    gap: 5,
+    flexShrink: 0,
+    maxWidth: '47%',
+  },
+  tableRowValueWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
   tableRowLabel: {
-    fontSize: 12,
+    fontSize: 11.5,
+    flexShrink: 1,
   },
   tableRowValue: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '600',
   },
   actionButtonsRow: {
     width: '100%',
   },
   actionButton: {
-    height: 42,
+    minHeight: 42,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -866,7 +1112,8 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
+    textAlign: 'center',
   },
 });
