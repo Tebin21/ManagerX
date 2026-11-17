@@ -37,7 +37,7 @@ import { hexToRgba } from '@/lib/colorUtils';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { useRTL } from '@/lib/rtl';
 import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
-import { getDatabase, wipeAllBusinessData } from '@/lib/sqlite';
+import { getDatabase, wipeAllBusinessData, saveBusiness } from '@/lib/sqlite';
 import {
   exportBackup,
   validateAndParseBackup,
@@ -124,6 +124,11 @@ export default function DataScreen() {
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [showResetModal,   setShowResetModal]   = useState(false);
   const [resetInput,       setResetInput]       = useState('');
+  const [resetProgress,    setResetProgress]    = useState<{
+    percent: number;
+    step: string;
+    isComplete?: boolean;
+  } | null>(null);
   const [pendingBackup,    setPendingBackup]    = useState<FroshiarBackup | null>(null);
   const [dbRecords,        setDbRecords]        = useState<number | null>(null);
   const [restoreProgress,  setRestoreProgress]  = useState<{ table: string; index: number; total: number } | null>(null);
@@ -528,39 +533,57 @@ export default function DataScreen() {
     if (resetting) return;
     setShowResetModal(false);
     setResetInput('');
+    setResetProgress(null);
   }
 
   async function executeReset() {
     setResetting(true);
+    setResetProgress({
+      percent: 5,
+      step: isKuLanguage ? 'ئامادەکاری بۆ سڕینەوەی داتاکان...' : 'Preparing to reset data...',
+    });
+
     try {
-      // 1. Stop any live Firestore listeners/push timers before wiping local data —
-      // otherwise a pull callback landing mid-wipe can re-insert rows into a
-      // table that's supposed to end up empty (uuid-match upsert "resurrects"
-      // data the user just asked to reset).
+      const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+      // 1. Stop any live Firestore sync & wipe cloud data if user is signed in
+      setResetProgress({
+        percent: 15,
+        step: isKuLanguage ? 'سڕینەوەی بەرهەمەکان و کۆگا...' : 'Wiping products and inventory...',
+      });
+      await sleep(200);
+
       try {
-        const { stopCloudSync } = await import('@/lib/cloudSync');
+        const { stopCloudSync, deleteAllCloudData } = await import('@/lib/cloudSync');
         stopCloudSync();
+        if (user?.id) {
+          await deleteAllCloudData(user.id).catch(() => {});
+        }
       } catch {}
 
       // 2. Wipe ALL local SQLite tables & sequence counters
       await wipeAllBusinessData();
 
-      // 3. Clear ALL local AsyncStorage keys EXCEPT Google Drive config/tokens
-      // (User requirement: "reset data must wipe everything to zero, even business info,
-      // but must NOT touch Google Drive, only local")
+      // Ensure business profile record is preserved so app layout won't redirect to setup screen
+      const currentBiz = useBusinessStore.getState();
+      const preservedBizName = currentBiz.name?.trim() || 'فڕۆشیار';
       try {
-        const allKeys = await AsyncStorage.getAllKeys();
-        const keysToRemove = allKeys.filter(
-          (k) => k !== '@froshiar_gdrive_config' && k !== '@froshiar_gdrive_web_token'
-        );
-        if (keysToRemove.length > 0) {
-          await AsyncStorage.multiRemove(keysToRemove);
-        }
-      } catch (e) {
-        console.warn('[Reset] AsyncStorage multiRemove error:', e);
-      }
+        await saveBusiness({
+          name: preservedBizName,
+          type: currentBiz.type || 'General',
+          phone: currentBiz.phone || '',
+          address: currentBiz.address || '',
+          logoPath: undefined,
+        });
+      } catch {}
 
-      // 4. Wipe all local media files (product photos, logo images, presets, custom banners)
+      setResetProgress({
+        percent: 40,
+        step: isKuLanguage ? 'سڕینەوەی فرۆشتن، کڕین و پسوولەکان...' : 'Wiping sales, purchases and invoices...',
+      });
+      await sleep(250);
+
+      // 3. Wipe all local media files (product photos, logo images, presets, custom banners)
       try {
         if (FileSystem.documentDirectory) {
           const mediaDirs = [
@@ -582,10 +605,57 @@ export default function DataScreen() {
         console.warn('[Reset] Media wipe error:', e);
       }
 
-      // 5. Reset all in-memory Zustand stores immediately so any subsequent screen sees blank state
+      setResetProgress({
+        percent: 60,
+        step: isKuLanguage ? 'سڕینەوەی قەرزەکان، کڕیاران و خەرجییەکان...' : 'Wiping debts, customers and expenses...',
+      });
+      await sleep(250);
+
+      // 4. Purge all Google Drive backups & disconnect Google Drive
+      setResetProgress({
+        percent: 78,
+        step: isKuLanguage ? 'سڕینەوەی پاشەکەوتەکانی گووگڵ درایڤ و ناچالاککردنی...' : 'Purging Google Drive backups & disconnecting...',
+      });
       try {
-        useBusinessStore.getState().clearBusiness();
-        useOnboardingStore.getState().resetOnboarding();
+        const { purgeGoogleDriveBackupsAndDisconnect } = await import('@/lib/googleDriveBackup');
+        await purgeGoogleDriveBackupsAndDisconnect();
+      } catch (e) {
+        console.warn('[Reset] GDrive purge error:', e);
+      }
+      setGdriveConfig(null);
+      await sleep(200);
+
+      // 5. Clean AsyncStorage preserving auth, settings, language, business, and onboarding
+      setResetProgress({
+        percent: 88,
+        step: isKuLanguage ? 'نوێکردنەوەی پاشەکەوتە ناوخۆییەکان...' : 'Resetting local stores...',
+      });
+
+      try {
+        const PRESERVED_KEYS = new Set([
+          '@froshiar_auth',
+          '@froshiar_business',
+          '@froshiar_settings',
+          '@froshiar_language',
+          '@froshiar_onboarding',
+        ]);
+        const allKeys = await AsyncStorage.getAllKeys();
+        const keysToRemove = allKeys.filter((k) => !PRESERVED_KEYS.has(k));
+        if (keysToRemove.length > 0) {
+          await AsyncStorage.multiRemove(keysToRemove);
+        }
+      } catch (e) {
+        console.warn('[Reset] AsyncStorage multiRemove error:', e);
+      }
+
+      // 6. Reset all in-memory Zustand stores immediately so every screen is zeroed out
+      try {
+        useBusinessStore.setState({
+          logoUri: null,
+          isSetupComplete: true,
+          showOnDashboard: false,
+        });
+        useOnboardingStore.getState().completeOnboarding();
         useInventoryStore.setState({
           products: [],
           stats: null,
@@ -617,25 +687,42 @@ export default function DataScreen() {
         useCapitalStore.setState({ isEnabled: false, initialCapital: 0, activatedAt: null, deposits: [] });
         useSavedProductStore.setState({ savedPresets: [] });
         await useOnlineStoreStore.getState().resetStoreState();
-        useManagementStore.getState().resetAllManagementState();
       } catch (e) {
         console.warn('[Reset] Store reset error:', e);
       }
 
-      // 6. Sign out without touching or disconnecting Google Drive
-      try {
-        await signOut({ preserveGoogleDrive: true });
-      } catch (e) {
-        console.warn('[Reset] SignOut error:', e);
-      }
+      // Refresh stats on the current screen so counts immediately update to 0
+      await loadDbStats();
+      await loadGdriveConfig();
 
+      // 7. Reached 100% complete
+      setResetProgress({
+        percent: 100,
+        step: isKuLanguage
+          ? 'هەموو داتاکان بە سەرکەوتوویی سفر کرانەوە!'
+          : 'All data successfully reset to zero!',
+        isComplete: true,
+      });
+
+      await sleep(1200);
+
+      // Close modal and keep user on screen (DO NOT LOG OUT)
       setShowResetModal(false);
       setResetting(false);
-      router.replace('/(onboarding)/welcome' as never);
+      setResetProgress(null);
+      setResetInput('');
+
+      Alert.alert(
+        isKuLanguage ? 'سفرکردنەوەی سەرکەوتوو' : 'Reset Successful',
+        isKuLanguage
+          ? 'هەموو داتاکانی کۆگا، فرۆشتن، کڕین و پسوولەکان بە سەرکەوتوویی سفر کرانەوە و گووگڵ درایڤ ناچالاک کرا.'
+          : 'All inventory, sales, purchases, and invoices were reset to zero, and Google Drive was disconnected.'
+      );
     } catch (err) {
       console.error('[Reset] Execution failed:', err);
       Alert.alert(t('common.error'), t('common.tryAgain'));
       setResetting(false);
+      setResetProgress(null);
       setShowResetModal(false);
     }
   }
@@ -1156,72 +1243,150 @@ export default function DataScreen() {
               borderWidth: IS_IOS ? 1.2 : (isDark ? 1 : 0),
             },
           ]}>
-            <View style={[styles.dialogIconWrap, { backgroundColor: '#FEE2E2' }]}>
-              <Ionicons name="warning" size={28} color="#EF4444" />
-            </View>
+            {resetProgress ? (
+              <View style={{ width: '100%', alignItems: 'center', paddingVertical: 10 }}>
+                <View
+                  style={[
+                    styles.dialogIconWrap,
+                    {
+                      backgroundColor: resetProgress.isComplete
+                        ? (isDark ? 'rgba(16, 185, 129, 0.2)' : '#DCFCE7')
+                        : (isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2'),
+                      marginBottom: 16,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={resetProgress.isComplete ? 'checkmark-circle' : 'trash-bin'}
+                    size={32}
+                    color={resetProgress.isComplete ? '#10B981' : '#EF4444'}
+                  />
+                </View>
 
-            <Text style={[styles.dialogTitle, { color: colors.black }]}>
-              {t('settings.dataScreen.resetModalTitle')}
-            </Text>
-
-            <Text style={[styles.dialogMsg, { color: colors.gray500 }]}>
-              {t('settings.dataScreen.resetModalMsg')}
-            </Text>
-
-            <TextInput
-              style={applyKurdishFont(
-                resolveInputIsKurdish({ isKuLanguage, value: resetInput, placeholder: t('settings.dataScreen.resetInputPlaceholder') }),
-                [
-                  styles.resetInput,
-                  {
-                    borderColor: resetInput.trim().toUpperCase() === 'RESET'
-                      ? colors.error
-                      : colors.gray200,
-                    color: colors.black,
-                    backgroundColor: isDark ? colors.gray50 : colors.gray50,
-                  },
-                ]
-              )}
-              placeholder={t('settings.dataScreen.resetInputPlaceholder')}
-              placeholderTextColor={colors.gray400}
-              value={resetInput}
-              onChangeText={setResetInput}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              editable={!resetting}
-            />
-
-            <View style={[styles.dialogBtns, { flexDirection }]}>
-              <TouchableOpacity
-                style={[styles.btnCancel, { backgroundColor: colors.gray200 }]}
-                onPress={handleDismissReset}
-                disabled={resetting}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.btnCancelText, { color: colors.gray600 }]}>
-                  {t('common.cancel')}
+                <Text
+                  style={[
+                    styles.dialogTitle,
+                    { color: colors.black, textAlign: 'center', marginBottom: 8 },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {resetProgress.isComplete
+                    ? (isKuLanguage ? 'سفرکردنەوە تەواو بوو!' : 'Reset Complete!')
+                    : (isKuLanguage ? 'سڕینەوە و سفرکردنەوەی داتاکان...' : 'Resetting All Data...')}
                 </Text>
-              </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[
-                  styles.btnRestore,
-                  {
-                    backgroundColor: resetInput.trim().toUpperCase() === 'RESET'
-                      ? '#EF4444'
-                      : colors.gray300,
-                  },
-                ]}
-                onPress={executeReset}
-                disabled={resetting || resetInput.trim().toUpperCase() !== 'RESET'}
-                activeOpacity={0.8}
-              >
-                {resetting
-                  ? <ActivityIndicator color="#FFFFFF" size="small" />
-                  : <Text style={styles.btnRestoreText}>{t('settings.dataScreen.resetBtn')}</Text>
-                }
-              </TouchableOpacity>
-            </View>
+                <Text
+                  style={[
+                    styles.dialogMsg,
+                    { color: colors.gray500, textAlign: 'center', marginBottom: 20 },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
+                  ]}
+                >
+                  {resetProgress.step}
+                </Text>
+
+                {/* Progress Bar Container */}
+                <View
+                  style={{
+                    width: '100%',
+                    height: 12,
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#E2E8F0',
+                    borderRadius: 6,
+                    overflow: 'hidden',
+                    marginBottom: 10,
+                  }}
+                >
+                  <View
+                    style={{
+                      height: '100%',
+                      width: `${resetProgress.percent}%`,
+                      backgroundColor: resetProgress.isComplete ? '#10B981' : '#EF4444',
+                      borderRadius: 6,
+                    }}
+                  />
+                </View>
+
+                {/* Percentage Display */}
+                <Text
+                  style={[
+                    {
+                      color: resetProgress.isComplete ? '#10B981' : '#EF4444',
+                      fontSize: 18,
+                      fontWeight: '700',
+                    },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {resetProgress.percent}%
+                </Text>
+              </View>
+            ) : (
+              <>
+                <View style={[styles.dialogIconWrap, { backgroundColor: '#FEE2E2' }]}>
+                  <Ionicons name="warning" size={28} color="#EF4444" />
+                </View>
+
+                <Text style={[styles.dialogTitle, { color: colors.black }]}>
+                  {t('settings.dataScreen.resetModalTitle')}
+                </Text>
+
+                <Text style={[styles.dialogMsg, { color: colors.gray500 }]}>
+                  {t('settings.dataScreen.resetModalMsg')}
+                </Text>
+
+                <TextInput
+                  style={applyKurdishFont(
+                    resolveInputIsKurdish({ isKuLanguage, value: resetInput, placeholder: t('settings.dataScreen.resetInputPlaceholder') }),
+                    [
+                      styles.resetInput,
+                      {
+                        borderColor: resetInput.trim().toUpperCase() === 'RESET'
+                          ? colors.error
+                          : colors.gray200,
+                        color: colors.black,
+                        backgroundColor: isDark ? colors.gray50 : colors.gray50,
+                      },
+                    ]
+                  )}
+                  placeholder={t('settings.dataScreen.resetInputPlaceholder')}
+                  placeholderTextColor={colors.gray400}
+                  value={resetInput}
+                  onChangeText={setResetInput}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  editable={!resetting}
+                />
+
+                <View style={[styles.dialogBtns, { flexDirection }]}>
+                  <TouchableOpacity
+                    style={[styles.btnCancel, { backgroundColor: colors.gray200 }]}
+                    onPress={handleDismissReset}
+                    disabled={resetting}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.btnCancelText, { color: colors.gray600 }]}>
+                      {t('common.cancel')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.btnRestore,
+                      {
+                        backgroundColor: resetInput.trim().toUpperCase() === 'RESET'
+                          ? '#EF4444'
+                          : colors.gray300,
+                      },
+                    ]}
+                    onPress={executeReset}
+                    disabled={resetting || resetInput.trim().toUpperCase() !== 'RESET'}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.btnRestoreText}>{t('settings.dataScreen.resetBtn')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </KeyboardAvoidingView>
       </Modal>

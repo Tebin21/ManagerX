@@ -772,3 +772,71 @@ export async function triggerGoogleDriveAutoBackup(
     }
   }
 }
+
+/**
+ * Permanently purge all Froshiar backup files from Google Drive and disconnect account.
+ * Used during Data Reset: ensures remote Google Drive data is destroyed and Google Drive is disabled.
+ */
+export async function purgeGoogleDriveBackupsAndDisconnect(): Promise<{ deletedCount: number }> {
+  let deletedCount = 0;
+  try {
+    const config = await getGoogleDriveConfig();
+    if (config.isConnected) {
+      try {
+        const accessToken = await getValidAccessToken();
+        if (accessToken) {
+          // Find any Froshiar backup files in Drive
+          const query = encodeURIComponent(
+            `(name = '${BACKUP_FILENAME}' or name contains 'froshiar') and trashed = false`
+          );
+          const url = `https://www.googleapis.com/drive/v3/files?q=${query}&spaces=drive&fields=files(id,name)`;
+          const res = await fetch(url, {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const files: Array<{ id: string; name: string }> = data.files || [];
+            for (const file of files) {
+              try {
+                const delRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}`, {
+                  method: 'DELETE',
+                  headers: { Authorization: `Bearer ${accessToken}` },
+                });
+                if (delRes.ok || delRes.status === 204 || delRes.status === 404) {
+                  deletedCount++;
+                }
+              } catch (delErr) {
+                console.warn('[GDrive Purge] Failed to delete file:', file.id, delErr);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[GDrive Purge] Error searching/deleting Drive files:', err);
+      }
+    }
+  } catch (e) {
+    console.warn('[GDrive Purge] Error during purge:', e);
+  } finally {
+    // 1. Turn off auto-backup
+    try {
+      await setAutoBackupEnabled(false);
+    } catch {}
+
+    // 2. Disconnect and sign out from Google Drive
+    try {
+      await disconnectGoogleDrive();
+    } catch {}
+
+    // 3. Clean any stored tokens or config
+    try {
+      await AsyncStorage.removeItem(GDRIVE_CONFIG_KEY);
+      await AsyncStorage.removeItem(GDRIVE_WEB_TOKEN_KEY);
+    } catch {}
+  }
+
+  return { deletedCount };
+}
+
