@@ -404,7 +404,7 @@ function ModuleCardImpl({
       style={[
         styles.container,
         {
-          opacity: enabled ? (disabled ? 0.55 : 1) : 0.5,
+          opacity: disabled ? 0.55 : 1,
           transform: [{ scale }, { translateY }],
           zIndex: isSelectedForSwap ? 999 : 1,
         },
@@ -566,8 +566,8 @@ function ModuleCardImpl({
             </View>
           )}
 
-          {/* Disabled Lock Badge */}
-          {!enabled && (
+          {/* Disabled Lock Badge (Only for employee permission restrictions) */}
+          {disabled && (
             <View style={styles.lockBadge}>
               <Ionicons name="lock-closed" size={isTablet ? 14 : 11} color="#64748B" />
             </View>

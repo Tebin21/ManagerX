@@ -70,6 +70,11 @@ function ModuleGridImpl() {
       if (item.id === 'management') {
         return false;
       }
+      // When a module is turned off in Settings -> Modules, hide it completely from the dashboard (do not show as locked)
+      const isEnabled = modules[item.id]?.enabled ?? true;
+      if (!isEnabled) {
+        return false;
+      }
       // Expiry module ONLY exists on dashboard when enabled from Expiry Settings
       if (item.id === 'expiry' && !expiryTrackingEnabled) {
         return false;
@@ -81,7 +86,7 @@ function ModuleGridImpl() {
       }
       return true;
     });
-  }, [sortedModules, expiryTrackingEnabled, isAdmin, isEmployee, currentPermissions]);
+  }, [sortedModules, modules, expiryTrackingEnabled, isAdmin, isEmployee, currentPermissions]);
 
   // On all screen sizes, identify layout row grouping to eliminate any empty/awkward space
   const { tabletPortraitPairSet, singleItemRowSet } = useMemo(() => {

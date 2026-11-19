@@ -90,11 +90,13 @@ export default function DashboardStyleScreen() {
   const { dashboardStyle, setDashboardStyle, modules } = useModuleStore();
 
   const sortedModules = React.useMemo(() => {
-    return [...MODULES].sort((a, b) => {
-      const orderA = modules[a.id]?.order ?? MODULES.findIndex((m) => m.id === a.id);
-      const orderB = modules[b.id]?.order ?? MODULES.findIndex((m) => m.id === b.id);
-      return orderA - orderB;
-    });
+    return [...MODULES]
+      .filter((m) => m.id !== 'management' && (modules[m.id]?.enabled ?? true))
+      .sort((a, b) => {
+        const orderA = modules[a.id]?.order ?? MODULES.findIndex((m) => m.id === a.id);
+        const orderB = modules[b.id]?.order ?? MODULES.findIndex((m) => m.id === b.id);
+        return orderA - orderB;
+      });
   }, [modules]);
 
   const activeStyle =
