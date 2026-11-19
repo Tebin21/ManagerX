@@ -33,6 +33,7 @@ import {
 import { DashboardHeroSlider } from '@/components/dashboard/DashboardHeroSlider';
 import { DashboardMetricSquare } from '@/components/dashboard/DashboardMetricSquare';
 import { DashboardActivityFeed } from '@/components/dashboard/DashboardActivityFeed';
+import { DashboardAnalyticsCharts } from '@/components/dashboard/DashboardAnalyticsCharts';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useManagementStore } from '@/store/managementStore';
 
@@ -109,6 +110,7 @@ export default function DashboardViewScreen() {
 
   const [activities, setActivities] = useState<DashboardActivityItem[]>([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'charts'>('cards');
 
   // Fetch all dashboard metrics & activity feed
   const loadDashboardData = useCallback(async () => {
@@ -271,7 +273,7 @@ export default function DashboardViewScreen() {
             </Text>
           </View>
 
-          {/* Action Row: Export PDF & Read-only badge */}
+          {/* Action Row: Export PDF, Read-only badge & Charts button */}
           <View style={[styles.sectionActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <TouchableOpacity
               onPress={handleExportPdf}
@@ -330,11 +332,129 @@ export default function DashboardViewScreen() {
                 {isAr ? 'عرض فقط' : isKurdish ? 'تەنها بینین' : 'View Only'}
               </Text>
             </View>
+
+            {/* Charts Button next to View Only */}
+            <TouchableOpacity
+              onPress={() => setViewMode((prev) => (prev === 'charts' ? 'cards' : 'charts'))}
+              activeOpacity={0.8}
+              style={[
+                styles.chartActionBtn,
+                viewMode === 'charts'
+                  ? {
+                      backgroundColor: colors.primary,
+                      borderColor: colors.primary,
+                    }
+                  : {
+                      backgroundColor: colors.primary + '16',
+                      borderColor: colors.primary + '40',
+                    },
+                {
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  paddingHorizontal: isTablet ? 12 : 9,
+                  paddingVertical: isTablet ? 6 : 4.5,
+                  borderRadius: isTablet ? 12 : 10,
+                },
+              ]}
+            >
+              <Ionicons
+                name={viewMode === 'charts' ? 'stats-chart' : 'stats-chart-outline'}
+                size={isTablet ? 15 : 13}
+                color={viewMode === 'charts' ? '#FFFFFF' : colors.primary}
+              />
+              <Text
+                style={[
+                  styles.chartActionText,
+                  {
+                    color: viewMode === 'charts' ? '#FFFFFF' : colors.primary,
+                    fontSize: isTablet ? 13 : 11.5,
+                  },
+                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                ]}
+              >
+                {isAr ? 'المخططات' : isKurdish ? 'هێڵکاری' : 'Charts'}
+              </Text>
+            </TouchableOpacity>
           </View>
+        </View>
+
+        {/* View Mode Switcher Pills (Cards vs Charts) */}
+        <View style={[styles.viewModeSwitcherRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <TouchableOpacity
+            onPress={() => setViewMode('cards')}
+            activeOpacity={0.8}
+            style={[
+              styles.viewModePill,
+              viewMode === 'cards'
+                ? {
+                    backgroundColor: colors.primary,
+                    borderColor: colors.primary,
+                  }
+                : {
+                    backgroundColor: isDark ? colors.gray100 : colors.white,
+                    borderColor: isDark ? colors.gray200 : colors.gray100,
+                  },
+              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+            ]}
+          >
+            <Ionicons
+              name="grid-outline"
+              size={14}
+              color={viewMode === 'cards' ? '#FFFFFF' : colors.gray400}
+            />
+            <Text
+              style={[
+                styles.viewModePillText,
+                { color: viewMode === 'cards' ? '#FFFFFF' : colors.gray400 },
+                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+              ]}
+            >
+              {isAr ? 'بطاقات المؤشرات' : isKurdish ? 'کاردەکانی ئامار' : 'Metric Cards'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setViewMode('charts')}
+            activeOpacity={0.8}
+            style={[
+              styles.viewModePill,
+              viewMode === 'charts'
+                ? {
+                    backgroundColor: colors.primary,
+                    borderColor: colors.primary,
+                  }
+                : {
+                    backgroundColor: isDark ? colors.gray100 : colors.white,
+                    borderColor: isDark ? colors.gray200 : colors.gray100,
+                  },
+              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+            ]}
+          >
+            <Ionicons
+              name="stats-chart"
+              size={14}
+              color={viewMode === 'charts' ? '#FFFFFF' : colors.gray400}
+            />
+            <Text
+              style={[
+                styles.viewModePillText,
+                { color: viewMode === 'charts' ? '#FFFFFF' : colors.gray400 },
+                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+              ]}
+            >
+              {isAr ? 'المخططات البيانية' : isKurdish ? 'هێڵکارییە پێشکەوتووەکان' : 'Advanced Charts'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {isLoading && !refreshing ? (
           <LoadingView showCard={false} message={t('common.pleaseWait')} style={{ paddingVertical: 40 }} />
+        ) : viewMode === 'charts' ? (
+          <DashboardAnalyticsCharts
+            stats={safeStats}
+            periodLabel={periodLabel}
+            fromStr={period === 'all' ? undefined : bounds.from.toISOString()}
+            toStr={period === 'all' ? undefined : bounds.to.toISOString()}
+          />
         ) : (
           <View style={[styles.grid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             {/* 1. Total Revenue / داهات */}
@@ -739,6 +859,37 @@ const styles = StyleSheet.create({
   readOnlyText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  chartActionBtn: {
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  chartActionText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  viewModeSwitcherRow: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    alignItems: 'center',
+    gap: 8,
+  },
+  viewModePill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  viewModePillText: {
+    fontSize: 12.5,
+    fontWeight: '700',
   },
   grid: {
     marginHorizontal: 16,

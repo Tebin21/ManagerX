@@ -1257,3 +1257,6 @@ export type RevenuePoint = any;
 export type SalesReportData = any;
 export type UpdatePurchaseInput = any;
 export type PurchaseItem = any;
+export async function getRevenueByMonth(months = 6): Promise<any[]> { return []; }
+export async function getMostProfitableProducts(limit = 5, from?: string, to?: string): Promise<any[]> { return []; }
+
