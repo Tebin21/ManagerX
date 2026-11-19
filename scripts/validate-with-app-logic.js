@@ -34,6 +34,8 @@ if (!fs.existsSync(absBackupPath)) {
   process.exit(1);
 }
 
+global.__DEV__ = true;
+
 // ─── .ts loader: transpile on demand via the TypeScript compiler API ──────────
 
 require.extensions['.ts'] = function tsLoader(mod, filename) {
@@ -81,6 +83,7 @@ class MockFile {
   copy() {}
 }
 mocks.set('expo-file-system', { File: MockFile, Directory: MockDirectory, Paths: { document: REPO_ROOT } });
+mocks.set('expo-file-system/legacy', { documentDirectory: REPO_ROOT });
 
 mocks.set('@/lib/itemLimit', {
   // Unlimited plan — bypasses the paid-plan item-cap gate, which is orthogonal to
