@@ -11,7 +11,6 @@ import {
   Alert,
   ActivityIndicator,
   LayoutAnimation,
-  PanResponder,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/ui/AppText';
@@ -148,20 +147,13 @@ export default function NewSaleScreen() {
   const rawPaidNum = parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0;
 
   const mobileCardWidth = Math.min(screenWidth - 44, 380);
-  const [verticalScrollEnabled, setVerticalScrollEnabled] = useState(true);
-  const currentScrollXRef = React.useRef(0);
-  const panStartScrollXRef = React.useRef(0);
-  const panStartIndexRef = React.useRef(0);
-  const isHorizontalDraggingRef = React.useRef(false);
   const activeCartIndexRef = React.useRef(activeCartIndex);
   const cartItemsCountRef = React.useRef(cart.items.length);
   const mobileCardWidthRef = React.useRef(mobileCardWidth);
-  const isRTLRef = React.useRef(isRTL);
 
   activeCartIndexRef.current = activeCartIndex;
   cartItemsCountRef.current = cart.items.length;
   mobileCardWidthRef.current = mobileCardWidth;
-  isRTLRef.current = isRTL;
 
   // Clamp active cart index on item removal
   useEffect(() => {
@@ -170,14 +162,12 @@ export default function NewSaleScreen() {
       activeCartIndexRef.current = clamped;
       setActiveCartIndex(clamped);
       const targetX = clamped * (mobileCardWidth + 10);
-      currentScrollXRef.current = targetX;
       cartScrollRef.current?.scrollTo({ x: targetX, animated: true });
     }
   }, [cart.items.length, activeCartIndex, mobileCardWidth]);
 
   const onCartScroll = (e: any) => {
     const offsetX = Math.abs(e.nativeEvent?.contentOffset?.x ?? 0);
-    currentScrollXRef.current = offsetX;
     const itemFullWidth = mobileCardWidthRef.current + 10;
     const index = Math.round(offsetX / itemFullWidth);
     const clamped = Math.max(0, Math.min(index, cartItemsCountRef.current - 1));
@@ -193,7 +183,6 @@ export default function NewSaleScreen() {
     const target = Math.max(0, Math.min(index, count - 1));
     const itemFullWidth = mobileCardWidthRef.current + 10;
     const targetX = target * itemFullWidth;
-    currentScrollXRef.current = targetX;
     activeCartIndexRef.current = target;
     setActiveCartIndex(target);
     cartScrollRef.current?.scrollTo({
@@ -201,90 +190,6 @@ export default function NewSaleScreen() {
       animated: true,
     });
   };
-
-  const cartPanResponder = React.useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponderCapture: () => false,
-      onStartShouldSetPanResponder: () => cartItemsCountRef.current > 1,
-      onMoveShouldSetPanResponder: (_evt, gs) =>
-        cartItemsCountRef.current > 1 &&
-        Math.abs(gs.dx) > 6 &&
-        Math.abs(gs.dx) > Math.abs(gs.dy) * 1.1,
-      onMoveShouldSetPanResponderCapture: (_evt, gs) =>
-        cartItemsCountRef.current > 1 &&
-        Math.abs(gs.dx) > 6 &&
-        Math.abs(gs.dx) > Math.abs(gs.dy) * 1.1,
-      onPanResponderTerminationRequest: (_evt, gs) => {
-        if (isHorizontalDraggingRef.current) return false;
-        return Math.abs(gs.dy) > Math.abs(gs.dx) * 1.2;
-      },
-      onShouldBlockNativeResponder: () => true,
-      onPanResponderGrant: () => {
-        const itemFullWidth = mobileCardWidthRef.current + 10;
-        panStartIndexRef.current = activeCartIndexRef.current;
-        panStartScrollXRef.current = activeCartIndexRef.current * itemFullWidth;
-        isHorizontalDraggingRef.current = false;
-      },
-      onPanResponderMove: (_evt, gs) => {
-        const count = cartItemsCountRef.current;
-        if (count <= 1) return;
-        if (!isHorizontalDraggingRef.current) {
-          if (Math.abs(gs.dx) > 5 && Math.abs(gs.dx) >= Math.abs(gs.dy)) {
-            isHorizontalDraggingRef.current = true;
-            Keyboard.dismiss();
-            setVerticalScrollEnabled(false);
-          } else {
-            return;
-          }
-        }
-        const itemFullWidth = mobileCardWidthRef.current + 10;
-        const maxScrollX = Math.max(0, (count - 1) * itemFullWidth);
-        const delta = isRTLRef.current ? gs.dx : -gs.dx;
-        const rawX = panStartScrollXRef.current + delta;
-        const clampedX = Math.max(0, Math.min(maxScrollX, rawX));
-        currentScrollXRef.current = clampedX;
-        cartScrollRef.current?.scrollTo({ x: clampedX, animated: false });
-        const liveIdx = Math.max(0, Math.min(count - 1, Math.round(clampedX / itemFullWidth)));
-        if (liveIdx !== activeCartIndexRef.current) {
-          activeCartIndexRef.current = liveIdx;
-          setActiveCartIndex(liveIdx);
-        }
-      },
-      onPanResponderRelease: (_evt, gs) => {
-        const wasDragging = isHorizontalDraggingRef.current;
-        isHorizontalDraggingRef.current = false;
-        setVerticalScrollEnabled(true);
-        const count = cartItemsCountRef.current;
-        if (!wasDragging || count <= 1) return;
-        const cardW = mobileCardWidthRef.current;
-        const itemFullWidth = cardW + 10;
-        const delta = isRTLRef.current ? gs.dx : -gs.dx;
-        const vel = isRTLRef.current ? gs.vx : -gs.vx;
-        let targetIdx = panStartIndexRef.current;
-        if (Math.abs(delta) > cardW * 0.14 || Math.abs(vel) > 0.20) {
-          const steps = Math.max(1, Math.round(Math.abs(delta) / itemFullWidth));
-          if (delta > 0 || vel > 0.20) {
-            targetIdx = panStartIndexRef.current + steps;
-          } else if (delta < 0 || vel < -0.20) {
-            targetIdx = panStartIndexRef.current - steps;
-          }
-        } else {
-          targetIdx = Math.round(currentScrollXRef.current / itemFullWidth);
-        }
-        scrollToCartIndex(targetIdx);
-      },
-      onPanResponderTerminate: () => {
-        const wasDragging = isHorizontalDraggingRef.current;
-        isHorizontalDraggingRef.current = false;
-        setVerticalScrollEnabled(true);
-        if (wasDragging && cartItemsCountRef.current > 1) {
-          const itemFullWidth = mobileCardWidthRef.current + 10;
-          const nearest = Math.round(currentScrollXRef.current / itemFullWidth);
-          scrollToCartIndex(nearest);
-        }
-      },
-    })
-  ).current;
   const isPaidExceeded = (cart.paymentMethod === 'debt' || cart.paymentMethod === 'installment') && rawPaidNum > maxDownPayment;
   const maxDownPaymentDisplay = isUSD ? `$${maxDownPayment}` : `${maxDownPayment.toLocaleString()} IQD`;
   const remainingDebt = cart.remainingDebt();
@@ -996,7 +901,8 @@ export default function NewSaleScreen() {
       ) : (
         <KeyboardAwareScrollView
           wrapForTapDismiss={false}
-          scrollEnabled={verticalScrollEnabled}
+          scrollEnabled={true}
+          directionalLockEnabled={true}
           keyboardDismissMode="on-drag"
           contentContainerStyle={[styles.step2Body, isTablet && contentContainerStyle]}
         >
@@ -1090,7 +996,7 @@ export default function NewSaleScreen() {
               ))}
             </View>
           ) : (
-            <View style={styles.cartCarouselContainer} {...cartPanResponder.panHandlers}>
+            <View style={styles.cartCarouselContainer}>
               {/* Prominent Fixed Top Navigation Bar for Cart Items */}
               <View
                 style={[
@@ -1224,7 +1130,7 @@ export default function NewSaleScreen() {
                 <ScrollView
                   ref={cartScrollRef}
                   horizontal
-                  scrollEnabled={false}
+                  scrollEnabled={true}
                   showsHorizontalScrollIndicator={false}
                   nestedScrollEnabled={true}
                   directionalLockEnabled={true}
@@ -1273,42 +1179,6 @@ export default function NewSaleScreen() {
                     </View>
                   ))}
                 </ScrollView>
-
-                {/* Left Side Large Cue Button (Next in RTL, Prev in LTR) */}
-                {((isRTL && activeCartIndex < cart.items.length - 1) || (!isRTL && activeCartIndex > 0)) && (
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => scrollToCartIndex(isRTL ? activeCartIndex + 1 : activeCartIndex - 1)}
-                    style={[
-                      styles.sideMicroChevronLeft,
-                      {
-                        backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                        borderColor: colors.primary,
-                      },
-                    ]}
-                    hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-                  >
-                    <Ionicons name="chevron-back" size={20} color={colors.primary} />
-                  </TouchableOpacity>
-                )}
-
-                {/* Right Side Large Cue Button (Prev in RTL, Next in LTR) */}
-                {((isRTL && activeCartIndex > 0) || (!isRTL && activeCartIndex < cart.items.length - 1)) && (
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => scrollToCartIndex(isRTL ? activeCartIndex - 1 : activeCartIndex + 1)}
-                    style={[
-                      styles.sideMicroChevronRight,
-                      {
-                        backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                        borderColor: colors.primary,
-                      },
-                    ]}
-                    hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-                  >
-                    <Ionicons name="chevron-forward" size={20} color={colors.primary} />
-                  </TouchableOpacity>
-                )}
               </View>
             </View>
           )}
@@ -2522,40 +2392,6 @@ const styles = StyleSheet.create({
   },
   microDotInactive: {
     width: 6,
-  },
-  sideMicroChevronLeft: {
-    position: 'absolute',
-    left: -8,
-    top: '44%',
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.22,
-    shadowRadius: 5,
-    elevation: 6,
-  },
-  sideMicroChevronRight: {
-    position: 'absolute',
-    right: -8,
-    top: '44%',
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.22,
-    shadowRadius: 5,
-    elevation: 6,
   },
   listContent:   { padding: 16, paddingBottom: 100 },
   empty:         { paddingTop: 60, alignItems: 'center', padding: 20 },
