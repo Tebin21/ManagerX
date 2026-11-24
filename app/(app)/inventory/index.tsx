@@ -314,14 +314,19 @@ export default function InventoryScreen() {
       const periodLabel = formatPeriodLabel(key, from, to);
       const filtered = report.products.filter((p) => isWithinRange(p, from, to));
       if (filtered.length === 0) {
+        const { waitForModalDismiss } = await import('@/lib/generateInvoice');
+        await waitForModalDismiss();
         Alert.alert(t('inventory.noRecordsInPeriod'), t('inventory.noRecordsInPeriodDetail'));
         return;
       }
 
       setReportGenerating(true);
       try {
-        const { loadBusiness } = await import('@/lib/sqlite');
-        const biz = await loadBusiness();
+        const [{ waitForModalDismiss }, { loadBusiness }] = await Promise.all([
+          import('@/lib/generateInvoice'),
+          import('@/lib/sqlite'),
+        ]);
+        const [, biz] = await Promise.all([waitForModalDismiss(), loadBusiness()]);
         const business = {
           name: biz?.name ?? 'My Business',
           phone: biz?.phone ?? '',

@@ -1081,25 +1081,28 @@ export default function InvoicesHubScreen() {
   const handleConfirmPrintFormat = async (paperSize: ReceiptPaperSize, currencyMode: ReceiptCurrencyMode) => {
     if (!formatPickerTarget || isFormatPickerPrinting) return;
     setIsFormatPickerPrinting(true);
+    const target = formatPickerTarget;
     const returnTarget = returnToModalAfterPicker;
+    setFormatPickerVisible(false);
+    setFormatPickerTarget(null);
+    setReturnToModalAfterPicker(null);
     try {
-      if (formatPickerTarget.type === 'purchase') {
+      const { waitForModalDismiss } = await import('@/lib/generateInvoice');
+      await waitForModalDismiss();
+      if (target.type === 'purchase') {
         useSettingsStore.getState().setPurchasePaperSizePreference(paperSize);
-        await executePrintPurchase(formatPickerTarget.purchase, paperSize, currencyMode);
-      } else if (formatPickerTarget.type === 'sale') {
+        await executePrintPurchase(target.purchase, paperSize, currencyMode);
+      } else if (target.type === 'sale') {
         useSettingsStore.getState().setSalesPaperSizePreference(paperSize);
-        await executePrintSale(formatPickerTarget.sale, paperSize, currencyMode);
-      } else if (formatPickerTarget.type === 'quotation') {
+        await executePrintSale(target.sale, paperSize, currencyMode);
+      } else if (target.type === 'quotation') {
         useSettingsStore.getState().setQuotationPaperSizePreference(paperSize);
-        await executePrintQuotation(formatPickerTarget.quotation, paperSize, currencyMode);
+        await executePrintQuotation(target.quotation, paperSize, currencyMode);
       }
     } catch (err) {
       console.error('[InvoicesHub] handleConfirmPrintFormat error:', err);
     } finally {
       setIsFormatPickerPrinting(false);
-      setFormatPickerVisible(false);
-      setFormatPickerTarget(null);
-      setReturnToModalAfterPicker(null);
       if (returnTarget === 'purchase') {
         setPurchaseModalVisible(true);
       } else if (returnTarget === 'sale') {

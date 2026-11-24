@@ -96,7 +96,11 @@ export function PeriodFilterModal({
             style={[styles.exportBtn, { backgroundColor: colors.softBlue, borderColor: colors.primary + '35' }]}
             onPress={() => {
               handleClose();
-              onExportPdf();
+              void (async () => {
+                const { waitForModalDismiss } = await import('@/lib/generateInvoice');
+                await waitForModalDismiss();
+                onExportPdf();
+              })();
             }}
             disabled={isExportingPdf}
             activeOpacity={0.85}

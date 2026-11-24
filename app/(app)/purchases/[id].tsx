@@ -159,18 +159,26 @@ export default function PurchaseDetailScreen() {
     const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
     const printCheck = await checkInvoicePrintLimit();
     if (!printCheck.allowed) {
+      setFormatPickerVisible(false);
+      const { waitForModalDismiss } = await import('@/lib/generateInvoice');
+      await waitForModalDismiss();
       const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
       showUsageLimitModal();
       return;
     }
     setIsPrinting(true);
+    setFormatPickerVisible(false);
     useSettingsStore.getState().setPurchasePaperSizePreference(paperSize);
     incrementPurchasePrintCount(purchase.id).catch(() => {});
     setPurchase((prev) => (prev ? { ...prev, printCount: (prev.printCount || 0) + 1 } : null));
     try {
-      const currentDebt = purchase.paymentStatus === 'debt'
-        ? (purchaseDebt ?? await getPurchaseDebtByPurchaseId(purchase.id))
-        : null;
+      const { waitForModalDismiss } = await import('@/lib/generateInvoice');
+      const [currentDebt] = await Promise.all([
+        purchase.paymentStatus === 'debt'
+          ? (purchaseDebt ?? getPurchaseDebtByPurchaseId(purchase.id))
+          : Promise.resolve(null),
+        waitForModalDismiss(),
+      ]);
 
       const chosenCurrency: ReceiptCurrencyMode = currencyMode || receiptCurrency;
       await directPrintPurchaseInvoice(

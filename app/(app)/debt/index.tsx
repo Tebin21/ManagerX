@@ -46,7 +46,7 @@ import { isDateWithinRange, getPeriodBounds, type PeriodKey } from '@/utils/date
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
-import { shareDebtsAuditReport } from '@/lib/generateInvoice';
+import { shareDebtsAuditReport, waitForModalDismiss } from '@/lib/generateInvoice';
 import { DebtPdfExportModal } from '@/components/debt/DebtPdfExportModal';
 import { DebtPaymentReceiptModal } from '@/components/debt/DebtPaymentReceiptModal';
 import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
@@ -1045,10 +1045,14 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
 
   // Export PDF Report handler with user-selected sections
   const handleExportPdf = useCallback(async (sections: DebtReportSections) => {
+    setPdfExportModalOpen(false);
     setIsExportingPdf(true);
     try {
+      // Wait for DebtPdfExportModal's fade-out animation on iOS so UIKit doesn't
+      // present Share Sheet / QuickLook onto a dismissing modal host controller.
+      await waitForModalDismiss();
       const business = useBusinessStore.getState();
-      const success = await shareDebtsAuditReport(
+      await shareDebtsAuditReport(
         sections,
         {
           summary: {
@@ -1069,9 +1073,6 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
           logoUri: business.logoUri ?? null,
         }
       );
-      if (success) {
-        setPdfExportModalOpen(false);
-      }
     } catch (err) {
       console.error('[DebtScreen] PDF Export failed:', err);
       Alert.alert(isAr ? 'خطأ' : isKuLanguage ? 'هەڵە' : 'Error', String(err));

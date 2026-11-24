@@ -72,15 +72,25 @@ interface BusinessInfo {
 
 let _generating = false;
 let _generatingSince = 0;
-const GENERATION_LOCK_STALE_MS = 45_000;
+const GENERATION_LOCK_STALE_MS = 180_000;
 
-// `Sharing.shareAsync`'s promise only settles when the OS share sheet's
-// completion callback fires -- on real devices that callback can simply
-// never arrive (e.g. handing the file off to another app, or backgrounding
-// before returning to dismiss the sheet). Bounding the wait here guarantees
-// generateAndShare() -- and therefore every share*() caller's `finally` --
-// always runs promptly instead of leaving `_generating` stuck forever.
-const SHARE_TIMEOUT_MS = 10_000;
+// Wait long enough for a user reading a multi-page PDF inside iOS QuickLook
+// without resolving mid-preview; only act as a last-resort safety net (5 min)
+// if the OS share sheet never delivers its completion callback, or recover
+// shortly after returning from another app if `shareAsync` handed the file off.
+const SHARE_TIMEOUT_MS = 300_000;
+
+/**
+ * Wait for a closing React Native `<Modal>` / `<AppSheet>` fade animation to
+ * finish dismantling its native UIViewController before presenting a native OS
+ * Share Sheet, QuickLook preview, or AirPrint dialog on iOS.
+ */
+export function waitForModalDismiss(): Promise<void> {
+  const { Platform } = require('react-native') as typeof import('react-native');
+  return new Promise((resolve) => {
+    setTimeout(resolve, Platform.OS === 'ios' ? 420 : 120);
+  });
+}
 
 /**
  * Generates a standardized PDF filename that always begins with "Froshiar-"
@@ -371,6 +381,10 @@ async function generateAndShare(
   }
 
   let timedOut = false;
+  let shareTimer: ReturnType<typeof setTimeout> | null = null;
+  let resumeTimer: ReturnType<typeof setTimeout> | null = null;
+  let appStateSub: { remove?: () => void } | null = null;
+  let resolveFallback: ((reason: 'timeout' | 'resumed') => void) | null = null;
   try {
     const sharePromise = Sharing.shareAsync(uri, {
       mimeType: 'application/pdf',
@@ -384,21 +398,55 @@ async function generateAndShare(
       console.warn('[PDF] shareAsync settled after timeout:', err);
     });
 
-    const timeoutPromise = new Promise<'timeout'>((resolve) => {
-      setTimeout(() => {
-        timedOut = true;
-        resolve('timeout');
-      }, SHARE_TIMEOUT_MS);
+    const finishFallback = (reason: 'timeout' | 'resumed') => {
+      if (timedOut) return;
+      timedOut = true;
+      resolveFallback?.(reason);
+    };
+
+    const timeoutPromise = new Promise<'timeout' | 'resumed'>((resolve) => {
+      resolveFallback = resolve;
     });
 
+    shareTimer = setTimeout(() => finishFallback('timeout'), SHARE_TIMEOUT_MS);
+
+    // If the user hands the PDF off to another app (Share Sheet -> WhatsApp /
+    // Files / Mail) and switches back to Froshiar, iOS sometimes drops the
+    // shareAsync completion callback. Recover gracefully 1.5s after resume
+    // while NEVER interrupting an active in-app QuickLook preview.
+    try {
+      const { AppState } = require('react-native') as typeof import('react-native');
+      let wentBackground = false;
+      appStateSub = AppState.addEventListener('change', (nextState) => {
+        if (nextState === 'background') {
+          wentBackground = true;
+          if (resumeTimer) {
+            clearTimeout(resumeTimer);
+            resumeTimer = null;
+          }
+        } else if (nextState === 'active' && wentBackground) {
+          if (resumeTimer) clearTimeout(resumeTimer);
+          resumeTimer = setTimeout(() => finishFallback('resumed'), 1_500);
+        }
+      });
+    } catch {
+      // Ignore if AppState listener is unavailable in this environment
+    }
+
     const result = await Promise.race([sharePromise, timeoutPromise]);
-    if (result === 'timeout') {
-      console.warn('[PDF] shareAsync did not settle within', SHARE_TIMEOUT_MS, 'ms; treating as handed off');
+    if (result === 'timeout' || result === 'resumed') {
+      console.warn('[PDF] shareAsync ended via fallback:', result);
     }
   } catch (shareErr) {
     console.error('[PDF] shareAsync failed:', shareErr);
     Alert.alert('Error', errorMessage);
     return false;
+  } finally {
+    if (shareTimer) clearTimeout(shareTimer);
+    if (resumeTimer) clearTimeout(resumeTimer);
+    try {
+      appStateSub?.remove?.();
+    } catch {}
   }
 
   return true;

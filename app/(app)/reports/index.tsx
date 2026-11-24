@@ -635,9 +635,20 @@ function buildExportDateRange(
   return { from: start.toISOString(), to: now.toISOString(), label: labels[key] };
 }
 
-function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+type ExportPeriod = 'today' | 'week' | 'month' | 'year' | 'custom';
+
+function ExportReportModal({
+  visible,
+  onClose,
+  onExport,
+  isExporting = false,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onExport: (period: ExportPeriod, customFrom: string, customTo: string) => void;
+  isExporting?: boolean;
+}) {
   const { t } = useTranslation();
-  type ExportPeriod = 'today' | 'week' | 'month' | 'year' | 'custom';
   const { colors } = useAppTheme();
   const { flexDirection } = useRTL();
   const scrollIntoView = useKeyboardAwareFocus();
@@ -647,7 +658,6 @@ function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: ()
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo]   = useState('');
   const [customModalVisible, setCustomModalVisible] = useState(false);
-  const [loading, setLoading]     = useState(false);
   const ermStyles = useMemo(() => getErmStyles(colors), [colors]);
 
   const options: { key: ExportPeriod; label: string; desc: string; icon: ComponentProps<typeof Ionicons>['name'] }[] = [
@@ -658,52 +668,19 @@ function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: ()
     { key: 'custom', label: t('reports.customRange'),   desc: t('reports.customRangeDesc'),   icon: 'options-outline' },
   ];
 
-  async function handleGenerate() {
-    if (loading) return;
+  function handleGenerate() {
+    if (isExporting) return;
     if (period === 'custom') {
       if (!customFrom || !customTo) {
         setCustomModalVisible(true);
         return;
       }
-      if (customFrom > customTo)    { Alert.alert(t('common.error'),    t('reports.invalidDateRange')); return; }
+      if (customFrom > customTo) {
+        Alert.alert(t('common.error'), t('reports.invalidDateRange'));
+        return;
+      }
     }
-    setLoading(true);
-    try {
-      const range = buildExportDateRange(period, customFrom, customTo);
-      const {
-        getFinancialSummaryCards, getSalesReportData, getPurchaseReportData,
-        getProfitLossData, getInventoryReportSummary, getDebtReportData,
-        getLossAnalysis, getAllExpenses, loadBusiness,
-      } = await import('@/lib/sqlite');
-
-      const [
-        financialCards, salesData, purchaseData, plData,
-        inventoryData, debtData, lossAnalysis, expenses, biz,
-      ] = await Promise.all([
-        getFinancialSummaryCards(range.from, range.to),
-        getSalesReportData(range.from, range.to),
-        getPurchaseReportData(range.from, range.to),
-        getProfitLossData(range.from, range.to),
-        getInventoryReportSummary(),
-        getDebtReportData(),
-        getLossAnalysis(range.from, range.to),
-        getAllExpenses(range.from, range.to),
-        loadBusiness(),
-      ]);
-
-      const dateRange = { key: period as never, from: range.from, to: range.to, label: range.label };
-
-      const { shareFinancialReport } = await import('@/lib/generateInvoice');
-      await shareFinancialReport(
-        { financialCards, salesData, purchaseData, plData, inventoryData, debtData, lossAnalysis, expenses, dateRange },
-        { name: biz?.name ?? 'My Business', phone: biz?.phone ?? '', address: biz?.address ?? '', logoUri: biz?.logoPath ?? null },
-      );
-      onClose();
-    } catch {
-      Alert.alert(t('common.error'), t('reports.errorExport'));
-    } finally {
-      setLoading(false);
-    }
+    onExport(period, customFrom, customTo);
   }
 
   return (
@@ -750,11 +727,11 @@ function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: ()
         )}
 
         <TouchableOpacity
-          style={[ermStyles.generateBtn, loading && ermStyles.generateBtnLoading, { flexDirection }]}
+          style={[ermStyles.generateBtn, isExporting && ermStyles.generateBtnLoading, { flexDirection }]}
           onPress={handleGenerate}
-          disabled={loading}
+          disabled={isExporting}
         >
-          {loading ? (
+          {isExporting ? (
             <>
               <ActivityIndicator size="small" color="#FFFFFF" />
               <Text style={ermStyles.generateText}>{t('reports.generating')}</Text>
@@ -874,6 +851,60 @@ export default function ReportsScreen() {
   }, [setDateRange]);
 
   // ── Export PDF ────────────────────────────────────────────────────────────────
+  const handleExportFinancialReport = useCallback(async (
+    period: ExportPeriod,
+    customFrom: string,
+    customTo: string,
+  ) => {
+    if (isExporting) return;
+    // Close the modal sheet BEFORE querying/sharing so UIKit finishes tearing
+    // down the Modal host controller before presenting the iOS Share Sheet / QuickLook.
+    setExportModalOpen(false);
+    setIsExporting(true);
+    try {
+      const range = buildExportDateRange(period, customFrom, customTo);
+      const [
+        { shareFinancialReport, waitForModalDismiss },
+        {
+          getFinancialSummaryCards, getSalesReportData, getPurchaseReportData,
+          getProfitLossData, getInventoryReportSummary, getDebtReportData,
+          getLossAnalysis, getAllExpenses, loadBusiness,
+        },
+      ] = await Promise.all([
+        import('@/lib/generateInvoice'),
+        import('@/lib/sqlite'),
+      ]);
+
+      const [
+        ,
+        financialCards, salesData, purchaseData, plData,
+        inventoryData, debtData, lossAnalysis, expenses, biz,
+      ] = await Promise.all([
+        waitForModalDismiss(),
+        getFinancialSummaryCards(range.from, range.to),
+        getSalesReportData(range.from, range.to),
+        getPurchaseReportData(range.from, range.to),
+        getProfitLossData(range.from, range.to),
+        getInventoryReportSummary(),
+        getDebtReportData(),
+        getLossAnalysis(range.from, range.to),
+        getAllExpenses(range.from, range.to),
+        loadBusiness(),
+      ]);
+
+      const dateRange = { key: period as never, from: range.from, to: range.to, label: range.label };
+
+      await shareFinancialReport(
+        { financialCards, salesData, purchaseData, plData, inventoryData, debtData, lossAnalysis, expenses, dateRange },
+        { name: biz?.name ?? 'My Business', phone: biz?.phone ?? '', address: biz?.address ?? '', logoUri: biz?.logoPath ?? null },
+      );
+    } catch {
+      Alert.alert(t('common.error'), t('reports.errorExport'));
+    } finally {
+      setIsExporting(false);
+    }
+  }, [isExporting, t]);
+
   async function exportPDF() {
     if (isExporting) return;
     setIsExporting(true);
@@ -1363,12 +1394,17 @@ export default function ReportsScreen() {
               }}
             />
             <HeaderActionButton icon="options-outline" onPress={() => setFilterSheetOpen(true)} />
-            <HeaderActionButton icon="download-outline" onPress={() => setExportModalOpen(true)} />
+            <HeaderActionButton icon="download-outline" onPress={() => setExportModalOpen(true)} loading={isExporting} />
           </View>
         }
       />
 
-      <ExportReportModal visible={exportModalOpen} onClose={() => setExportModalOpen(false)} />
+      <ExportReportModal
+        visible={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        onExport={handleExportFinancialReport}
+        isExporting={isExporting}
+      />
       <FilterPeriodSheet
         visible={filterSheetOpen}
         onClose={() => setFilterSheetOpen(false)}
@@ -1468,6 +1504,45 @@ export default function ReportsScreen() {
 
           <View style={{ height: 24 }} />
         </ScrollView>
+      )}
+
+      {isExporting && (
+        <View
+          pointerEvents="auto"
+          style={[
+            StyleSheet.absoluteFillObject,
+            {
+              backgroundColor: isDark ? 'rgba(15, 23, 42, 0.55)' : 'rgba(15, 23, 42, 0.28)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 50,
+            },
+          ]}
+        >
+          <View
+            style={{
+              backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+              borderColor: isDark ? colors.gray200 : '#E2E8F0',
+              borderWidth: 1,
+              borderRadius: 16,
+              paddingHorizontal: 24,
+              paddingVertical: 18,
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              gap: 12,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.16,
+              shadowRadius: 16,
+              elevation: 8,
+            }}
+          >
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={{ color: colors.black, fontSize: 14, fontWeight: '700' }}>
+              {t('reports.generating')}
+            </Text>
+          </View>
+        </View>
       )}
     </View>
   );

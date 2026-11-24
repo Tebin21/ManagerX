@@ -619,12 +619,18 @@ export default function SalesQuotationScreen() {
     const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
     const printCheck = await checkInvoicePrintLimit();
     if (!printCheck.allowed) {
+      setFormatPickerVisible(false);
+      const { waitForModalDismiss } = await import('@/lib/generateInvoice');
+      await waitForModalDismiss();
       const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
       showUsageLimitModal();
       return;
     }
     setIsGenerating(true);
+    setFormatPickerVisible(false);
     try {
+      const { waitForModalDismiss } = await import('@/lib/generateInvoice');
+      await waitForModalDismiss();
       useSettingsStore.getState().setQuotationPaperSizePreference(paperSize);
       await shareQuotationInvoice(
         q,
