@@ -332,48 +332,6 @@ export default function DashboardViewScreen() {
                 {isAr ? 'عرض فقط' : isKurdish ? 'تەنها بینین' : 'View Only'}
               </Text>
             </View>
-
-            {/* Charts Button next to View Only */}
-            <TouchableOpacity
-              onPress={() => setViewMode((prev) => (prev === 'charts' ? 'cards' : 'charts'))}
-              activeOpacity={0.8}
-              style={[
-                styles.chartActionBtn,
-                viewMode === 'charts'
-                  ? {
-                      backgroundColor: colors.primary,
-                      borderColor: colors.primary,
-                    }
-                  : {
-                      backgroundColor: colors.primary + '16',
-                      borderColor: colors.primary + '40',
-                    },
-                {
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                  paddingHorizontal: isTablet ? 12 : 9,
-                  paddingVertical: isTablet ? 6 : 4.5,
-                  borderRadius: isTablet ? 12 : 10,
-                },
-              ]}
-            >
-              <Ionicons
-                name={viewMode === 'charts' ? 'stats-chart' : 'stats-chart-outline'}
-                size={isTablet ? 15 : 13}
-                color={viewMode === 'charts' ? '#FFFFFF' : colors.primary}
-              />
-              <Text
-                style={[
-                  styles.chartActionText,
-                  {
-                    color: viewMode === 'charts' ? '#FFFFFF' : colors.primary,
-                    fontSize: isTablet ? 13 : 11.5,
-                  },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                ]}
-              >
-                {isAr ? 'المخططات' : isKurdish ? 'هێڵکاری' : 'Charts'}
-              </Text>
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -859,18 +817,6 @@ const styles = StyleSheet.create({
   readOnlyText: {
     fontSize: 11,
     fontWeight: '600',
-  },
-  chartActionBtn: {
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 4.5,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  chartActionText: {
-    fontSize: 11.5,
-    fontWeight: '700',
   },
   viewModeSwitcherRow: {
     marginHorizontal: 16,
