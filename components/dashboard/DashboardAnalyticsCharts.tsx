@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
   Dimensions,
@@ -64,7 +65,7 @@ export function DashboardAnalyticsCharts({
   toStr,
 }: Props) {
   const { colors, isDark } = useAppTheme();
-  const { isRTL, textAlign } = useRTL();
+  const { isRTL, textAlign, flexDirection } = useRTL();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
   const isAr = useLanguageStore((s) => s.language === 'ar');
   const { isTablet, isTabletLandscape } = useResponsive();
@@ -406,38 +407,47 @@ export function DashboardAnalyticsCharts({
           },
         ]}
       >
-        <View style={[styles.headerTopRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <View style={[styles.titleGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <View
+        {/* Row 1: Icon Badge + Main Heading */}
+        <View style={[styles.headerTopRow, { flexDirection }]}>
+          <View
+            style={[
+              styles.iconBadge,
+              { backgroundColor: colors.primary + '18' },
+            ]}
+          >
+            <Ionicons name="stats-chart" size={isTablet ? 20 : 18} color={colors.primary} />
+          </View>
+          <View style={styles.titleTextContainer}>
+            <Text
               style={[
-                styles.iconBadge,
-                { backgroundColor: colors.primary + '18' },
+                styles.mainHeading,
+                { color: colors.darkBlue, textAlign, fontSize: isTablet ? 17 : 15 },
+                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
             >
-              <Ionicons name="stats-chart" size={isTablet ? 20 : 18} color={colors.primary} />
-            </View>
-            <View>
-              <Text
-                style={[
-                  styles.mainHeading,
-                  { color: colors.darkBlue, textAlign },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                ]}
-              >
-                {isAr
-                  ? 'شاشات وتحليلات المخططات البيانية'
-                  : isKurdish
-                  ? 'هێڵکاری و شیکارییە پێشکەوتووەکان'
-                  : 'Advanced Analytics & Charts'}
-              </Text>
-              <Text style={[styles.subHeading, { color: colors.gray400, textAlign }]}>
-                {isAr
-                  ? `الفترة المحددة: (${periodLabel})`
-                  : isKurdish
-                  ? `ماوەی دیاریکراو: (${periodLabel})`
-                  : `Active Period: (${periodLabel})`}
-              </Text>
-            </View>
+              {isAr
+                ? 'شاشات وتحليلات المخططات البيانية'
+                : isKurdish
+                ? 'هێڵکاری و شیکارییە پێشکەوتووەکان'
+                : 'Advanced Analytics & Charts'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Row 2: Active Period on one side, Profit Margin KPI pill on the other side */}
+        <View style={[styles.headerMetaRow, { flexDirection }]}>
+          <View style={[styles.metaPeriodGroup, { flexDirection }]}>
+            <Ionicons name="calendar-outline" size={13} color={colors.gray400} />
+            <Text style={[styles.subHeading, { color: colors.gray400, textAlign }]}>
+              {isAr
+                ? `الفترة المحددة: (${periodLabel})`
+                : isKurdish
+                ? `ماوەی دیاریکراو: (${periodLabel})`
+                : `Active Period: (${periodLabel})`}
+            </Text>
           </View>
 
           {/* KPI Mini Pill */}
@@ -447,12 +457,13 @@ export function DashboardAnalyticsCharts({
               {
                 backgroundColor: profit >= 0 ? '#10B98118' : '#EF444418',
                 borderColor: profit >= 0 ? '#10B98140' : '#EF444440',
+                flexDirection,
               },
             ]}
           >
             <Ionicons
               name={profit >= 0 ? 'arrow-up-circle' : 'arrow-down-circle'}
-              size={14}
+              size={13}
               color={profit >= 0 ? '#10B981' : '#EF4444'}
             />
             <Text
@@ -467,8 +478,13 @@ export function DashboardAnalyticsCharts({
           </View>
         </View>
 
-        {/* ─── Category Filter Tabs ─── */}
-        <View style={[styles.tabsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        {/* ─── Category Filter Tabs (Horizontal Scrollable Chips) ─── */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.tabsScrollContent, { flexDirection }]}
+          style={styles.tabsScrollView}
+        >
           {[
             { key: 'all', label: isAr ? 'الكل' : isKurdish ? 'هەمووی' : 'All', icon: 'grid-outline' },
             { key: 'trend', label: isAr ? 'المسار الزمني' : isKurdish ? 'ڕەوتی کات' : 'Trend', icon: 'pulse-outline' },
@@ -485,6 +501,7 @@ export function DashboardAnalyticsCharts({
                 activeOpacity={0.7}
                 style={[
                   styles.tabChip,
+                  { flexDirection },
                   isActive
                     ? {
                         backgroundColor: colors.primary,
@@ -504,7 +521,7 @@ export function DashboardAnalyticsCharts({
                 <Text
                   style={[
                     styles.tabChipText,
-                    { color: isActive ? '#FFFFFF' : colors.gray400 },
+                    { color: isActive ? '#FFFFFF' : colors.gray600 },
                     isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                   ]}
                 >
@@ -513,7 +530,7 @@ export function DashboardAnalyticsCharts({
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
       </View>
 
       {/* ─────────────────────────────────────────────────────────────────────── */}
@@ -1511,13 +1528,12 @@ const styles = StyleSheet.create({
   },
   headerTopRow: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  titleGroup: {
-    alignItems: 'center',
     gap: 10,
+    marginBottom: 8,
+  },
+  titleTextContainer: {
     flex: 1,
+    minWidth: 0,
   },
   iconBadge: {
     width: 36,
@@ -1530,16 +1546,25 @@ const styles = StyleSheet.create({
     fontSize: 15.5,
     fontWeight: '700',
   },
+  headerMetaRow: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 12,
+  },
+  metaPeriodGroup: {
+    alignItems: 'center',
+    gap: 5,
+    flexShrink: 1,
+  },
   subHeading: {
     fontSize: 11.5,
-    marginTop: 2,
   },
   kpiPill: {
-    flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 9,
-    paddingVertical: 5,
+    paddingVertical: 4.5,
     borderRadius: 10,
     borderWidth: 1,
   },
@@ -1547,17 +1572,20 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '700',
   },
-  tabsRow: {
-    flexWrap: 'wrap',
+  tabsScrollView: {
+    marginHorizontal: -4,
+  },
+  tabsScrollContent: {
+    alignItems: 'center',
     gap: 6,
-    paddingTop: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
   },
   tabChip: {
-    flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 11,
+    paddingVertical: 6.5,
     borderRadius: 10,
     borderWidth: 1,
   },
