@@ -124,7 +124,7 @@ export default function DashboardViewScreen() {
 
       const [overviewData, recentActs] = await Promise.all([
         getDashboardOverviewStats(fromStr, toStr),
-        getDashboardRecentActivities(40, fromStr, toStr, isKurdish ? 'ku' : 'en', filterEmail),
+        getDashboardRecentActivities(40, fromStr, toStr, isAr ? 'ar' : isKurdish ? 'ku' : 'en', filterEmail),
       ]);
 
       setStats(overviewData || DEFAULT_DASHBOARD_STATS);
@@ -344,13 +344,13 @@ export default function DashboardViewScreen() {
               styles.viewModePill,
               viewMode === 'cards'
                 ? {
-                    backgroundColor: colors.primary,
-                    borderColor: colors.primary,
-                  }
+                  backgroundColor: colors.primary,
+                  borderColor: colors.primary,
+                }
                 : {
-                    backgroundColor: isDark ? colors.gray100 : colors.white,
-                    borderColor: isDark ? colors.gray200 : colors.gray100,
-                  },
+                  backgroundColor: isDark ? colors.gray100 : colors.white,
+                  borderColor: isDark ? colors.gray200 : colors.gray100,
+                },
               { flexDirection: isRTL ? 'row-reverse' : 'row' },
             ]}
           >
@@ -377,13 +377,13 @@ export default function DashboardViewScreen() {
               styles.viewModePill,
               viewMode === 'charts'
                 ? {
-                    backgroundColor: colors.primary,
-                    borderColor: colors.primary,
-                  }
+                  backgroundColor: colors.primary,
+                  borderColor: colors.primary,
+                }
                 : {
-                    backgroundColor: isDark ? colors.gray100 : colors.white,
-                    borderColor: isDark ? colors.gray200 : colors.gray100,
-                  },
+                  backgroundColor: isDark ? colors.gray100 : colors.white,
+                  borderColor: isDark ? colors.gray200 : colors.gray100,
+                },
               { flexDirection: isRTL ? 'row-reverse' : 'row' },
             ]}
           >
@@ -470,13 +470,13 @@ export default function DashboardViewScreen() {
                     ? isAr
                       ? 'أرباح'
                       : isKurdish
-                      ? 'قازانج'
-                      : 'Profit'
+                        ? 'قازانج'
+                        : 'Profit'
                     : isAr
-                    ? 'خسارة'
-                    : isKurdish
-                    ? 'زەرەر'
-                    : 'Loss'
+                      ? 'خسارة'
+                      : isKurdish
+                        ? 'زەرەر'
+                        : 'Loss'
                 }
                 delay={100}
                 isLocked={lockRevenue}
@@ -562,13 +562,13 @@ export default function DashboardViewScreen() {
                     ? isAr
                       ? 'تنبيه'
                       : isKurdish
-                      ? 'ئاگاداری'
-                      : 'Low'
+                        ? 'ئاگاداری'
+                        : 'Low'
                     : isAr
-                    ? 'جيد'
-                    : isKurdish
-                    ? 'باشە'
-                    : 'OK'
+                      ? 'جيد'
+                      : isKurdish
+                        ? 'باشە'
+                        : 'OK'
                 }
                 delay={270}
                 isLocked={lockStockAlerts}
@@ -600,13 +600,13 @@ export default function DashboardViewScreen() {
                     ? isAr
                       ? `${safeStats.expiringBatchesCount} قريبة الانتهاء`
                       : isKurdish
-                      ? `${safeStats.expiringBatchesCount} نزیک بەسەرچوون`
-                      : `${safeStats.expiringBatchesCount} Expiring`
+                        ? `${safeStats.expiringBatchesCount} نزیک بەسەرچوون`
+                        : `${safeStats.expiringBatchesCount} Expiring`
                     : isAr
-                    ? 'في المخزن'
-                    : isKurdish
-                    ? 'لە کۆگادا'
-                    : 'In Stock'
+                      ? 'في المخزن'
+                      : isKurdish
+                        ? 'لە کۆگادا'
+                        : 'In Stock'
                 }
                 isAlert={safeStats.expiringBatchesCount > 0}
                 delay={310}

@@ -126,7 +126,7 @@ function releaseGenerationLock(): void {
 
 function getDir(): 'ltr' | 'rtl' {
   const lang = useLanguageStore.getState().language || i18n.language;
-  return lang === 'ku' ? 'rtl' : 'ltr';
+  return lang === 'ku' || lang === 'ar' ? 'rtl' : 'ltr';
 }
 
 const LOGO_MIME_BY_EXT: Record<string, string> = {
@@ -1164,10 +1164,11 @@ export async function shareDashboardReport(
   try {
     const biz = await withResolvedLogo(business);
     const { buildDashboardReportHTML } = await import('./dashboardReportTemplate');
-    const html = buildDashboardReportHTML(stats, activities, periodLabel, biz, getDir());
-    const lang = i18n.language || 'ku';
-    const isAr = lang === 'ar';
-    const isKu = lang === 'ku';
+    const activeLangRaw = useLanguageStore.getState().language || i18n.language || 'ku';
+    const pdfLang: 'ku' | 'ar' | 'en' = activeLangRaw === 'ar' ? 'ar' : activeLangRaw === 'en' ? 'en' : 'ku';
+    const html = buildDashboardReportHTML(stats, activities, periodLabel, biz, getDir(), pdfLang);
+    const isAr = pdfLang === 'ar';
+    const isKu = pdfLang === 'ku';
     const safePeriod = (periodLabel || 'All').replace(/[/\\?%*:|"<>#\s]/g, '_');
     const fileName = buildFroshiarPdfFileName(`Dashboard-Report-${safePeriod}`);
     return await generateAndShare(

@@ -7011,7 +7011,7 @@ export async function getDashboardRecentActivities(
   limit: number = 40,
   from?: string,
   to?: string,
-  language: 'ku' | 'en' = 'ku',
+  language: 'ku' | 'en' | 'ar' = 'ku',
   filterUserEmail?: string,
 ): Promise<DashboardActivityItem[]> {
   const database = await getDatabase();
@@ -7187,14 +7187,16 @@ export async function getDashboardRecentActivities(
 
   const items: DashboardActivityItem[] = [];
   const isEn = language === 'en';
+  const isAr = language === 'ar';
+  const actTr = (kuText: string, arText: string, enText: string) => (isEn ? enText : isAr ? arText : kuText);
 
   for (const s of salesList) {
     const invNo = s.invoice_number?.startsWith('F-') || s.invoice_number?.startsWith('B-') ? s.invoice_number : `#${s.invoice_number}`;
     items.push({
       id: `sale_${s.id}`,
       type: 'sale',
-      title: isEn ? `Invoice ${invNo}` : `پسوولەی ${invNo}`,
-      subtitle: s.customer_name?.trim() ? s.customer_name : (isEn ? 'General Customer' : 'کڕیاری گشتی'),
+      title: actTr(`پسوولەی ${invNo}`, `فاتورة ${invNo}`, `Invoice ${invNo}`),
+      subtitle: s.customer_name?.trim() ? s.customer_name : actTr('کڕیاری گشتی', 'عميل عام', 'General Customer'),
       amount: s.grand_total,
       discount: s.discount_total,
       timestamp: s.created_at,
@@ -7207,8 +7209,8 @@ export async function getDashboardRecentActivities(
     items.push({
       id: `purchase_${p.id}`,
       type: 'purchase',
-      title: isEn ? `Purchase ${purNo}` : `کڕین ${purNo}`,
-      subtitle: p.supplier_name?.trim() ? p.supplier_name : (p.product_name || (isEn ? 'General Purchase' : 'کڕینی کاڵا')),
+      title: actTr(`کڕین ${purNo}`, `شراء ${purNo}`, `Purchase ${purNo}`),
+      subtitle: p.supplier_name?.trim() ? p.supplier_name : (p.product_name || actTr('کڕینی کاڵا', 'شراء بضاعة', 'General Purchase')),
       amount: p.total_iqd,
       timestamp: p.created_at,
       referenceNumber: p.purchase_number,
@@ -7221,9 +7223,9 @@ export async function getDashboardRecentActivities(
       id: `debt_${dp.id}`,
       type: isSales ? 'customer_debt' : 'supplier_debt',
       title: isSales
-        ? (isEn ? 'Debt Collected' : 'وەرگرتنی قەرز')
-        : (isEn ? 'Debt Paid' : 'دانەوەی قەرز'),
-      subtitle: dp.entity_name || dp.note || (isSales ? (isEn ? 'Customer' : 'کڕیار') : (isEn ? 'Supplier' : 'دابینکەر')),
+        ? actTr('وەرگرتنی قەرز', 'تحصيل دين', 'Debt Collected')
+        : actTr('دانەوەی قەرز', 'سداد دين', 'Debt Paid'),
+      subtitle: dp.entity_name || dp.note || (isSales ? actTr('کڕیار', 'الزبون', 'Customer') : actTr('دابینکەر', 'المورد', 'Supplier')),
       amount: dp.amount,
       timestamp: dp.created_at,
     });
@@ -7233,7 +7235,7 @@ export async function getDashboardRecentActivities(
     items.push({
       id: `expense_${e.id}`,
       type: 'expense',
-      title: isEn ? 'Expense' : 'مەسروفات',
+      title: actTr('مەسروفات', 'مصروفات', 'Expense'),
       subtitle: e.note || e.category,
       amount: e.amount,
       timestamp: e.created_at,
@@ -7244,7 +7246,7 @@ export async function getDashboardRecentActivities(
     items.push({
       id: `cust_${c.id}`,
       type: 'customer',
-      title: isEn ? 'New Customer' : 'کڕیاری نوێ',
+      title: actTr('کڕیاری نوێ', 'زبون جديد', 'New Customer'),
       subtitle: c.name,
       amount: 0,
       timestamp: c.created_at,
@@ -7255,7 +7257,7 @@ export async function getDashboardRecentActivities(
     items.push({
       id: `sup_${sup.id}`,
       type: 'supplier',
-      title: isEn ? 'New Supplier' : 'دابینکەری نوێ',
+      title: actTr('دابینکەری نوێ', 'مورد جديد', 'New Supplier'),
       subtitle: sup.name,
       amount: 0,
       timestamp: sup.created_at,
